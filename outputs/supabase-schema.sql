@@ -65,6 +65,8 @@ alter table businesses add column if not exists logo_url text;
 alter table businesses add column if not exists primary_color text default '#bd5d6d';
 alter table businesses add column if not exists accent_color text default '#f6dfe3';
 alter table businesses add column if not exists page_background_color text;
+alter table businesses add column if not exists page_background_type text not null default 'SOLID';
+alter table businesses add column if not exists page_background_color_2 text;
 alter table businesses add column if not exists phone text;
 alter table businesses add column if not exists messenger_link text;
 alter table businesses add column if not exists address text;
@@ -85,6 +87,18 @@ begin
 
   alter table businesses add constraint businesses_booking_template_allowed
   check (booking_template in ('GENERAL', 'BEAUTY', 'CLINIC', 'HOME_SERVICE', 'AUTO', 'TOURS_TRAVEL', 'STAYCATION_ACCOMMODATION')) not valid;
+end $$;
+do $$
+begin
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'businesses_background_type_allowed'
+  ) then
+    alter table businesses drop constraint businesses_background_type_allowed;
+  end if;
+
+  alter table businesses add constraint businesses_background_type_allowed
+  check (page_background_type in ('SOLID', 'GRADIENT')) not valid;
 end $$;
 alter table businesses add column if not exists business_package text not null default 'STARTER';
 do $$
@@ -584,8 +598,12 @@ create table if not exists announcements (
   title text not null,
   message text not null,
   announcement_type text not null default 'GENERAL',
+  image_url text,
+  image_clickable boolean not null default true,
+  cta_type text not null default 'NONE',
   cta_label text,
   cta_url text,
+  cta_destination text,
   placement text not null default 'BOTH',
   business_slug text references businesses(slug) on delete cascade,
   target_packages text[] not null default ARRAY['ALL']::text[],
@@ -600,8 +618,12 @@ create table if not exists announcements (
 );
 
 alter table announcements add column if not exists announcement_type text not null default 'GENERAL';
+alter table announcements add column if not exists image_url text;
+alter table announcements add column if not exists image_clickable boolean not null default true;
+alter table announcements add column if not exists cta_type text not null default 'NONE';
 alter table announcements add column if not exists cta_label text;
 alter table announcements add column if not exists cta_url text;
+alter table announcements add column if not exists cta_destination text;
 alter table announcements add column if not exists placement text not null default 'BOTH';
 alter table announcements add column if not exists business_slug text;
 alter table announcements add column if not exists target_packages text[] not null default ARRAY['ALL']::text[];
@@ -619,8 +641,17 @@ begin
   if exists (select 1 from pg_constraint where conname = 'announcements_type_allowed') then
     alter table announcements drop constraint announcements_type_allowed;
   end if;
-  alter table announcements add constraint announcements_type_allowed
+alter table announcements add constraint announcements_type_allowed
   check (announcement_type in ('GENERAL', 'PACKAGE_UPSELL', 'RESELLER', 'IMPORTANT_NOTICE')) not valid;
+end $$;
+
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'announcements_cta_type_allowed') then
+    alter table announcements drop constraint announcements_cta_type_allowed;
+  end if;
+  alter table announcements add constraint announcements_cta_type_allowed
+  check (cta_type in ('NONE', 'MESSENGER', 'INTERNAL_PAGE', 'EXTERNAL_LINK')) not valid;
 end $$;
 
 do $$
@@ -643,6 +674,7 @@ end $$;
 
 create index if not exists announcements_enabled_idx on announcements (enabled, priority, created_at desc);
 create index if not exists announcements_business_slug_idx on announcements (business_slug);
+create index if not exists announcements_cta_type_idx on announcements (cta_type);
 
 create table if not exists announcement_dismissals (
   id text primary key,

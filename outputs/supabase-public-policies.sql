@@ -439,6 +439,49 @@ on announcements for delete
 to authenticated
 using (public.is_smm_admin());
 
+drop policy if exists "Allow public business media announcement read" on storage.objects;
+create policy "Allow public business media announcement read"
+on storage.objects for select
+using (
+  bucket_id = 'business-media'
+  and (name like 'announcements/%' or name like 'logos/%' or name like 'covers/%')
+);
+
+drop policy if exists "Allow admin business media announcement inserts" on storage.objects;
+create policy "Allow admin business media announcement inserts"
+on storage.objects for insert
+to authenticated
+with check (
+  bucket_id = 'business-media'
+  and (name like 'announcements/%' or name like 'logos/%' or name like 'covers/%')
+  and public.is_smm_admin()
+);
+
+drop policy if exists "Allow admin business media announcement updates" on storage.objects;
+create policy "Allow admin business media announcement updates"
+on storage.objects for update
+to authenticated
+using (
+  bucket_id = 'business-media'
+  and (name like 'announcements/%' or name like 'logos/%' or name like 'covers/%')
+  and public.is_smm_admin()
+)
+with check (
+  bucket_id = 'business-media'
+  and (name like 'announcements/%' or name like 'logos/%' or name like 'covers/%')
+  and public.is_smm_admin()
+);
+
+drop policy if exists "Allow admin business media announcement deletes" on storage.objects;
+create policy "Allow admin business media announcement deletes"
+on storage.objects for delete
+to authenticated
+using (
+  bucket_id = 'business-media'
+  and (name like 'announcements/%' or name like 'logos/%' or name like 'covers/%')
+  and public.is_smm_admin()
+);
+
 drop policy if exists "Allow own announcement dismissal reads" on announcement_dismissals;
 create policy "Allow own announcement dismissal reads"
 on announcement_dismissals for select
@@ -469,40 +512,5 @@ create policy "Allow public business media read"
 on storage.objects for select
 using (
   bucket_id = 'business-media'
-  and (name like 'logos/%' or name like 'covers/%')
-);
-
-drop policy if exists "Allow admin business media inserts" on storage.objects;
-create policy "Allow admin business media inserts"
-on storage.objects for insert
-to authenticated
-with check (
-  bucket_id = 'business-media'
-  and (name like 'logos/%' or name like 'covers/%')
-  and public.is_smm_admin()
-);
-
-drop policy if exists "Allow admin business media updates" on storage.objects;
-create policy "Allow admin business media updates"
-on storage.objects for update
-to authenticated
-using (
-  bucket_id = 'business-media'
-  and (name like 'logos/%' or name like 'covers/%')
-  and public.is_smm_admin()
-)
-with check (
-  bucket_id = 'business-media'
-  and (name like 'logos/%' or name like 'covers/%')
-  and public.is_smm_admin()
-);
-
-drop policy if exists "Allow admin business media deletes" on storage.objects;
-create policy "Allow admin business media deletes"
-on storage.objects for delete
-to authenticated
-using (
-  bucket_id = 'business-media'
-  and (name like 'logos/%' or name like 'covers/%')
-  and public.is_smm_admin()
+  and (name like 'announcements/%' or name like 'logos/%' or name like 'covers/%')
 );
