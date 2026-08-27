@@ -34,6 +34,8 @@ This keeps direct URLs working:
 ```text
 /
 /smm-admin
+/client-login
+/client-dashboard
 /abc-beauty-studio
 /xyz-aircon-services
 ```

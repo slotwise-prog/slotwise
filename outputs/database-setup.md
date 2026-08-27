@@ -43,6 +43,77 @@ do update set role = excluded.role, active = excluded.active;
 
 Do not put admin passwords, database passwords, or service role keys in repository files.
 
+## Phase 6 client dashboard setup
+
+Client dashboards use Supabase Email/Password Auth plus the `business_users` mapping table.
+
+Public signup is not enabled. SMM creates client users manually.
+
+### Create a client login
+
+1. In Supabase, open Authentication.
+2. Go to Users.
+3. Click Add user.
+4. Create the client's email and temporary password.
+5. Copy the created user's UUID.
+6. Open SQL Editor.
+7. Run this, replacing the UUID and business slug:
+
+```sql
+insert into business_users (id, user_id, business_slug, role, active)
+values (
+  'CLIENT-abc-beauty-owner',
+  'PASTE-USER-UUID-HERE',
+  'abc-beauty-studio',
+  'OWNER',
+  true
+)
+on conflict (user_id, business_slug)
+do update set role = excluded.role, active = excluded.active;
+```
+
+8. Send the client to `/client-login`.
+
+The client can only read and update booking statuses for businesses mapped to their Supabase user in `business_users`.
+
+SMM Admin can now assign that existing Auth user inside `/smm-admin`:
+
+1. Open `/smm-admin`.
+2. Edit the client business.
+3. Find `Client access`.
+4. Paste the Auth User UUID.
+5. Choose `OWNER` or `STAFF`.
+6. Click `Assign Client Access`.
+
+Do not create or store client passwords inside Slotwise. Create the Auth user in Supabase, then assign the UUID in SMM Admin.
+
+## Phase 7 package system setup
+
+Packages are stored on each business in `businesses.business_package`.
+
+Allowed values:
+
+```text
+STARTER
+BUSINESS
+PRO
+```
+
+Run the SQL files again in this order:
+
+1. `supabase-schema.sql`
+2. `supabase-public-policies.sql`
+
+This adds the package field, `business_blocked_dates`, and secure RPC actions for package-limited client dashboard features.
+
+Package rules:
+
+1. Package is the maximum allowed tier.
+2. Feature flags can turn allowed behavior on or off inside that tier.
+3. Feature flags cannot unlock higher-tier features.
+
+Example: `customerListEnabled = true` does not unlock Customers for a `STARTER` business.
+
 Important: if Supabase says a column or table is missing, run both SQL files again in this order:
 
 1. `supabase-schema.sql`

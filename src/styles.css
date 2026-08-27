@@ -1,5 +1,7 @@
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Manrope", "DM Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: "DM Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-body);
   color: #14182f;
   background: #f7f8ff;
   font-synthesis: none;
@@ -16,6 +18,10 @@ html {
 
 body {
   margin: 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.55;
 }
 
 a {
@@ -2192,6 +2198,22 @@ h2 {
   font-size: 17px;
 }
 
+.bookingContactLine {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bookingContactLine span {
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #6b4a55;
+  background: #fff7f8;
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .bookingFormHeader > span {
   width: 46px;
   height: 46px;
@@ -2234,7 +2256,7 @@ h2 {
 
 .premiumService {
   position: relative;
-  min-height: 150px;
+  min-height: 128px;
   border: 1px solid #eadde0;
   border-radius: 14px;
   padding: 18px;
@@ -2260,11 +2282,45 @@ h2 {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--booking-primary) 24%, transparent);
 }
 
+.premiumService:focus-visible,
+.premiumSlot:focus-visible,
+.premiumConfirmButton:focus-visible,
+.clientDashboardNav button:focus-visible,
+.clientBookingActions button:focus-visible,
+.clientBookingActions select:focus-visible,
+.clientManagementForm input:focus-visible,
+.clientManagementForm select:focus-visible,
+.clientLoginForm input:focus-visible,
+.clientLoginForm button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.32);
+  outline-offset: 2px;
+}
+
 .serviceIcon {
   width: 58px;
   height: 58px;
   display: grid;
   place-items: center;
+}
+
+.premiumBookingPage.clinic .serviceIcon {
+  border: 1px solid rgba(20, 141, 132, 0.18);
+  background: #f2fbfb;
+}
+
+.premiumBookingPage.home-service .serviceIcon {
+  color: #155e75;
+  background: #eaf7fb;
+}
+
+.premiumBookingPage.auto .serviceIcon {
+  color: #1f2937;
+  background: #eef2f7;
+}
+
+.premiumBookingPage.general .serviceIcon {
+  color: #38516f;
+  background: #f2f6fb;
 }
 
 .premiumService small {
@@ -2297,6 +2353,13 @@ h2 {
   gap: 12px;
 }
 
+.slotGroupLabel {
+  grid-column: 1 / -1;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .premiumSlot {
   min-height: 60px;
   border: 1px solid #eadde0;
@@ -2311,6 +2374,14 @@ h2 {
   color: var(--booking-primary);
   border-color: var(--booking-primary);
   background: #fff8f9;
+}
+
+.premiumSlot:disabled {
+  color: #9a8990;
+  border-style: dashed;
+  background: #f5f1f2;
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .selectedDateCard {
@@ -2335,6 +2406,19 @@ h2 {
 
 .selectedDateCard strong {
   font-size: 22px;
+}
+
+.selectedDateCard input {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 10px;
+  border: 1px solid rgba(103, 52, 68, 0.18);
+  border-radius: 10px;
+  padding: 0 12px;
+  color: #2f2430;
+  background: rgba(255, 255, 255, 0.82);
+  font: inherit;
+  cursor: pointer;
 }
 
 .premiumInput {
@@ -2370,6 +2454,89 @@ h2 {
   resize: vertical;
 }
 
+.guestStepper {
+  min-height: 64px;
+  border: 1px solid #eadde0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px !important;
+  color: #2f2430;
+  background: #ffffff;
+}
+
+.guestStepper > span {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.guestStepper div {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  border-radius: 999px;
+  background: #f8fffd;
+}
+
+.guestStepper button {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  color: var(--booking-primary);
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.guestStepper input {
+  width: 54px;
+  height: 38px;
+  border: 0;
+  color: #1f2937;
+  background: transparent;
+  text-align: center;
+  font: inherit;
+  font-weight: 800;
+  outline: 0;
+}
+
+.reservationSummary {
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: 14px;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, #f1fbf8, #fffaf0);
+  display: grid;
+  gap: 4px;
+}
+
+.reservationSummary span {
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.reservationSummary strong {
+  color: #17313a;
+  font-size: 18px;
+}
+
+.reservationSummary p {
+  margin: 0;
+  color: #5b6972;
+}
+
+.reservationSummary em {
+  color: #8d5b13;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .premiumConfirmButton {
   min-height: 64px;
   border: 0;
@@ -2386,10 +2553,75 @@ h2 {
   cursor: pointer;
 }
 
+.premiumConfirmButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+  box-shadow: none;
+}
+
 .premiumSuccess {
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 16px;
   background: #ecfff9;
+  border: 1px solid #bdebdc;
+  display: grid;
+  gap: 10px;
+}
+
+.premiumSuccess strong {
+  display: block;
+  color: #075f4e;
+  font-size: 18px;
+}
+
+.premiumSuccess span {
+  color: #236758;
+}
+
+.premiumSuccess dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.premiumSuccess div {
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.premiumSuccess dt {
+  color: #5f8178;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.premiumSuccess dd {
+  margin: 3px 0 0;
+  color: #0f332c;
+  font-weight: 850;
+}
+
+.bookingSuccessActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bookingSuccessActions button,
+.bookingSuccessActions a {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #ffffff;
+  background: #0c8a70;
+  font: inherit;
+  font-weight: 900;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .privacyNote {
@@ -2443,6 +2675,224 @@ h2 {
 .premiumBookingPage.travel .premiumService em,
 .premiumBookingPage.travel .premiumConfirmButton {
   background: linear-gradient(135deg, #8d5b13, #0f746f);
+}
+
+.premiumBookingPage.tours-travel {
+  background: linear-gradient(145deg, #f4fbf8 0%, #eef9ff 54%, #fff7e8 100%);
+}
+
+.premiumBookingPage.tours-travel .premiumPublicBooking {
+  border-color: rgba(15, 118, 110, 0.16);
+  box-shadow: 0 28px 80px rgba(15, 76, 85, 0.13);
+}
+
+.premiumBookingPage.tours-travel .premiumBrandPanel {
+  min-height: 680px;
+}
+
+.premiumBookingPage.tours-travel .brandStory span,
+.premiumBookingPage.tours-travel .brandStory p {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.premiumBookingPage.tours-travel .brandStory i {
+  background: #fbbf24;
+}
+
+.premiumBookingPage.tours-travel .bookingTrustCard svg,
+.premiumBookingPage.tours-travel .serviceIcon {
+  color: #0f766e;
+  background: #e6f7f1;
+}
+
+.premiumBookingPage.tours-travel .bookingStepTitle,
+.premiumBookingPage.tours-travel .premiumSlot.active,
+.premiumBookingPage.tours-travel .premiumInput,
+.premiumBookingPage.tours-travel .guestStepper,
+.premiumBookingPage.tours-travel .selectedDateCard svg,
+.premiumBookingPage.tours-travel .premiumBackButton {
+  color: #0f766e !important;
+}
+
+.premiumBookingPage.tours-travel .bookingStepTitle span,
+.premiumBookingPage.tours-travel .premiumService.active,
+.premiumBookingPage.tours-travel .premiumSlot.active {
+  border-color: #0f766e;
+}
+
+.premiumBookingPage.tours-travel .premiumServiceGrid {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.premiumBookingPage.tours-travel .premiumService {
+  min-height: 176px;
+  place-items: start;
+  align-content: start;
+  text-align: left;
+  border-color: #d6e7e2;
+  color: #17313a;
+  background: linear-gradient(145deg, #ffffff, #fbfffd);
+}
+
+.premiumBookingPage.tours-travel .premiumService.active {
+  background: linear-gradient(145deg, #f0fbf7, #ffffff);
+}
+
+.premiumBookingPage.tours-travel .premiumService small {
+  color: #0f766e;
+  font-weight: 800;
+}
+
+.premiumBookingPage.tours-travel .selectedDateCard,
+.premiumBookingPage.tours-travel .premiumSlot.active {
+  background: #f1fbf8;
+}
+
+.premiumBookingPage.tours-travel .premiumService em,
+.premiumBookingPage.tours-travel .premiumConfirmButton {
+  background: linear-gradient(135deg, #0f766e, #0ea5e9);
+}
+
+.premiumBookingPage.home-service {
+  background: linear-gradient(145deg, #f5fbff 0%, #eef8fb 52%, #f7fbff 100%);
+}
+
+.premiumBookingPage.home-service .premiumPublicBooking {
+  grid-template-columns: minmax(340px, 0.68fr) minmax(560px, 1fr);
+  border-color: rgba(21, 94, 117, 0.16);
+  background: #ffffff;
+  box-shadow: 0 28px 80px rgba(15, 63, 79, 0.14);
+}
+
+.premiumBookingPage.home-service .premiumBrandPanel {
+  min-height: 680px;
+  padding: 46px;
+  justify-content: space-between;
+}
+
+.premiumBookingPage.home-service .brandMark {
+  border-color: rgba(255, 255, 255, 0.42);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.premiumBookingPage.home-service .brandStory span {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.premiumBookingPage.home-service .brandStory h1 {
+  max-width: 360px;
+  font-size: clamp(30px, 4vw, 46px);
+}
+
+.premiumBookingPage.home-service .brandStory i {
+  background: #93e1f8;
+}
+
+.premiumBookingPage.home-service .bookingTrustCard {
+  max-width: 360px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #14313d;
+}
+
+.premiumBookingPage.home-service .bookingTrustCard svg {
+  color: #155e75;
+  background: #eaf7fb;
+}
+
+.premiumBookingPage.home-service .bookingTrustCard small {
+  color: #526b75;
+}
+
+.premiumBookingPage.home-service .bookingStepTitle,
+.premiumBookingPage.home-service .premiumSlot.active,
+.premiumBookingPage.home-service .premiumInput,
+.premiumBookingPage.home-service .selectedDateCard svg,
+.premiumBookingPage.home-service .premiumBackButton {
+  color: #155e75 !important;
+}
+
+.premiumBookingPage.home-service .bookingStepTitle span,
+.premiumBookingPage.home-service .premiumService.active,
+.premiumBookingPage.home-service .premiumSlot.active {
+  border-color: #155e75;
+}
+
+.premiumBookingPage.home-service .premiumServiceGrid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.premiumBookingPage.home-service .premiumService {
+  min-height: 156px;
+  place-items: start;
+  align-content: start;
+  text-align: left;
+  border-color: #d8e5eb;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #14313d;
+  box-shadow: 0 10px 28px rgba(15, 63, 79, 0.06);
+}
+
+.premiumBookingPage.home-service .premiumService:hover {
+  border-color: #97c9d8;
+  box-shadow: 0 16px 36px rgba(15, 63, 79, 0.1);
+}
+
+.premiumBookingPage.home-service .premiumService.active {
+  background: linear-gradient(145deg, #f3fbfe, #ffffff);
+}
+
+.premiumBookingPage.home-service .serviceIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.premiumBookingPage.home-service .serviceDescription {
+  margin: 0;
+  color: #526b75;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.premiumBookingPage.home-service .bookingContactLine span {
+  color: #155e75;
+  background: #eaf7fb;
+}
+
+.premiumBookingPage.home-service .selectedDateCard,
+.premiumBookingPage.home-service .premiumSlot.active {
+  background: #f3fbfe;
+}
+
+.premiumBookingPage.home-service .premiumService em,
+.premiumBookingPage.home-service .premiumConfirmButton {
+  background: linear-gradient(135deg, #155e75, #2563eb);
+}
+
+.premiumBookingPage.auto {
+  background: linear-gradient(145deg, #f8fafc 0%, #eef2f7 54%, #fff7ed 100%);
+}
+
+.premiumBookingPage.auto .bookingStepTitle,
+.premiumBookingPage.auto .premiumSlot.active,
+.premiumBookingPage.auto .premiumInput,
+.premiumBookingPage.auto .selectedDateCard svg,
+.premiumBookingPage.auto .premiumBackButton {
+  color: #1f2937 !important;
+}
+
+.premiumBookingPage.auto .bookingStepTitle span,
+.premiumBookingPage.auto .premiumService.active,
+.premiumBookingPage.auto .premiumSlot.active {
+  border-color: #1f2937;
+}
+
+.premiumBookingPage.auto .premiumService em,
+.premiumBookingPage.auto .premiumConfirmButton {
+  background: linear-gradient(135deg, #1f2937, #ea580c);
 }
 
 .adminHero,
@@ -2726,6 +3176,536 @@ h2 {
   align-items: center;
 }
 
+.smmPackageControl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 14px;
+  align-items: center;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f7fbff;
+  border: 1px solid #dfe8f8;
+}
+
+.smmPackageControl h3 {
+  margin: 4px 0;
+  font-size: 24px;
+}
+
+.smmPackageControl span {
+  color: #596681;
+}
+
+.smmPackageControl select {
+  min-height: 48px;
+  font-weight: 900;
+}
+
+.smmOpsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.smmOpsPanel {
+  display: grid;
+  gap: 9px;
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #dfe8f8;
+}
+
+.smmOpsPanel h3 {
+  margin: 4px 0;
+  font-size: 22px;
+}
+
+.smmOpsPanel p,
+.smmOpsPanel span,
+.smmAccessList span {
+  color: #596681;
+}
+
+.smmInlineForm {
+  display: grid;
+  gap: 8px;
+}
+
+.smmInlineForm input,
+.smmInlineForm select {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid #dce3f3;
+  padding: 10px 12px;
+  color: #14182f;
+  background: #f8faff;
+  font: inherit;
+}
+
+.smmInlineForm button,
+.smmLinkActions button,
+.smmAccessList button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0877ff, #6d3cff);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.smmAccessList,
+.smmChecklist {
+  display: grid;
+  gap: 8px;
+}
+
+.smmAccessList article {
+  display: grid;
+  gap: 7px;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f8faff;
+  border: 1px solid #e6ebf8;
+}
+
+.smmAccessList article div,
+.smmLinkActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.smmAccessList em {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #0c8a70;
+  background: #ecfff9;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.smmChecklist span {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #f8faff;
+}
+
+.smmChecklist strong {
+  color: #0c8a70;
+}
+
+.smmHandoffGenerator {
+  display: grid;
+  gap: 14px;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fbfcff;
+  border: 1px solid #dfe8f8;
+}
+
+.smmHandoffGenerator h3 {
+  margin: 4px 0 0;
+  font-size: 24px;
+}
+
+.smmHandoffGenerator > .smmFormTop > span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #075985;
+  background: #eaf7ff;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.smmMessageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.smmMessageCard {
+  display: grid;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid #e3e9f6;
+}
+
+.smmMessageCard.active {
+  border-color: #2563eb;
+  box-shadow: 0 16px 36px rgba(37, 99, 235, 0.12);
+}
+
+.smmMessageCard strong,
+.smmMessageCard em {
+  display: block;
+}
+
+.smmMessageCard em {
+  margin-top: 3px;
+  color: #0c8a70;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.smmMessageCard textarea {
+  width: 100%;
+  min-height: 260px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid #dce3f3;
+  padding: 10px;
+  color: #14182f;
+  background: #f8faff;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.smmMessageCard button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0877ff, #6d3cff);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.clientDashboardPage {
+  min-height: 100vh;
+  padding: 28px;
+  background:
+    linear-gradient(135deg, rgba(235, 245, 255, 0.95), rgba(244, 241, 255, 0.92)),
+    #eef5ff;
+}
+
+.clientAuthPanel,
+.clientDashboardShell {
+  max-width: 1180px;
+  margin: 28px auto 0;
+}
+
+.clientAuthPanel,
+.clientDashboardNav,
+.clientDashboardContent,
+.clientBookingDetails {
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(80, 94, 143, 0.14);
+  box-shadow: 0 24px 70px rgba(31, 52, 122, 0.12);
+}
+
+.clientAuthPanel {
+  padding: 32px;
+}
+
+.clientAuthPanel h1 {
+  margin: 8px 0 10px;
+  font-size: clamp(34px, 6vw, 58px);
+}
+
+.clientLoginForm {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  gap: 10px;
+}
+
+.clientLoginForm input,
+.clientLoginForm button,
+.clientPrimaryButton,
+.clientDashboardNav button,
+.clientDashboardNav select,
+.clientFilterRow button,
+.clientBookingActions button,
+.clientBookingActions select,
+.clientBookingDetails select,
+.clientBookingDetails button {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid #dce3f3;
+  padding: 0 12px;
+  font: inherit;
+}
+
+.clientLoginForm button,
+.clientPrimaryButton,
+.clientBookingActions button,
+.clientBookingDetails button {
+  border: 0;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0877ff, #6d3cff);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.clientDashboardShell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.clientDashboardNav {
+  padding: 20px;
+  display: grid;
+  gap: 10px;
+}
+
+.clientDashboardNav h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+.clientDashboardNav button {
+  background: #f8faff;
+  color: #232b52;
+  font-weight: 900;
+  cursor: pointer;
+  text-align: left;
+}
+
+.clientDashboardNav button.active {
+  color: #ffffff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #0877ff, #6d3cff);
+}
+
+.clientDashboardContent {
+  padding: 22px;
+}
+
+.clientDashboardHeader h2 {
+  margin: 6px 0;
+  font-size: clamp(30px, 5vw, 48px);
+}
+
+.clientDashboardHeader p {
+  color: #57627f;
+}
+
+.clientPackageBadge {
+  display: inline-flex;
+  margin-top: 8px;
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: #eaf7ff;
+  color: #075985;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.clientMetricGrid {
+  margin: 18px 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.clientMetricGrid article,
+.clientAccountPanel,
+.clientEmptyState,
+.clientBookingCard {
+  border-radius: 8px;
+  padding: 16px;
+  background: #f8faff;
+  border: 1px solid #e4e9f7;
+}
+
+.clientEmptyState {
+  display: grid;
+  gap: 5px;
+}
+
+.clientEmptyState span {
+  color: #57627f;
+}
+
+.clientMetricGrid span {
+  color: #65708f;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.clientMetricGrid strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 32px;
+}
+
+.clientFilterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.clientFilterRow button {
+  background: #f8faff;
+  color: #232b52;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.clientFilterRow button.active {
+  color: #ffffff;
+  background: #14182f;
+}
+
+.clientBookingList {
+  display: grid;
+  gap: 12px;
+}
+
+.clientBookingCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.clientBookingCard:hover {
+  border-color: #cfd9f0;
+  box-shadow: 0 12px 28px rgba(31, 52, 122, 0.08);
+}
+
+.clientBookingCard strong,
+.clientBookingCard span,
+.clientBookingCard small,
+.clientBookingCard em {
+  display: block;
+}
+
+.clientBookingCard span,
+.clientBookingCard small,
+.clientBookingCard p,
+.clientBookingCard em,
+.clientAccountPanel p {
+  color: #57627f;
+}
+
+.clientBookingCard em {
+  font-style: normal;
+  font-weight: 850;
+}
+
+.clientBookingActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.clientStatusPill {
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #475569;
+  background: #eef2f7;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.clientStatusPill.pending,
+.clientStatusPill.new {
+  color: #9a5d00;
+  background: #fff8e8;
+}
+
+.clientStatusPill.confirmed {
+  color: #075985;
+  background: #eaf7ff;
+}
+
+.clientStatusPill.completed {
+  color: #0c8a70;
+  background: #ecfff9;
+}
+
+.clientStatusPill.cancelled {
+  color: #9f1239;
+  background: #fff1f2;
+}
+
+.clientBookingDetails {
+  margin-top: 16px;
+  padding: 20px;
+  display: grid;
+  gap: 8px;
+}
+
+.clientBookingDetails h2 {
+  margin: 4px 0 0;
+}
+
+.clientBookingDetails label {
+  display: grid;
+  gap: 6px;
+  max-width: 260px;
+  color: #4e587c;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.clientAccountPanel {
+  display: grid;
+  gap: 10px;
+}
+
+.clientSimpleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.clientHistoryList {
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+  color: #57627f;
+}
+
+.clientManagementForm {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+
+.clientManagementForm input,
+.clientManagementForm select,
+.clientManagementForm button {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid #dce3f3;
+  padding: 0 12px;
+  font: inherit;
+}
+
+.clientManagementForm button {
+  border: 0;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0877ff, #6d3cff);
+  font-weight: 900;
+  cursor: pointer;
+}
+
 @media (max-width: 860px) {
   .publicBooking,
   .adminGrid,
@@ -2753,6 +3733,31 @@ h2 {
     grid-template-columns: 1fr;
   }
 
+  .smmPackageControl {
+    grid-template-columns: 1fr;
+  }
+
+  .clientDashboardShell,
+  .clientMetricGrid,
+  .clientBookingCard,
+  .clientLoginForm,
+  .premiumSuccess dl {
+    grid-template-columns: 1fr;
+  }
+
+  .clientDashboardPage {
+    padding: 18px;
+  }
+
+  .clientBookingActions {
+    justify-content: flex-start;
+  }
+
+  .clientBookingActions select,
+  .clientBookingActions button {
+    width: 100%;
+  }
+
   .ownerActions {
     justify-content: flex-start;
   }
@@ -2765,6 +3770,10 @@ h2 {
   .premiumServiceGrid,
   .timeAndDate {
     grid-template-columns: 1fr;
+  }
+
+  .bookingFormHeader {
+    display: grid;
   }
 
   .premiumBrandPanel {
@@ -2810,5 +3819,227 @@ h2 {
 
   .premiumSlotGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Typography refresh: Slotwise keeps one clean font system across all business pages. */
+body,
+input,
+textarea,
+select,
+button {
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+.brandStory h1,
+.bookingFormHeader h2,
+.clientAuthPanel h1,
+.clientDashboardNav h1,
+.clientDashboardHeader h2,
+.smmClientCard h2,
+.smmPackageControl h3,
+.smmOpsPanel h3,
+.smmHandoffGenerator h3,
+.adminHero h1,
+.ownerHero h1,
+.setupComplete h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+h1,
+.clientAuthPanel h1,
+.clientDashboardHeader h2,
+.bookingFormHeader h2,
+.brandStory h1 {
+  line-height: 1.06;
+}
+
+h1 {
+  font-size: clamp(34px, 5.2vw, 64px);
+}
+
+h2 {
+  font-size: clamp(26px, 3.6vw, 42px);
+}
+
+h3 {
+  font-size: clamp(19px, 2.4vw, 26px);
+}
+
+p,
+.subcopy,
+.dashText p,
+.launch p,
+.brandStory p,
+.bookingFormHeader p,
+.clientDashboardHeader p,
+.smmClientCard p,
+.smmOpsPanel p,
+.smmPackageControl span {
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.subcopy,
+.dashText p,
+.launch p,
+.brandStory p {
+  font-size: clamp(15px, 1.5vw, 17px);
+}
+
+.eyebrow,
+.brandStory span,
+.bookingStepTitle strong,
+.bookingFormHeader > span,
+.clientPackageBadge,
+.clientMetricGrid span,
+.smmStatus,
+.smmHandoffGenerator > .smmFormTop > span {
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: 0.035em;
+}
+
+.brandStory span,
+.bookingStepTitle strong {
+  text-transform: uppercase;
+}
+
+label,
+.smmClientForm label,
+.clientBookingDetails label {
+  font-family: var(--font-body);
+  font-size: clamp(13px, 1.2vw, 14px);
+  font-weight: 600;
+}
+
+button,
+.navCta,
+.primary,
+.secondary,
+.confirmButton,
+.plan button,
+.navDemoButton,
+.floatingDemoButton,
+.closeDemo,
+.premiumConfirmButton,
+.smmAdminActions button,
+.smmClientControls button,
+.smmUnlockForm button,
+.smmSaveButton,
+.smmFormTop button,
+.smmInlineForm button,
+.smmLinkActions button,
+.smmAccessList button,
+.smmMessageCard button,
+.clientLoginForm button,
+.clientPrimaryButton,
+.clientDashboardNav button,
+.clientFilterRow button,
+.clientBookingActions button,
+.clientBookingDetails button,
+.clientManagementForm button {
+  font-family: var(--font-body);
+  font-size: clamp(14px, 1.2vw, 15px);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.brandMark {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.brandStory h1 {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4vw, 42px);
+  font-weight: 700;
+}
+
+.bookingFormHeader h2 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3.8vw, 38px);
+  font-weight: 700;
+}
+
+.clientAuthPanel h1 {
+  font-size: clamp(28px, 5vw, 38px);
+}
+
+.clientDashboardNav h1 {
+  font-size: clamp(22px, 2.2vw, 26px);
+}
+
+.clientDashboardHeader h2 {
+  font-size: clamp(24px, 3vw, 32px);
+}
+
+.smmClientCard h2,
+.smmPackageControl h3,
+.smmOpsPanel h3,
+.smmHandoffGenerator h3 {
+  font-size: clamp(20px, 2.2vw, 24px);
+}
+
+.clientMetricGrid strong,
+.adminStats strong,
+.ownerMetric strong,
+.price,
+.planPrice,
+.premiumService small,
+.clientStatusPill,
+.smmStatus {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.premiumService strong,
+.premiumSlot,
+.bookingContactLine span,
+.clientBookingCard em,
+.clientFilterRow button,
+.clientDashboardNav button,
+.smmClientLink,
+.smmPackageControl select,
+.smmAccessList em,
+.smmMessageCard em {
+  font-weight: 600;
+}
+
+.clientStatusPill,
+.smmStatus,
+.clientPackageBadge,
+.bookingContactLine span,
+.clientMetricGrid span,
+.premiumService small,
+.clientBookingCard small,
+.clientBookingCard em,
+.clientAccountPanel p {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+@media (max-width: 520px) {
+  h1 {
+    font-size: clamp(30px, 9vw, 42px);
+  }
+
+  .brandStory h1,
+  .bookingFormHeader h2,
+  .clientAuthPanel h1,
+  .clientDashboardHeader h2 {
+    font-size: clamp(25px, 8vw, 30px);
+  }
+
+  body {
+    font-size: 14px;
   }
 }
