@@ -46,7 +46,7 @@ import {
   Truck,
   CircleDot,
   ShieldCheck,
-  Map,
+  Map as MapIcon,
   MapPinned,
   Ship,
   Van,
@@ -171,7 +171,7 @@ function resolveServiceIcon(serviceName = "", business = {}) {
   if (hasKeyword(serviceText, ["adventure", "hiking", "trek", "mountain"])) return Mountain;
   if (hasKeyword(serviceText, ["photography", "photo"])) return Camera;
   if (hasKeyword(serviceText, ["food tour", "food crawl", "culinary"])) return Utensils;
-  if (hasKeyword(serviceText, ["tour", "travel", "package", "trip"])) return Map;
+  if (hasKeyword(serviceText, ["tour", "travel", "package", "trip"])) return MapIcon;
 
   if (hasKeyword(serviceText, ["haircut", "hair cut", "trim"])) return Scissors;
   if (hasKeyword(serviceText, ["hair color", "hair dye", "color", "dye"])) return isBeauty ? Palette : Paintbrush;
