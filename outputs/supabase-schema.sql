@@ -417,7 +417,8 @@ create or replace function public.upsert_client_service(
   service_status text,
   service_pricing_type text default 'FIXED',
   service_pricing_unit text default 'FLAT',
-  service_pricing_tiers jsonb default '[]'::jsonb
+  service_pricing_tiers jsonb default '[]'::jsonb,
+  service_display_order integer default 0
 )
 returns void
 language plpgsql
@@ -439,6 +440,7 @@ begin
     pricing_unit,
     pricing_tiers,
     duration_minutes,
+    display_order,
     status
   )
   values (
@@ -451,6 +453,7 @@ begin
     coalesce(service_pricing_unit, 'FLAT'),
     coalesce(service_pricing_tiers, '[]'::jsonb),
     service_duration,
+    coalesce(service_display_order, 0),
     service_status
   )
   on conflict (id)
@@ -462,6 +465,7 @@ begin
     pricing_unit = excluded.pricing_unit,
     pricing_tiers = excluded.pricing_tiers,
     duration_minutes = excluded.duration_minutes,
+    display_order = excluded.display_order,
     status = excluded.status
   where business_services.business_slug = target_slug;
 end;
@@ -806,7 +810,7 @@ end;
 $$;
 
 grant execute on function public.business_has_package_capability(text, text) to authenticated;
-grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb) to authenticated;
+grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb, integer) to authenticated;
 grant execute on function public.update_client_availability(text, text, text, jsonb) to authenticated;
 grant execute on function public.upsert_client_blocked_date(text, text, date, text) to authenticated;
 grant execute on function public.set_client_blocked_date_active(text, boolean) to authenticated;

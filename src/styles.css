@@ -4341,6 +4341,110 @@ button,
   margin-top: 12px;
 }
 
+.structuredServiceManager {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.structuredServiceTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.structuredServiceTop h3 {
+  margin: 2px 0 0;
+}
+
+.structuredServiceTop button,
+.structuredServiceActions button {
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 12px;
+  padding: 10px 13px;
+  color: #1f3fb7;
+  background: #eef4ff;
+}
+
+.structuredServiceList {
+  display: grid;
+  gap: 10px;
+  max-height: min(72vh, 780px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.structuredServiceCard {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12px 24px rgba(35, 42, 68, 0.06);
+}
+
+.structuredServiceSummary {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  padding: 14px;
+  text-align: left;
+  color: #151934;
+  background: transparent;
+}
+
+.structuredServiceSummary strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.structuredServiceSummary span,
+.structuredServiceSummary em {
+  color: #59627c;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.structuredServiceCard.expanded .structuredServiceSummary {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.structuredServiceFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+}
+
+.structuredServiceFields input,
+.structuredServiceFields select {
+  width: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: #fff;
+}
+
+.structuredServiceActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+.serviceTierEditor {
+  grid-column: 1 / -1;
+}
+
+.serviceTierEditor > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 8px;
+}
+
 @media (max-width: 520px) {
   h1 {
     font-size: clamp(30px, 9vw, 42px);
@@ -4355,5 +4459,19 @@ button,
 
   body {
     font-size: 14px;
+  }
+
+  .structuredServiceTop,
+  .structuredServiceSummary {
+    grid-template-columns: 1fr;
+  }
+
+  .structuredServiceTop {
+    align-items: stretch;
+  }
+
+  .structuredServiceFields,
+  .serviceTierEditor > div {
+    grid-template-columns: 1fr;
   }
 }

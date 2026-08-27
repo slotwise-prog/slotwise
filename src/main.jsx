@@ -616,6 +616,7 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
   const normalizedServices = dedupeServices(
     activeServices.map((service) => ({
+      id: service.id,
       name: service.name,
       durationMinutes: service.duration_minutes,
       price: service.price,
@@ -629,6 +630,7 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     activeServices.map((service) => service.name),
   );
   return {
+    source: "database",
     slug: row.slug,
     name: row.industry || row.business_type || "Service business",
     business: row.business,
@@ -684,7 +686,7 @@ function buildBusinessFromSetup(setup) {
   const slug = makeSlug(setup.businessSlug || setup.slug || setup.businessName);
   const lowerIndustry = (setup.industry || "").toLowerCase();
   const isHomeService = ["aircon", "air con", "hvac", "home", "repair", "maintenance", "plumbing", "electrical", "appliance"].some((keyword) => lowerIndustry.includes(keyword));
-  const bookingTemplate = normalizeBookingTemplate(setup.bookingTemplate || (lowerIndustry.includes("tour") ? "TOURS_TRAVEL" : ""));
+  const bookingTemplate = normalizeBookingTemplate(setup.bookingTemplate || inferBookingTemplateFromIndustry(setup.industry));
   const cover = lowerIndustry.includes("clinic") || lowerIndustry.includes("dental")
     ? "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80"
     : lowerIndustry.includes("travel") || lowerIndustry.includes("stay")
@@ -693,9 +695,15 @@ function buildBusinessFromSetup(setup) {
         ? ""
         : "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80";
   const themeDefaults = getToneThemeDefaults(isHomeService ? "home-service" : lowerIndustry.includes("clinic") || lowerIndustry.includes("dental") ? "clinic" : lowerIndustry.includes("travel") || lowerIndustry.includes("stay") ? "travel" : "beauty");
-  const parsedServices = dedupeServices(parseServiceDetails(setup.services), parseSetupServices(setup.services));
+  const setupStructuredServices = getSavableStructuredServices(setup.serviceEntries, bookingTemplate);
+  const parsedServices = setupStructuredServices.length
+    ? dedupeServices(setupStructuredServices, setupStructuredServices.map((service) => service.name))
+    : setup.services?.trim()
+      ? dedupeServices(parseServiceDetails(setup.services), parseSetupServices(setup.services))
+      : dedupeServices([], []);
 
   return {
+    source: "setup",
     slug,
     name: setup.industry || "Service business",
     business: setup.businessName || "Client Business",
@@ -819,6 +827,106 @@ function parseServiceDetails(value) {
   ];
 }
 
+function emptyStructuredServices(count = 3) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: "",
+    name: "",
+    description: "",
+    price: "",
+    durationMinutes: "",
+    displayOrder: index,
+    status: "Active",
+    pricingType: "FIXED",
+    pricingUnit: "FLAT",
+    pricingTiers: [],
+    expanded: true,
+  }));
+}
+
+function serviceRowToStructured(service = {}, index = 0) {
+  return {
+    id: service.id || "",
+    name: service.name || "",
+    description: service.description || "",
+    price: service.price ?? "",
+    durationMinutes: service.duration_minutes ?? service.durationMinutes ?? "",
+    displayOrder: service.display_order ?? service.displayOrder ?? index,
+    status: service.status || "Active",
+    pricingType: normalizePricingType(service.pricing_type || service.pricingType, service.pricing_unit || service.pricingUnit),
+    pricingUnit: normalizePricingUnit(service.pricing_unit || service.pricingUnit),
+    pricingTiers: normalizePricingTiers(service.pricing_tiers || service.pricingTiers),
+    expanded: index < 3,
+  };
+}
+
+function normalizeStructuredServices(value, minimumSlots = 3) {
+  const source = Array.isArray(value) && value.length ? value : emptyStructuredServices(minimumSlots);
+  const normalized = source.map(serviceRowToStructured);
+  while (normalized.length < minimumSlots) normalized.push(...emptyStructuredServices(1));
+  return normalized.map((service, index) => ({ ...service, displayOrder: index }));
+}
+
+function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
+  const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
+  return normalizeStructuredServices(value, 0)
+    .filter((service) => service.name.trim())
+    .map((service, index) => {
+      const pricingType = isTravel ? normalizePricingType(service.pricingType, service.pricingUnit) : "FIXED";
+      return {
+        ...service,
+        name: service.name.trim(),
+        description: service.description.trim(),
+        price: service.price === "" ? null : Number(service.price),
+        durationMinutes: service.durationMinutes === "" ? null : Number(service.durationMinutes),
+        displayOrder: index,
+        status: service.status || "Active",
+        pricingType,
+        pricingUnit: isTravel ? normalizePricingUnit(service.pricingUnit, pricingType) : "FLAT",
+        pricingTiers: isTravel && pricingType === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers) : [],
+      };
+    });
+}
+
+function structuredServicesToLegacyText(services = [], bookingTemplate = "GENERAL") {
+  return getSavableStructuredServices(services, bookingTemplate)
+    .map((service) => {
+      const pieces = [service.name];
+      if (service.price !== null && service.price !== "") pieces.push(`PHP ${service.price}`);
+      if (service.durationMinutes) pieces.push(`${service.durationMinutes} minutes`);
+      if (service.description) pieces.push(service.description);
+      return pieces.join(" - ");
+    })
+    .join("\n");
+}
+
+function parseServicesToStructured(value, bookingTemplate = "GENERAL") {
+  return normalizeStructuredServices(parseServiceDetails(value).map(serviceRowToStructured), 3)
+    .map((service) => normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL" ? service : {
+      ...service,
+      pricingType: "FIXED",
+      pricingUnit: "FLAT",
+      pricingTiers: [],
+    });
+}
+
+function getServiceManagerCopy(bookingTemplate = "GENERAL") {
+  const template = normalizeBookingTemplate(bookingTemplate);
+  if (template === "TOURS_TRAVEL") return { title: "Tour Packages", single: "Tour package", add: "Add Another Package" };
+  if (template === "CLINIC") return { title: "Services / Treatments", single: "Service / treatment", add: "Add Another Service" };
+  if (template === "AUTO") return { title: "Services / Packages", single: "Service / package", add: "Add Another Service" };
+  return { title: "Services", single: "Service", add: "Add Another Service" };
+}
+
+function inferBookingTemplateFromIndustry(industry = "") {
+  const lower = industry.toLowerCase();
+  if (/(travel|tour|stay|cabin|resort)/i.test(lower)) return "TOURS_TRAVEL";
+  if (/(clinic|dental|doctor|medical)/i.test(lower)) return "CLINIC";
+  if (/(home|aircon|repair|cleaning|maintenance|plumbing|electrical)/i.test(lower)) return "HOME_SERVICE";
+  if (/(auto|car|wash|detailing)/i.test(lower)) return "AUTO";
+  if (/(salon|beauty|hair|lash|nail|makeup)/i.test(lower)) return "BEAUTY";
+  return "GENERAL";
+}
+
 function setupToBusinessDatabase(setup, slug) {
   const business = buildBusinessFromSetup({ ...setup, businessSlug: slug });
   return {
@@ -844,8 +952,10 @@ function setupToBusinessDatabase(setup, slug) {
 }
 
 function setupToServiceRows(setup, slug, requestId) {
-  return parseServiceDetails(setup.services).map((service, index) => ({
-    id: `${requestId}-SVC-${index + 1}`,
+  const sourceServices = getSavableStructuredServices(setup.serviceEntries, setup.bookingTemplate || inferBookingTemplateFromIndustry(setup.industry));
+  const servicesToSave = sourceServices.length ? sourceServices : (setup.services?.trim() ? parseServiceDetails(setup.services) : []);
+  return servicesToSave.map((service, index) => ({
+    id: service.id || `${requestId}-SVC-${index + 1}`,
     business_slug: slug,
     name: service.name,
     duration_minutes: service.durationMinutes,
@@ -1077,11 +1187,12 @@ function App() {
     const bySlug = new Map();
     [...templates, ...setupBusinesses, ...databaseBusinesses].forEach((business) => {
       const previous = bySlug.get(business.slug) || {};
+      const isDatabaseBusiness = business.source === "database";
       const next = normalizeBusinessConfig({
         ...previous,
         ...business,
-        services: business.services?.length ? business.services : previous.services,
-        serviceDetails: business.serviceDetails?.length ? business.serviceDetails : previous.serviceDetails,
+        services: isDatabaseBusiness ? (business.services || []) : (business.services?.length ? business.services : previous.services),
+        serviceDetails: isDatabaseBusiness ? (business.serviceDetails || []) : (business.serviceDetails?.length ? business.serviceDetails : previous.serviceDetails),
         forms: business.forms?.length ? business.forms : previous.forms,
         availability: { ...(previous.availability || {}), ...(business.availability || {}) },
         featureFlags: { ...(previous.featureFlags || {}), ...(business.featureFlags || {}) },
@@ -1332,11 +1443,6 @@ function App() {
         body: businessBody,
         accessToken,
       });
-      await supabaseRequest("business_services", {
-        method: "DELETE",
-        query: `?business_slug=eq.${encodeURIComponent(originalSlug)}`,
-        accessToken,
-      });
       await supabaseRequest("business_availability", {
         method: "DELETE",
         query: `?business_slug=eq.${encodeURIComponent(originalSlug)}`,
@@ -1346,11 +1452,43 @@ function App() {
       await supabaseRequest("businesses", { method: "POST", body: businessBody, accessToken });
     }
 
-    await supabaseRequest("business_services", {
-      method: "POST",
-      body: setupToServiceRows(nextClient, slug, requestId),
-      accessToken,
-    });
+    const serviceRows = setupToServiceRows(nextClient, slug, requestId);
+    if (originalSlug) {
+      const existingServices = await supabaseRequest("business_services", {
+        query: `?select=*&business_slug=eq.${encodeURIComponent(originalSlug)}`,
+        accessToken,
+      }).catch(() => []);
+      const nextIds = new Set(serviceRows.map((service) => service.id));
+      for (const service of serviceRows) {
+        const existing = existingServices.find((item) => item.id === service.id);
+        if (existing) {
+          await supabaseRequest("business_services", {
+            method: "PATCH",
+            query: `?id=eq.${encodeURIComponent(service.id)}`,
+            body: service,
+            accessToken,
+          });
+        } else {
+          await supabaseRequest("business_services", { method: "POST", body: service, accessToken });
+        }
+      }
+      for (const existing of existingServices) {
+        if (!nextIds.has(existing.id)) {
+          await supabaseRequest("business_services", {
+            method: "PATCH",
+            query: `?id=eq.${encodeURIComponent(existing.id)}`,
+            body: { status: "Inactive" },
+            accessToken,
+          });
+        }
+      }
+    } else if (serviceRows.length) {
+      await supabaseRequest("business_services", {
+        method: "POST",
+        body: serviceRows,
+        accessToken,
+      });
+    }
     await supabaseRequest("business_availability", {
       method: "POST",
       body: setupToAvailabilityDatabase(nextClient, slug, requestId),
@@ -2002,8 +2140,8 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
   const getServiceDetail = (serviceName) => {
     const detail = business.serviceDetails?.find((item) => item.name === serviceName);
     return {
-      durationMinutes: detail?.durationMinutes || 60,
-      price: detail?.price ?? 350,
+      durationMinutes: detail?.durationMinutes ?? null,
+      price: detail?.price ?? null,
       pricingUnit: normalizePricingUnit(detail?.pricingUnit, isToursTravel ? "PER_PAX" : "FLAT"),
       pricingType: normalizePricingType(detail?.pricingType, isToursTravel ? detail?.pricingUnit || "PER_PAX" : "FIXED"),
       pricingTiers: normalizePricingTiers(detail?.pricingTiers),
@@ -2017,6 +2155,10 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
   const servicePriceLabel = (detail) => {
     return formatServicePriceLabel(detail, isToursTravel ? "PER_PAX" : "FIXED");
   };
+  const serviceMetaLabel = (detail) => [
+    detail.durationMinutes ? `${detail.durationMinutes} min` : "",
+    detail.price !== null || detail.pricingTiers?.length ? servicePriceLabel(detail) : "",
+  ].filter(Boolean).join(" • ");
   const requiredPaymentAmount = getRequiredPaymentAmount(paymentSettings, estimatedTotal);
   const paymentRequired = isProductionActive && paymentSettings.enabled && requiredPaymentAmount !== null && paymentMethods.length > 0;
 
@@ -2182,7 +2324,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
                     <span className="serviceIcon"><ServiceIcon size={22} /></span>
                     <strong>{item}</strong>
                     {getServiceDetail(item).description && <p className="serviceDescription">{getServiceDetail(item).description}</p>}
-                    {flags.showPrices && <small>{getServiceDetail(item).durationMinutes} min • {servicePriceLabel(getServiceDetail(item))}</small>}
+                    {flags.showPrices && serviceMetaLabel(getServiceDetail(item)) && <small>{serviceMetaLabel(getServiceDetail(item))}</small>}
                     {pickedService === item && <em><Check size={16} /></em>}
                   </button>
                 );
@@ -2364,6 +2506,106 @@ function BusinessUnavailablePage({ business, onBack }) {
   );
 }
 
+function StructuredServiceManager({ services, onChange, bookingTemplate = "GENERAL", compact = false }) {
+  const copy = getServiceManagerCopy(bookingTemplate);
+  const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
+  const updateService = (index, updates) => {
+    onChange(services.map((service, itemIndex) => itemIndex === index ? { ...service, ...updates } : service));
+  };
+  const removeService = (index) => {
+    const next = services.filter((_, itemIndex) => itemIndex !== index);
+    onChange(normalizeStructuredServices(next.length ? next : emptyStructuredServices(1), 1));
+  };
+  const moveService = (index, direction) => {
+    const next = [...services];
+    const target = index + direction;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next.map((service, itemIndex) => ({ ...service, displayOrder: itemIndex })));
+  };
+  const updateTier = (serviceIndex, tierIndex, updates) => {
+    const tiers = normalizePricingTiers(services[serviceIndex].pricingTiers);
+    updateService(serviceIndex, {
+      pricingTiers: tiers.map((tier, itemIndex) => itemIndex === tierIndex ? { ...tier, ...updates } : tier),
+    });
+  };
+
+  return (
+    <section className={compact ? "structuredServiceManager compact" : "structuredServiceManager"}>
+      <div className="structuredServiceTop">
+        <div>
+          <p className="eyebrow">{copy.title}</p>
+          <h3>{copy.title}</h3>
+        </div>
+        <button type="button" onClick={() => onChange([...services, ...emptyStructuredServices(1)])}>+ {copy.add}</button>
+      </div>
+      <div className="structuredServiceList">
+        {services.map((service, index) => {
+          const expanded = service.expanded !== false;
+          return (
+            <article className={expanded ? "structuredServiceCard expanded" : "structuredServiceCard"} key={`${service.id || "new"}-${index}`}>
+              <button type="button" className="structuredServiceSummary" onClick={() => updateService(index, { expanded: !expanded })}>
+                <strong>{service.name || `${copy.single} ${index + 1}`}</strong>
+                <span>{service.price !== "" ? formatPeso(service.price) : "No price"}</span>
+                <em>{service.status || "Active"}</em>
+              </button>
+              {expanded && (
+                <div className="structuredServiceFields">
+                  <input value={service.name} onChange={(event) => updateService(index, { name: event.target.value })} placeholder={`${copy.single} name`} />
+                  <input value={service.description} onChange={(event) => updateService(index, { description: event.target.value })} placeholder="Description" />
+                  <input type="number" min="0" value={service.price} onChange={(event) => updateService(index, { price: event.target.value })} placeholder="Price" />
+                  <input type="number" min="0" value={service.durationMinutes} onChange={(event) => updateService(index, { durationMinutes: event.target.value })} placeholder="Duration in minutes" />
+                  {isTravel && (
+                    <>
+                      <select value={normalizePricingType(service.pricingType, service.pricingUnit)} onChange={(event) => updateService(index, { pricingType: event.target.value, pricingUnit: normalizePricingUnit(service.pricingUnit, event.target.value) })}>
+                        <option value="PER_PAX">Per pax</option>
+                        <option value="GROUP_TIER">Group tier</option>
+                        <option value="PER_TRIP">Per trip</option>
+                        <option value="PER_DAY">Per day</option>
+                        <option value="FIXED">Fixed</option>
+                      </select>
+                      <select value={normalizePricingUnit(service.pricingUnit, service.pricingType)} onChange={(event) => updateService(index, { pricingUnit: event.target.value })}>
+                        <option value="PER_PAX">/ pax</option>
+                        <option value="PER_GROUP">/ group</option>
+                        <option value="PER_TRIP">/ trip</option>
+                        <option value="PER_DAY">/ day</option>
+                        <option value="FIXED">fixed</option>
+                      </select>
+                    </>
+                  )}
+                  <select value={service.status || "Active"} onChange={(event) => updateService(index, { status: event.target.value })}>
+                    <option>Active</option>
+                    <option>Inactive</option>
+                  </select>
+                  {isTravel && normalizePricingType(service.pricingType, service.pricingUnit) === "GROUP_TIER" && (
+                    <div className="pricingTierEditor serviceTierEditor">
+                      <span>Group pricing tiers</span>
+                      {normalizePricingTiers(service.pricingTiers).map((tier, tierIndex) => (
+                        <div key={`${index}-${tierIndex}`}>
+                          <input type="number" min="1" value={tier.minGuests} onChange={(event) => updateTier(index, tierIndex, { minGuests: Number(event.target.value) })} placeholder="Min pax" />
+                          <input type="number" min="1" value={tier.maxGuests} onChange={(event) => updateTier(index, tierIndex, { maxGuests: Number(event.target.value) })} placeholder="Max pax" />
+                          <input type="number" min="0" value={tier.price} onChange={(event) => updateTier(index, tierIndex, { price: Number(event.target.value) })} placeholder="Price" />
+                          <button type="button" onClick={() => updateService(index, { pricingTiers: normalizePricingTiers(service.pricingTiers).filter((_, itemIndex) => itemIndex !== tierIndex) })}>Remove</button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => updateService(index, { pricingTiers: [...normalizePricingTiers(service.pricingTiers), { minGuests: 1, maxGuests: 2, price: 0 }] })}>+ Add Pricing Tier</button>
+                    </div>
+                  )}
+                  <div className="structuredServiceActions">
+                    <button type="button" onClick={() => moveService(index, -1)} disabled={index === 0}>Move Up</button>
+                    <button type="button" onClick={() => moveService(index, 1)} disabled={index === services.length - 1}>Move Down</button>
+                    <button type="button" onClick={() => removeService(index)}>Remove</button>
+                  </div>
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 const setupSteps = ["Business", "Services", "Schedule", "Rules", "Review"];
 
 function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
@@ -2378,7 +2620,8 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
     contact: "",
     industry: "Salon / beauty",
     facebookPage: "",
-    services: "Hair color - PHP 350 - 60 minutes\nHair treatment - PHP 250 - 45 minutes",
+    services: "",
+    serviceEntries: emptyStructuredServices(),
     openDays: "Monday to Saturday",
     openHours: "9:00 AM to 6:00 PM",
     staff: "Ana - Hair color, hair treatment\nBea - Makeup appointment",
@@ -2396,6 +2639,16 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
       }
       return next;
     });
+  };
+
+  const setupBookingTemplate = inferBookingTemplateFromIndustry(form.industry);
+  const updateSetupServices = (serviceEntries) => {
+    const nextEntries = normalizeStructuredServices(serviceEntries);
+    setForm((current) => ({
+      ...current,
+      serviceEntries: nextEntries,
+      services: structuredServicesToLegacyText(nextEntries, setupBookingTemplate),
+    }));
   };
 
   const finishSetup = async (event) => {
@@ -2496,8 +2749,8 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
             <div className="setupPanel">
               <p className="eyebrow">Step 2</p>
               <h2>Services and prices</h2>
-              <p>Add each service with price and duration. One service per line is perfect.</p>
-              <label>Service list<textarea name="services" value={form.services} onChange={updateForm} rows="8" /></label>
+              <p>Add each service with price and duration. Blank slots will not be saved.</p>
+              <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} bookingTemplate={setupBookingTemplate} />
             </div>
           )}
 
@@ -2531,7 +2784,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
                 <article><span>Contact</span><strong>{form.ownerName || "Owner name"}</strong><em>{form.contact || "Contact details"}</em></article>
                 <article><span>Public page</span><strong>/{form.slug || makeSlug(form.businessName)}</strong><em>Permanent client booking URL</em></article>
                 <article><span>Schedule</span><strong>{form.openDays}</strong><em>{form.openHours}</em></article>
-                <article><span>Services</span><strong>{form.services.split("\n").filter(Boolean).length} services listed</strong><em>Ready for page setup</em></article>
+                <article><span>Services</span><strong>{getSavableStructuredServices(form.serviceEntries, setupBookingTemplate).length} services listed</strong><em>Ready for page setup</em></article>
               </div>
             </div>
           )}
@@ -2779,7 +3032,8 @@ function emptyAdminClient() {
     logo: "",
     primaryColor: "#bd5d6d",
     accentColor: "#f6dfe3",
-    services: "Consultation - PHP 350 - 60 minutes",
+    services: "",
+    serviceEntries: emptyStructuredServices(),
     openDays: "Monday to Saturday",
     openHours: "9:00 AM to 6:00 PM",
     slotsText: slots.join(", "),
@@ -2788,27 +3042,12 @@ function emptyAdminClient() {
 }
 
 function businessToAdminClient(business) {
-  const serviceText = business.serviceDetails?.length
-    ? business.serviceDetails.map((service) => {
-      const pricingType = normalizePricingType(service.pricingType, service.pricingUnit);
-      const pricingUnit = normalizePricingUnit(service.pricingUnit);
-      const tierText = pricingType === "GROUP_TIER" && normalizePricingTiers(service.pricingTiers).length
-        ? ` - group tier: ${normalizePricingTiers(service.pricingTiers).map((tier) => `${tier.minGuests}-${tier.maxGuests}=${tier.price}`).join(", ")}`
-        : "";
-      const unitText = pricingType === "GROUP_TIER"
-        ? ""
-        : pricingUnit === "PER_PAX" || pricingUnit === "PER_PERSON"
-        ? " - per pax"
-        : pricingType === "PER_TRIP"
-          ? " - per trip"
-          : pricingType === "PER_DAY"
-            ? " - per day"
-            : pricingUnit === "PER_GROUP"
-              ? " - per group"
-          : "";
-      return `${service.name} - PHP ${service.price ?? 0}${unitText}${tierText} - ${service.durationMinutes || 60} minutes`;
-    }).join("\n")
-    : (business.services || []).map((service) => `${service} - PHP 350 - 60 minutes`).join("\n");
+  const serviceEntries = normalizeStructuredServices(
+    business.serviceDetails?.length
+      ? business.serviceDetails.map(serviceRowToStructured)
+      : (business.services || []).map((service, index) => serviceRowToStructured({ name: service, displayOrder: index }, index)),
+  );
+  const serviceText = structuredServicesToLegacyText(serviceEntries, business.bookingTemplate);
 
   return {
     businessName: business.business || "",
@@ -2826,6 +3065,7 @@ function businessToAdminClient(business) {
     primaryColor: business.primaryColor || "#bd5d6d",
     accentColor: business.accentColor || "#f6dfe3",
     services: serviceText,
+    serviceEntries,
     openDays: business.availability?.days || defaultAvailability.days,
     openHours: business.availability?.hours || defaultAvailability.hours,
     slotsText: (business.availability?.slots || slots).join(", "),
@@ -2957,8 +3197,26 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
       const next = { ...current, [name]: type === "checkbox" ? checked : value };
       if (name === "businessName" && !editingSlug) next.slug = makeSlug(value);
       if (name === "slug") next.slug = makeSlug(value);
+      if (name === "bookingTemplate") {
+        next.serviceEntries = normalizeStructuredServices(current.serviceEntries).map((service) => normalizeBookingTemplate(value) === "TOURS_TRAVEL" ? service : {
+          ...service,
+          pricingType: "FIXED",
+          pricingUnit: "FLAT",
+          pricingTiers: [],
+        });
+        next.services = structuredServicesToLegacyText(next.serviceEntries, value);
+      }
       return next;
     });
+  };
+
+  const updateAdminServices = (serviceEntries) => {
+    const nextEntries = normalizeStructuredServices(serviceEntries);
+    setForm((current) => ({
+      ...current,
+      serviceEntries: nextEntries,
+      services: structuredServicesToLegacyText(nextEntries, current.bookingTemplate),
+    }));
   };
 
   const submitClient = async (event) => {
@@ -3161,7 +3419,7 @@ After login, you will only see the bookings and features assigned to your busine
   ];
   const readinessItems = [
     ["Business Details", Boolean(form.businessName && form.slug)],
-    ["Services", Boolean(form.services?.trim())],
+    ["Services", getSavableStructuredServices(form.serviceEntries, form.bookingTemplate).length > 0],
     ["Schedule", Boolean(form.openDays && form.openHours && form.slotsText)],
     ["Package", Boolean(form.package)],
     ["Public Page", Boolean(form.slug)],
@@ -3365,7 +3623,7 @@ After login, you will only see the bookings and features assigned to your busine
             </div>
           </section>
           <label>Description<textarea name="rules" value={form.rules} onChange={updateForm} rows="3" /></label>
-          <label>Services<textarea name="services" value={form.services} onChange={updateForm} rows="6" /></label>
+          <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} bookingTemplate={form.bookingTemplate} />
           <div className="smmFlagGrid">
             {Object.keys(defaultFeatureFlags).map((flag) => (
               <label key={flag}>
@@ -3443,6 +3701,7 @@ function ClientDashboard({
   const [statusMessage, setStatusMessage] = useState("");
   const emptyServiceForm = { id: "", name: "", description: "", price: "", durationMinutes: 60, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [] };
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
+  const [clientServiceEntries, setClientServiceEntries] = useState(emptyStructuredServices());
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
   const [blockedDateForm, setBlockedDateForm] = useState({ blockedDate: "", reason: "" });
   const [paymentMethodForm, setPaymentMethodForm] = useState({ method_type: "GCASH", method_name: "GCash", account_name: "", account_number: "", instructions: "", active: true });
@@ -3505,6 +3764,7 @@ function ClientDashboard({
     }, paymentSettingsRow || null, paymentMethodRows || [])));
     setClientBookings(bookingRows || []);
     setClientServices(serviceRows || []);
+    setClientServiceEntries(normalizeStructuredServices((serviceRows || []).map(serviceRowToStructured)));
     setClientAvailability(normalizedAvailability);
     setAvailabilityForm({
       days: normalizedAvailability.days,
@@ -3619,6 +3879,7 @@ function ClientDashboard({
       }, paymentSettingsRow || null, paymentMethodRows || [])));
       setClientBookings(bookingRows || []);
       setClientServices(serviceRows || []);
+      setClientServiceEntries(normalizeStructuredServices((serviceRows || []).map(serviceRowToStructured)));
       setClientAvailability(normalizedAvailability);
       setAvailabilityForm({
         days: normalizedAvailability.days,
@@ -3729,6 +3990,90 @@ function ClientDashboard({
     } catch (error) {
       console.error("Client blocked date update failed", error);
       setStatusMessage("Unable to save changes. Please try again.");
+    }
+  };
+
+  const submitStructuredServices = async (event) => {
+    event.preventDefault();
+    setStatusMessage("");
+    try {
+      const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
+      const savableServices = getSavableStructuredServices(clientServiceEntries, clientBusiness?.bookingTemplate);
+      for (const service of savableServices) {
+        if (isClientToursTravel && service.pricingType === "GROUP_TIER" && !validatePricingTiers(service.pricingTiers).ok) {
+          setStatusMessage(`Fix pricing tiers for ${service.name}.`);
+          return;
+        }
+      }
+      const currentIds = new Set(clientServices.map((service) => service.id));
+      const nextIds = new Set(savableServices.filter((service) => service.id).map((service) => service.id));
+      for (const service of savableServices) {
+        await onSaveService({
+          service_id: service.id || `svc-${Date.now()}-${service.displayOrder}`,
+          target_slug: selectedBusinessSlug,
+          service_name: service.name,
+          service_description: service.description,
+          service_price: service.price,
+          service_duration: service.durationMinutes,
+          service_status: service.status,
+          service_pricing_type: isClientToursTravel ? normalizePricingType(service.pricingType) : "FIXED",
+          service_pricing_unit: isClientToursTravel ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
+          service_pricing_tiers: isClientToursTravel ? service.pricingTiers : [],
+          service_display_order: service.displayOrder,
+        }, clientSession?.access_token);
+      }
+      for (const oldService of clientServices) {
+        if (currentIds.has(oldService.id) && !nextIds.has(oldService.id)) {
+          await onSaveService({
+            service_id: oldService.id,
+            target_slug: selectedBusinessSlug,
+            service_name: oldService.name,
+            service_description: oldService.description || "",
+            service_price: oldService.price,
+            service_duration: oldService.duration_minutes,
+            service_status: "Inactive",
+            service_pricing_type: oldService.pricing_type || "FIXED",
+            service_pricing_unit: oldService.pricing_unit || "FLAT",
+            service_pricing_tiers: oldService.pricing_tiers || [],
+            service_display_order: oldService.display_order || 999,
+          }, clientSession?.access_token);
+        }
+      }
+      const serviceRows = await supabaseRequest("business_services", {
+        query: `?select=*&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
+        accessToken: clientSession?.access_token,
+      });
+      setClientServices(serviceRows || []);
+      setClientServiceEntries(normalizeStructuredServices((serviceRows || []).map(serviceRowToStructured)));
+      setClientBusiness((current) => normalizeBusinessConfig(normalizeDatabaseBusiness({
+        slug: current.slug,
+        business: current.business,
+        industry: current.name,
+        booking_link: current.link,
+        logo_url: current.logo,
+        primary_color: current.primaryColor,
+        accent_color: current.accentColor,
+        phone: current.phone,
+        messenger_link: current.messengerLink,
+        address: current.address,
+        description: current.description,
+        business_type: current.businessType,
+        booking_mode: current.bookingMode,
+        booking_template: current.bookingTemplate,
+        business_package: current.package,
+        feature_flags: current.featureFlags,
+        status: current.status,
+        cover_url: current.cover,
+      }, serviceRows || [], {
+        open_days: clientAvailability.days,
+        open_hours: clientAvailability.hours,
+        slots: clientAvailability.slots,
+        blocked_dates: blockedDates,
+      }, paymentSettings || null, paymentMethods || [])));
+      setStatusMessage("Services saved.");
+    } catch (error) {
+      console.error("Client service save failed", error);
+      setStatusMessage("Unable to save services. Please try again.");
     }
   };
 
@@ -4051,85 +4396,10 @@ function ClientDashboard({
                 <p className="eyebrow">Services</p>
                 <h2>{isClientToursTravel ? "Manage tour packages" : "Manage services"}</h2>
               </div>
-              <form className="clientManagementForm" onSubmit={submitService}>
-                <input value={serviceForm.name} onChange={(event) => setServiceForm((current) => ({ ...current, name: event.target.value }))} placeholder={isClientToursTravel ? "Package name" : "Service name"} required />
-                <input value={serviceForm.description} onChange={(event) => setServiceForm((current) => ({ ...current, description: event.target.value }))} placeholder="Description" />
-                <input type="number" value={serviceForm.price} onChange={(event) => setServiceForm((current) => ({ ...current, price: event.target.value }))} placeholder="Price" />
-                <input type="number" value={serviceForm.durationMinutes} onChange={(event) => setServiceForm((current) => ({ ...current, durationMinutes: event.target.value }))} placeholder="Minutes" />
-                {isClientToursTravel && (
-                  <>
-                    <select value={serviceForm.pricingType} onChange={(event) => setServiceForm((current) => ({ ...current, pricingType: event.target.value }))}>
-                      <option value="PER_PAX">Per pax</option>
-                      <option value="GROUP_TIER">Group tier</option>
-                      <option value="PER_TRIP">Per trip</option>
-                      <option value="PER_DAY">Per day</option>
-                      <option value="FIXED">Fixed</option>
-                    </select>
-                    <select value={serviceForm.pricingUnit} onChange={(event) => setServiceForm((current) => ({ ...current, pricingUnit: event.target.value }))}>
-                      <option value="PER_PAX">/ pax</option>
-                      <option value="PER_GROUP">/ group</option>
-                      <option value="PER_TRIP">/ trip</option>
-                      <option value="PER_DAY">/ day</option>
-                      <option value="FIXED">fixed</option>
-                    </select>
-                  </>
-                )}
-                <select value={serviceForm.status} onChange={(event) => setServiceForm((current) => ({ ...current, status: event.target.value }))}>
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
-                {isClientToursTravel && serviceForm.pricingType === "GROUP_TIER" && (
-                  <div className="pricingTierEditor">
-                    <span>Group pricing tiers</span>
-                    {serviceForm.pricingTiers.map((tier, index) => (
-                      <div key={`${tier.minGuests}-${tier.maxGuests}-${index}`}>
-                        <input type="number" min="1" value={tier.minGuests} onChange={(event) => setServiceForm((current) => ({
-                          ...current,
-                          pricingTiers: current.pricingTiers.map((item, itemIndex) => itemIndex === index ? { ...item, minGuests: Number(event.target.value) } : item),
-                        }))} placeholder="Min guests" />
-                        <input type="number" min="1" value={tier.maxGuests} onChange={(event) => setServiceForm((current) => ({
-                          ...current,
-                          pricingTiers: current.pricingTiers.map((item, itemIndex) => itemIndex === index ? { ...item, maxGuests: Number(event.target.value) } : item),
-                        }))} placeholder="Max guests" />
-                        <input type="number" min="0" value={tier.price} onChange={(event) => setServiceForm((current) => ({
-                          ...current,
-                          pricingTiers: current.pricingTiers.map((item, itemIndex) => itemIndex === index ? { ...item, price: Number(event.target.value) } : item),
-                        }))} placeholder="Price" />
-                        <button type="button" onClick={() => setServiceForm((current) => ({
-                          ...current,
-                          pricingTiers: current.pricingTiers.filter((_, itemIndex) => itemIndex !== index),
-                        }))}>Remove</button>
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => setServiceForm((current) => ({
-                      ...current,
-                      pricingTiers: [...current.pricingTiers, { minGuests: 1, maxGuests: 2, price: 0 }],
-                    }))}>Add Pricing Tier</button>
-                  </div>
-                )}
-                <button type="submit">{serviceForm.id ? "Save service" : "Add service"}</button>
-                {serviceForm.id && <button type="button" onClick={() => editService()}>Clear</button>}
+              <form onSubmit={submitStructuredServices}>
+                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} bookingTemplate={clientBusiness?.bookingTemplate} compact />
+                <button className="clientPrimaryButton" type="submit">Save Services</button>
               </form>
-              <div className="clientBookingList">
-                {clientServices.map((service) => (
-                  <article className="clientBookingCard" key={service.id}>
-                    <div>
-                      <strong>{service.name}</strong>
-                      <span>{service.duration_minutes || 60} min / {formatServicePriceLabel({
-                        price: service.price,
-                        pricingType: service.pricing_type,
-                        pricingUnit: service.pricing_unit,
-                        pricingTiers: service.pricing_tiers,
-                      }, isClientToursTravel ? "PER_PAX" : "FIXED")}</span>
-                      <small>{service.status || "Active"}</small>
-                    </div>
-                    <p>{service.description || "No description"}</p>
-                    <div className="clientBookingActions">
-                      <button onClick={() => editService(service)}>Edit</button>
-                    </div>
-                  </article>
-                ))}
-              </div>
             </section>
           )}
 
