@@ -611,7 +611,7 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     bookingTemplate,
   });
   const themeDefaults = getToneThemeDefaults(tone);
-  const activeServices = filterTemplateServiceRows(serviceRows, bookingTemplate)
+  const activeServices = serviceRows
     .filter((service) => service.status !== "Inactive")
     .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
   const normalizedServices = dedupeServices(
@@ -921,11 +921,6 @@ function isStandalonePaxTierService(service = {}) {
   const name = (service.name || "").trim().toLowerCase();
   return /^\d+\s*[-–]\s*\d+\s*(pax|guests?|persons?|people)?$/.test(name)
     || /^\d+\s*(pax|guests?|persons?|people)$/.test(name);
-}
-
-function filterTemplateServiceRows(serviceRows = [], bookingTemplate = "GENERAL") {
-  if (normalizeBookingTemplate(bookingTemplate) !== "TOURS_TRAVEL") return serviceRows;
-  return serviceRows.filter((service) => !isStandalonePaxTierService(service));
 }
 
 function inferBookingTemplateFromIndustry(industry = "") {
@@ -1538,6 +1533,10 @@ function App() {
     await supabaseRpcRequest("upsert_client_service", serviceData, accessToken);
   };
 
+  const deleteClientService = async (serviceId, accessToken = "") => {
+    await supabaseRpcRequest("delete_client_service", { service_id_value: serviceId }, accessToken);
+  };
+
   const saveClientAvailability = async (availabilityData, accessToken = "") => {
     await supabaseRpcRequest("update_client_availability", availabilityData, accessToken);
   };
@@ -1667,6 +1666,7 @@ function App() {
         onBack={() => setPage("home")}
         onUpdateBookingStatus={updateBookingStatus}
         onSaveService={saveClientService}
+        onDeleteService={deleteClientService}
         onSaveAvailability={saveClientAvailability}
         onSaveBlockedDate={saveClientBlockedDate}
         onSetBlockedDateActive={setClientBlockedDateActive}
@@ -2517,15 +2517,21 @@ function BusinessUnavailablePage({ business, onBack }) {
   );
 }
 
-function StructuredServiceManager({ services, onChange, bookingTemplate = "GENERAL", compact = false }) {
+function StructuredServiceManager({ services, onChange, onDeleteService, bookingTemplate = "GENERAL", compact = false }) {
   const copy = getServiceManagerCopy(bookingTemplate);
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
   const updateService = (index, updates) => {
     onChange(services.map((service, itemIndex) => itemIndex === index ? { ...service, ...updates } : service));
   };
-  const removeService = (index) => {
+  const removeService = async (index) => {
+    const service = services[index];
+    if (service?.id && onDeleteService) {
+      const ok = window.confirm("Delete this service/package?\n\nThis will permanently remove it from this business and it will no longer appear on the public booking page.");
+      if (!ok) return;
+      await onDeleteService(service);
+    }
     const next = services.filter((_, itemIndex) => itemIndex !== index);
-    onChange(normalizeStructuredServices(next.length ? next : emptyStructuredServices(1), 1));
+    onChange(next.map((service, itemIndex) => ({ ...service, displayOrder: itemIndex })));
   };
   const moveService = (index, direction) => {
     const next = [...services];
@@ -2551,6 +2557,9 @@ function StructuredServiceManager({ services, onChange, bookingTemplate = "GENER
         <button type="button" onClick={() => onChange([...services, ...emptyStructuredServices(1)])}>+ {copy.add}</button>
       </div>
       <div className="structuredServiceList">
+        {!services.length && (
+          <div className="clientEmptyState">No services/packages yet.</div>
+        )}
         {services.map((service, index) => {
           const expanded = service.expanded !== false;
           return (
@@ -2605,7 +2614,7 @@ function StructuredServiceManager({ services, onChange, bookingTemplate = "GENER
                   <div className="structuredServiceActions">
                     <button type="button" onClick={() => moveService(index, -1)} disabled={index === 0}>Move Up</button>
                     <button type="button" onClick={() => moveService(index, 1)} disabled={index === services.length - 1}>Move Down</button>
-                    <button type="button" onClick={() => removeService(index)}>Remove</button>
+                    <button type="button" onClick={() => removeService(index)}>{service.id ? "Delete" : "Remove"}</button>
                   </div>
                 </div>
               )}
@@ -3055,7 +3064,7 @@ function emptyAdminClient() {
 function businessToAdminClient(business) {
   const serviceEntries = normalizeStructuredServices(
     business.serviceDetails?.length
-      ? filterTemplateServiceRows(business.serviceDetails, business.bookingTemplate).map(serviceRowToStructured)
+      ? business.serviceDetails.map(serviceRowToStructured)
       : (business.services || []).map((service, index) => serviceRowToStructured({ name: service, displayOrder: index }, index)),
   );
   const serviceText = structuredServicesToLegacyText(serviceEntries, business.bookingTemplate);
@@ -3228,6 +3237,16 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
       serviceEntries: nextEntries,
       services: structuredServicesToLegacyText(nextEntries, current.bookingTemplate),
     }));
+  };
+
+  const deleteAdminService = async (service) => {
+    if (!editingSlug || !service.id) return;
+    await supabaseRequest("business_services", {
+      method: "DELETE",
+      query: `?id=eq.${encodeURIComponent(service.id)}&business_slug=eq.${encodeURIComponent(editingSlug)}`,
+      accessToken: adminSession?.access_token,
+    });
+    setStatusMessage("Service deleted.");
   };
 
   const submitClient = async (event) => {
@@ -3634,7 +3653,7 @@ After login, you will only see the bookings and features assigned to your busine
             </div>
           </section>
           <label>Description<textarea name="rules" value={form.rules} onChange={updateForm} rows="3" /></label>
-          <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} bookingTemplate={form.bookingTemplate} />
+          <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} bookingTemplate={form.bookingTemplate} />
           <div className="smmFlagGrid">
             {Object.keys(defaultFeatureFlags).map((flag) => (
               <label key={flag}>
@@ -3682,6 +3701,7 @@ function ClientDashboard({
   onBack,
   onUpdateBookingStatus,
   onSaveService,
+  onDeleteService,
   onSaveAvailability,
   onSaveBlockedDate,
   onSetBlockedDateActive,
@@ -3773,10 +3793,9 @@ function ClientDashboard({
       ...(availabilityRow || {}),
       blocked_dates: blockedDateRows || [],
     }, paymentSettingsRow || null, paymentMethodRows || [])));
-    const visibleServiceRows = filterTemplateServiceRows(serviceRows || [], businessRow?.booking_template);
     setClientBookings(bookingRows || []);
-    setClientServices(visibleServiceRows);
-    setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
+    setClientServices(serviceRows || []);
+    setClientServiceEntries(normalizeStructuredServices((serviceRows || []).map(serviceRowToStructured)));
     setClientAvailability(normalizedAvailability);
     setAvailabilityForm({
       days: normalizedAvailability.days,
@@ -3889,10 +3908,9 @@ function ClientDashboard({
         ...(availabilityRow || {}),
         blocked_dates: blockedDateRows || [],
       }, paymentSettingsRow || null, paymentMethodRows || [])));
-      const visibleServiceRows = filterTemplateServiceRows(serviceRows || [], businessRow?.booking_template);
       setClientBookings(bookingRows || []);
-      setClientServices(visibleServiceRows);
-      setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
+      setClientServices(serviceRows || []);
+      setClientServiceEntries(normalizeStructuredServices((serviceRows || []).map(serviceRowToStructured)));
       setClientAvailability(normalizedAvailability);
       setAvailabilityForm({
         days: normalizedAvailability.days,
@@ -4056,31 +4074,9 @@ function ClientDashboard({
         query: `?select=*&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
         accessToken: clientSession?.access_token,
       });
-      const hiddenTierRows = (serviceRows || []).filter((service) => isStandalonePaxTierService(service));
-      for (const tierRow of hiddenTierRows) {
-        if (tierRow.status !== "Inactive") {
-          await onSaveService({
-            service_id: tierRow.id,
-            target_slug: selectedBusinessSlug,
-            service_name: tierRow.name,
-            service_description: tierRow.description || "",
-            service_price: tierRow.price,
-            service_duration: tierRow.duration_minutes,
-            service_status: "Inactive",
-            service_pricing_type: tierRow.pricing_type || "FIXED",
-            service_pricing_unit: tierRow.pricing_unit || "FLAT",
-            service_pricing_tiers: tierRow.pricing_tiers || [],
-            service_display_order: tierRow.display_order || 999,
-          }, clientSession?.access_token);
-        }
-      }
-      const refreshedServiceRows = hiddenTierRows.length ? await supabaseRequest("business_services", {
-        query: `?select=*&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
-        accessToken: clientSession?.access_token,
-      }) : serviceRows;
-      const visibleServiceRows = filterTemplateServiceRows(refreshedServiceRows || [], clientBusiness?.bookingTemplate);
-      setClientServices(visibleServiceRows);
-      setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
+      const refreshedServiceRows = serviceRows;
+      setClientServices(refreshedServiceRows || []);
+      setClientServiceEntries(normalizeStructuredServices((refreshedServiceRows || []).map(serviceRowToStructured)));
       setClientBusiness((current) => normalizeBusinessConfig(normalizeDatabaseBusiness({
         slug: current.slug,
         business: current.business,
@@ -4111,6 +4107,19 @@ function ClientDashboard({
       console.error("Client service save failed", error);
       setStatusMessage("Unable to save services. Please try again.");
     }
+  };
+
+  const deleteStructuredService = async (service) => {
+    if (!service?.id) return;
+    await onDeleteService(service.id, clientSession?.access_token);
+    setClientServices((current) => current.filter((item) => item.id !== service.id));
+    setClientServiceEntries((current) => current.filter((item) => item.id !== service.id).map((item, index) => ({ ...item, displayOrder: index })));
+    setClientBusiness((current) => normalizeBusinessConfig({
+      ...current,
+      serviceDetails: (current.serviceDetails || []).filter((item) => item.id !== service.id && item.name !== service.name),
+      services: (current.services || []).filter((item) => item !== service.name),
+    }));
+    setStatusMessage("Service deleted.");
   };
 
   const submitAvailability = async (event) => {
@@ -4433,7 +4442,7 @@ function ClientDashboard({
                 <h2>{isClientToursTravel ? "Manage tour packages" : "Manage services"}</h2>
               </div>
               <form onSubmit={submitStructuredServices}>
-                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} bookingTemplate={clientBusiness?.bookingTemplate} compact />
+                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} bookingTemplate={clientBusiness?.bookingTemplate} compact />
                 <button className="clientPrimaryButton" type="submit">Save Services</button>
               </form>
             </section>

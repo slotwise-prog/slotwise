@@ -471,6 +471,29 @@ begin
 end;
 $$;
 
+create or replace function public.delete_client_service(service_id_value text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_slug text;
+begin
+  select business_slug into target_slug
+  from business_services
+  where id = service_id_value;
+
+  if target_slug is null or not public.business_has_package_capability(target_slug, 'SERVICES') then
+    raise exception 'This package cannot delete services.';
+  end if;
+
+  delete from business_services
+  where id = service_id_value
+    and business_slug = target_slug;
+end;
+$$;
+
 create or replace function public.update_client_availability(
   target_slug text,
   open_days_value text,
@@ -811,6 +834,7 @@ $$;
 
 grant execute on function public.business_has_package_capability(text, text) to authenticated;
 grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb, integer) to authenticated;
+grant execute on function public.delete_client_service(text) to authenticated;
 grant execute on function public.update_client_availability(text, text, text, jsonb) to authenticated;
 grant execute on function public.upsert_client_blocked_date(text, text, date, text) to authenticated;
 grant execute on function public.set_client_blocked_date_active(text, boolean) to authenticated;
