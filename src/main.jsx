@@ -294,6 +294,29 @@ function normalizeHexColor(value, fallback = "") {
   return /^#([0-9a-fA-F]{6})$/.test(next) ? next.toUpperCase() : fallback;
 }
 
+function getBusinessPageBackgroundStyle(business = {}, tone = "general") {
+  const themeDefaults = getToneThemeDefaults(tone);
+  const backgroundType = (business.pageBackgroundType || business.page_background_type || "SOLID").toUpperCase();
+  const color1 = normalizeHexColor(business.pageBackgroundColor || business.page_background_color, themeDefaults.pageBackgroundColor);
+  const color2 = normalizeHexColor(business.pageBackgroundColor2 || business.page_background_color_2, "");
+  if (backgroundType === "GRADIENT" && color2) {
+    return {
+      backgroundColor: color1,
+      backgroundImage: `linear-gradient(145deg, ${color1}, ${color2})`,
+      backgroundRepeat: "no-repeat",
+      backgroundAttachment: "fixed",
+      backgroundSize: "cover",
+    };
+  }
+  return {
+    backgroundColor: color1,
+    backgroundImage: "none",
+    backgroundRepeat: "no-repeat",
+    backgroundAttachment: "fixed",
+    backgroundSize: "cover",
+  };
+}
+
 function getTemplateFallbackCover(tone = "beauty") {
   const tones = {
     "staycation-accommodation": { title: "STAYCATION", subtitle: "Relax • Sleep • Stay", start: "#4b2f23", end: "#b7794b" },
@@ -756,6 +779,10 @@ function validateBrandMediaFile(file) {
   if (file.size > 5 * 1024 * 1024) throw new Error("File size must be 5 MB or less.");
 }
 
+function validateAnnouncementMediaFile(file) {
+  validateBrandMediaFile(file);
+}
+
 function getFileExtension(file) {
   if (file.type === "image/png") return "png";
   if (file.type === "image/webp") return "webp";
@@ -874,6 +901,7 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     logo: row.logo_url || "",
     primaryColor: tone === "home-service" && isBeautyDefaultColor(row.primary_color) ? themeDefaults.primaryColor : row.primary_color || themeDefaults.primaryColor,
     accentColor: tone === "home-service" && isBeautyDefaultColor(row.accent_color) ? themeDefaults.accentColor : row.accent_color || themeDefaults.accentColor,
+    pageBackgroundType: (row.page_background_type || row.pageBackgroundType || "SOLID").toUpperCase(),
     phone: row.phone || "",
     messengerLink: row.messenger_link || "",
     address: row.address || "",
@@ -893,6 +921,8 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
       blockedDates: availabilityRow?.blocked_dates || [],
     },
     cover: row.cover_url || "",
+    pageBackgroundColor: normalizeHexColor(row.page_background_color || row.pageBackgroundColor, themeDefaults.pageBackgroundColor),
+    pageBackgroundColor2: normalizeHexColor(row.page_background_color_2 || row.pageBackgroundColor2, ""),
     serviceDetails: normalizedServices.serviceDetails,
     services: normalizedServices.services,
     forms: tone === "home-service" ? ["Service concern"] : ["Notes before the appointment"],
@@ -949,7 +979,9 @@ function buildBusinessFromSetup(setup) {
     logo: "",
     primaryColor: themeDefaults.primaryColor,
     accentColor: themeDefaults.accentColor,
+    pageBackgroundType: (setup.pageBackgroundType || "SOLID").toUpperCase(),
     pageBackgroundColor: setup.pageBackgroundColor || themeDefaults.pageBackgroundColor,
+    pageBackgroundColor2: setup.pageBackgroundColor2 || "",
     phone: setup.contact || "",
     messengerLink: setup.facebookPage || "",
     address: "",
@@ -987,7 +1019,9 @@ function normalizeBusinessConfig(business) {
     logo: business.logo || "",
     primaryColor: tone === "home-service" && isBeautyDefaultColor(business.primaryColor) ? themeDefaults.primaryColor : business.primaryColor || themeDefaults.primaryColor,
     accentColor: tone === "home-service" && isBeautyDefaultColor(business.accentColor) ? themeDefaults.accentColor : business.accentColor || themeDefaults.accentColor,
+    pageBackgroundType: (business.pageBackgroundType || business.page_background_type || "SOLID").toUpperCase(),
     pageBackgroundColor: normalizeHexColor(business.pageBackgroundColor || business.page_background_color, themeDefaults.pageBackgroundColor),
+    pageBackgroundColor2: normalizeHexColor(business.pageBackgroundColor2 || business.page_background_color_2, ""),
     phone: business.phone || "",
     messengerLink: business.messengerLink || "",
     address: business.address || "",
@@ -1016,6 +1050,13 @@ const announcementPlacementOptions = ["DEMO_PREVIEW", "CLIENT_DASHBOARD", "BOTH"
 const announcementPriorityOptions = ["NORMAL", "IMPORTANT"];
 const announcementPackageAudienceOptions = ["ALL", "STARTER", "BUSINESS", "PRO"];
 const announcementStatusAudienceOptions = ["ALL", "DEMO", "STARTER", "BUSINESS", "PRO", "UNPAID", "ACTIVE"];
+const announcementCtaTypeOptions = ["NONE", "MESSENGER", "INTERNAL_PAGE", "EXTERNAL_LINK"];
+const announcementInternalPageOptions = [
+  { value: "internal:packages", label: "Package Information" },
+  { value: "internal:overview", label: "Slotwise Overview" },
+  { value: "internal:reseller", label: "Reseller Program" },
+  { value: "internal:signup", label: "Launch Signup" },
+];
 const announcementPresetOptions = [
   {
     id: "starter-business",
@@ -1023,6 +1064,8 @@ const announcementPresetOptions = [
     message: "Upgrade to BUSINESS to unlock additional business management tools.",
     announcement_type: "PACKAGE_UPSELL",
     cta_label: "View BUSINESS",
+    cta_type: "INTERNAL_PAGE",
+    cta_destination: "internal:packages",
     target_packages: ["STARTER"],
     target_statuses: ["ALL"],
     placement: "BOTH",
@@ -1034,6 +1077,8 @@ const announcementPresetOptions = [
     message: "Upgrade to PRO for our complete Booking & Inquiry System experience.",
     announcement_type: "PACKAGE_UPSELL",
     cta_label: "View PRO",
+    cta_type: "INTERNAL_PAGE",
+    cta_destination: "internal:packages",
     target_packages: ["BUSINESS"],
     target_statuses: ["ALL"],
     placement: "BOTH",
@@ -1045,6 +1090,8 @@ const announcementPresetOptions = [
     message: "Offer Booking & Inquiry Systems to your own clients and earn from every completed sale.",
     announcement_type: "RESELLER",
     cta_label: "View Reseller Program",
+    cta_type: "INTERNAL_PAGE",
+    cta_destination: "internal:reseller",
     target_packages: ["ALL"],
     target_statuses: ["ALL"],
     placement: "BOTH",
@@ -1056,6 +1103,8 @@ const announcementPresetOptions = [
     message: "Check out the latest updates available for your system.",
     announcement_type: "GENERAL",
     cta_label: "",
+    cta_type: "NONE",
+    cta_destination: "",
     target_packages: ["ALL"],
     target_statuses: ["ALL"],
     placement: "BOTH",
@@ -1069,6 +1118,9 @@ function normalizeAnnouncement(announcement = {}) {
   const announcementType = announcementTypeOptions.includes((announcement.announcement_type || announcement.type || "GENERAL").toUpperCase())
     ? (announcement.announcement_type || announcement.type || "GENERAL").toUpperCase()
     : "GENERAL";
+  const ctaType = announcementCtaTypeOptions.includes((announcement.cta_type || announcement.ctaType || "NONE").toUpperCase())
+    ? (announcement.cta_type || announcement.ctaType || "NONE").toUpperCase()
+    : "NONE";
   const normalizeAudienceList = (value, allowed, fallback) => {
     const list = Array.isArray(value) ? value : (typeof value === "string" && value.trim() ? value.split(",") : []);
     const filtered = list.map((item) => String(item || "").trim().toUpperCase()).filter(Boolean).filter((item) => allowed.includes(item));
@@ -1082,6 +1134,10 @@ function normalizeAnnouncement(announcement = {}) {
     announcement_type: announcementType,
     cta_label: announcement.cta_label || announcement.ctaLabel || "",
     cta_url: announcement.cta_url || announcement.ctaUrl || "",
+    cta_type: ctaType,
+    cta_destination: announcement.cta_destination || announcement.ctaDestination || "",
+    image_url: announcement.image_url || announcement.imageUrl || "",
+    image_clickable: announcement.image_clickable !== false,
     placement,
     business_slug: announcement.business_slug || announcement.businessSlug || "",
     target_packages: normalizeAudienceList(announcement.target_packages || announcement.targetPackages, announcementPackageAudienceOptions, ["ALL"]),
@@ -1126,14 +1182,27 @@ function sortAnnouncements(announcements = []) {
   });
 }
 
-function resolveAnnouncementCtaHref(ctaUrl = "") {
-  const next = String(ctaUrl || "").trim();
-  if (!next) return "";
-  if (!next.startsWith("internal:")) return next;
-  if (next === "internal:packages") return "#pricing";
-  if (next === "internal:reseller") return "#signup";
-  if (next === "internal:overview") return "#product";
-  return "";
+function resolveAnnouncementCtaHref(announcement = {}, business = null) {
+  const ctaType = (announcement.cta_type || announcement.ctaType || "NONE").toUpperCase();
+  const ctaUrl = String(announcement.cta_url || announcement.ctaUrl || "").trim();
+  const ctaDestination = String(announcement.cta_destination || announcement.ctaDestination || "").trim();
+  if (ctaType === "NONE") return "";
+  if (ctaType === "MESSENGER") {
+    return business?.messengerLink || business?.phone && `tel:${String(business.phone).replace(/\s+/g, "")}` || ctaUrl || ctaDestination || "";
+  }
+  if (ctaType === "INTERNAL_PAGE") {
+    const next = ctaDestination || ctaUrl;
+    if (next === "internal:packages") return "#pricing";
+    if (next === "internal:reseller") return "#signup";
+    if (next === "internal:overview") return "#product";
+    if (next === "internal:client-login") return "/client-login";
+    if (next === "internal:client-dashboard") return "/client-dashboard";
+    return "";
+  }
+  if (ctaType === "EXTERNAL_LINK") {
+    return ctaUrl;
+  }
+  return ctaUrl || ctaDestination || "";
 }
 
 function getAnnouncementIcon(announcementType) {
@@ -1388,9 +1457,11 @@ function setupToBusinessDatabase(setup, slug) {
     booking_link: `/${slug}`,
     cover_url: setup.cover || setup.coverUrl || "",
     logo_url: setup.logo || setup.logoUrl || "",
+    page_background_type: (setup.pageBackgroundType || "SOLID").toUpperCase(),
     primary_color: setup.primaryColor || business.primaryColor,
     accent_color: setup.accentColor || business.accentColor,
     page_background_color: normalizeHexColor(setup.pageBackgroundColor, business.pageBackgroundColor || ""),
+    page_background_color_2: normalizeHexColor(setup.pageBackgroundColor2, business.pageBackgroundColor2 || ""),
     phone: setup.contact || "",
     messenger_link: setup.facebookPage || "",
     address: setup.address || "",
@@ -2626,11 +2697,23 @@ function AnnouncementFeed({
       <div className="announcementList">
         {visibleRows.map((announcement) => {
           const Icon = getAnnouncementIcon(announcement.announcement_type);
-          const href = resolveAnnouncementCtaHref(announcement.cta_url);
+          const href = resolveAnnouncementCtaHref(announcement, business);
+          const canOpenImage = announcement.image_clickable !== false && Boolean(href);
           return (
             <article key={announcement.id} className={`announcementCard ${getAnnouncementPreviewTone(announcement)}`}>
               <div className="announcementIcon"><Icon size={18} /></div>
               <div className="announcementBody">
+                {announcement.image_url && (
+                  <div className={canOpenImage ? "announcementImageWrap clickable" : "announcementImageWrap"}>
+                    {canOpenImage ? (
+                      <a href={href} className="announcementImageLink" target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined}>
+                        <img src={announcement.image_url} alt={announcement.title} className="announcementImage" loading="lazy" />
+                      </a>
+                    ) : (
+                      <img src={announcement.image_url} alt={announcement.title} className="announcementImage" loading="lazy" />
+                    )}
+                  </div>
+                )}
                 <div className="announcementTopLine">
                   <strong>{announcement.title}</strong>
                   <span className={`announcementPriority ${announcement.priority === "IMPORTANT" ? "important" : ""}`}>{announcement.announcement_type.replace(/_/g, " ")}</span>
@@ -2639,7 +2722,7 @@ function AnnouncementFeed({
                 <small>{getAnnouncementAudienceLabel(announcement)} · {getAnnouncementPlacementLabel(announcement)}</small>
                 {announcement.cta_label && href && (
                   <div className="announcementActions">
-                    <a href={href} className="announcementCta">{announcement.cta_label}</a>
+                    <a href={href} className="announcementCta" target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined}>{announcement.cta_label}</a>
                   </div>
                 )}
               </div>
@@ -2945,7 +3028,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
       style={{
         "--booking-primary": business.primaryColor,
         "--booking-accent": business.accentColor,
-        "--booking-page-bg": business.pageBackgroundColor || getToneThemeDefaults(bookingTone).pageBackgroundColor,
+        ...getBusinessPageBackgroundStyle(business, bookingTone),
       }}
     >
       <button className="backButton premiumBackButton" onClick={onBack}><ArrowLeft size={18} /> Back to Slotwise</button>
@@ -3814,7 +3897,9 @@ function emptyAdminClient() {
     cover: "",
     primaryColor: "#bd5d6d",
     accentColor: "#f6dfe3",
+    pageBackgroundType: "SOLID",
     pageBackgroundColor: "",
+    pageBackgroundColor2: "",
     services: "",
     serviceEntries: emptyStructuredServices(),
     openDays: "Monday to Saturday",
@@ -3850,7 +3935,9 @@ function businessToAdminClient(business) {
     cover: business.cover || "",
     primaryColor: business.primaryColor || "#bd5d6d",
     accentColor: business.accentColor || "#f6dfe3",
+    pageBackgroundType: (business.pageBackgroundType || business.page_background_type || "SOLID").toUpperCase(),
     pageBackgroundColor: normalizeHexColor(business.pageBackgroundColor || business.page_background_color, ""),
+    pageBackgroundColor2: normalizeHexColor(business.pageBackgroundColor2 || business.page_background_color_2, ""),
     services: serviceText,
     serviceEntries,
     openDays: business.availability?.days || defaultAvailability.days,
@@ -3866,8 +3953,12 @@ function emptyAnnouncementForm() {
     title: "",
     message: "",
     announcement_type: "GENERAL",
+    image_url: "",
+    image_clickable: true,
+    cta_type: "NONE",
     cta_label: "",
     cta_url: "",
+    cta_destination: "",
     placement: "BOTH",
     business_slug: "",
     target_packages: ["ALL"],
@@ -3898,6 +3989,7 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
   const [editingAnnouncementId, setEditingAnnouncementId] = useState("");
   const logoUploadRef = useRef(null);
   const coverUploadRef = useRef(null);
+  const announcementUploadRef = useRef(null);
 
   const loadClientAccess = async (session) => {
     if (!session?.access_token) return [];
@@ -4017,14 +4109,17 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
       return;
     }
     setForm((current) => {
-      const nextValue = name === "pageBackgroundColor"
-        ? normalizeHexColor(value, current.pageBackgroundColor || "")
-        : type === "checkbox"
+      const nextValue = name === "pageBackgroundColor" || name === "pageBackgroundColor2"
+        ? normalizeHexColor(value, current[name] || "")
+        : name === "pageBackgroundType"
+          ? (checked ? "GRADIENT" : "SOLID")
+          : type === "checkbox"
           ? checked
           : value;
       const next = { ...current, [name]: nextValue };
       if (name === "businessName" && !editingSlug) next.slug = makeSlug(value);
       if (name === "slug") next.slug = makeSlug(value);
+      if (name === "pageBackgroundType" && nextValue !== "GRADIENT") next.pageBackgroundColor2 = "";
       if (name === "bookingTemplate") {
         const nextTemplate = normalizeBookingTemplate(value);
         next.serviceEntries = normalizeStructuredServices(current.serviceEntries).map((service) => nextTemplate === "TOURS_TRAVEL" ? service : nextTemplate === "STAYCATION_ACCOMMODATION" ? {
@@ -4067,9 +4162,26 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     return url;
   };
 
+  const uploadAnnouncementAsset = async (file) => {
+    validateAnnouncementMediaFile(file);
+    const slug = makeSlug(editingSlug || form.slug || form.businessName || "client-business");
+    const extension = getFileExtension(file);
+    const stamp = Date.now();
+    const path = `announcements/${slug}/announcement-${stamp}.${extension}`;
+    const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
+    setAnnouncementForm((current) => ({ ...current, image_url: url }));
+    setStatusMessage("Announcement image uploaded.");
+    return url;
+  };
+
   const clearBrandAsset = (kind) => {
     setForm((current) => ({ ...current, [kind]: "" }));
     setStatusMessage(`${kind === "cover" ? "Cover image" : "Logo"} removed.`);
+  };
+
+  const clearAnnouncementAsset = () => {
+    setAnnouncementForm((current) => ({ ...current, image_url: "" }));
+    setStatusMessage("Announcement image removed.");
   };
 
   const startAnnouncement = (announcement = emptyAnnouncementForm()) => {
@@ -4091,6 +4203,16 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
         const list = checked ? Array.from(new Set([...currentList, nextValue])) : currentList.filter((item) => item !== nextValue);
         return { ...current, [name]: list.length ? list : ["ALL"] };
       });
+      return;
+    }
+    if (name === "cta_type") {
+      setAnnouncementForm((current) => ({
+        ...current,
+        cta_type: value,
+        cta_label: value === "NONE" ? "" : current.cta_label,
+        cta_url: value === "EXTERNAL_LINK" ? current.cta_url : "",
+        cta_destination: value === "INTERNAL_PAGE" ? current.cta_destination : value === "MESSENGER" ? "" : "",
+      }));
       return;
     }
     setAnnouncementForm((current) => ({
@@ -4119,8 +4241,12 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
         title: announcementForm.title.trim(),
         message: announcementForm.message.trim(),
         announcement_type: announcementForm.announcement_type,
+        image_url: announcementForm.image_url.trim(),
+        image_clickable: Boolean(announcementForm.image_clickable),
+        cta_type: announcementForm.cta_type,
         cta_label: announcementForm.cta_label.trim(),
-        cta_url: announcementForm.cta_url.trim(),
+        cta_url: announcementForm.cta_type === "EXTERNAL_LINK" ? announcementForm.cta_url.trim() : "",
+        cta_destination: announcementForm.cta_type === "INTERNAL_PAGE" || announcementForm.cta_type === "MESSENGER" ? announcementForm.cta_destination.trim() : "",
         placement: announcementForm.placement,
         business_slug: announcementForm.business_slug.trim() || null,
         target_packages: announcementForm.target_packages?.length ? announcementForm.target_packages : ["ALL"],
@@ -4192,7 +4318,13 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
   };
 
   const resetPageBackgroundColor = () => {
-    setForm((current) => ({ ...current, pageBackgroundColor: "" }));
+    const defaults = getToneThemeDefaults(getBookingTemplateTone(form.bookingTemplate));
+    setForm((current) => ({
+      ...current,
+      pageBackgroundType: "SOLID",
+      pageBackgroundColor: defaults.pageBackgroundColor,
+      pageBackgroundColor2: "",
+    }));
     setStatusMessage("Page background reset to the template default.");
   };
 
@@ -4609,20 +4741,24 @@ After login, you will only see the bookings and features assigned to your busine
               <div className="brandingCardHeader">
                 <div>
                   <p className="eyebrow">Page background</p>
-                  <h3>Set the outer page color</h3>
+                  <h3>Overall page background</h3>
                 </div>
                 <button type="button" onClick={resetPageBackgroundColor}>Reset to Template Default</button>
               </div>
               <div
                 className="brandingPreview brandingBackgroundPreview"
-                style={{
-                  background: normalizeHexColor(
-                    form.pageBackgroundColor,
-                    getToneThemeDefaults(getBookingTemplateTone(form.bookingTemplate)).pageBackgroundColor,
-                  ),
-                }}
+                style={getBusinessPageBackgroundStyle(form, getBookingTemplateTone(form.bookingTemplate))}
               />
               <div className="brandingActions brandingColorActions">
+                <label className="brandingInlineToggle">
+                  <input
+                    name="pageBackgroundType"
+                    type="checkbox"
+                    checked={(form.pageBackgroundType || "SOLID").toUpperCase() === "GRADIENT"}
+                    onChange={updateForm}
+                  />
+                  Use Gradient
+                </label>
                 <input
                   name="pageBackgroundColor"
                   type="color"
@@ -4639,6 +4775,23 @@ After login, you will only see the bookings and features assigned to your busine
                   onChange={updateForm}
                   placeholder={getToneThemeDefaults(getBookingTemplateTone(form.bookingTemplate)).pageBackgroundColor}
                 />
+                {(form.pageBackgroundType || "SOLID").toUpperCase() === "GRADIENT" && (
+                  <>
+                    <input
+                      name="pageBackgroundColor2"
+                      type="color"
+                      value={normalizeHexColor(form.pageBackgroundColor2, getToneThemeDefaults(getBookingTemplateTone(form.bookingTemplate)).accentColor)}
+                      onChange={updateForm}
+                      aria-label="Page background second color"
+                    />
+                    <input
+                      name="pageBackgroundColor2"
+                      value={form.pageBackgroundColor2}
+                      onChange={updateForm}
+                      placeholder={getToneThemeDefaults(getBookingTemplateTone(form.bookingTemplate)).accentColor}
+                    />
+                  </>
+                )}
                 <span className="brandingColorHint">Outer page background color</span>
               </div>
             </div>
@@ -4678,6 +4831,37 @@ After login, you will only see the bookings and features assigned to your busine
                   {editingAnnouncementId && <button type="button" onClick={() => startAnnouncement()}>New Announcement</button>}
                 </div>
                 <div className="announcementEditorGrid">
+                  <label className="announcementFullWidth">
+                    Promo Image / Banner
+                    <div className="announcementMediaPanel">
+                      <div className="announcementMediaPreview">
+                        {announcementForm.image_url ? (
+                          <img src={announcementForm.image_url} alt={announcementForm.title || "Announcement preview"} />
+                        ) : (
+                          <span>Image preview appears here</span>
+                        )}
+                      </div>
+                      <div className="announcementMediaActions">
+                        <input ref={announcementUploadRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = "";
+                          if (!file) return;
+                          uploadAnnouncementAsset(file).catch((error) => {
+                            console.error("Announcement image upload failed", error);
+                            setStatusMessage(error.message || "Upload failed.");
+                          });
+                        }} hidden />
+                        <button type="button" onClick={() => announcementUploadRef.current?.click()}>Upload Image</button>
+                        <button type="button" onClick={() => announcementUploadRef.current?.click()}>Replace Image</button>
+                        <button type="button" onClick={clearAnnouncementAsset}>Remove Image</button>
+                      </div>
+                      <input name="image_url" value={announcementForm.image_url} onChange={updateAnnouncementForm} placeholder="Image URL or uploaded file link" />
+                      <label className="announcementInlineToggle">
+                        <input type="checkbox" name="image_clickable" checked={Boolean(announcementForm.image_clickable)} onChange={updateAnnouncementForm} />
+                        Make Banner Clickable
+                      </label>
+                    </div>
+                  </label>
                   <label>
                     Title
                     <input name="title" value={announcementForm.title} onChange={updateAnnouncementForm} placeholder="System update" required />
@@ -4693,13 +4877,32 @@ After login, you will only see the bookings and features assigned to your busine
                     <textarea name="message" value={announcementForm.message} onChange={updateAnnouncementForm} rows="4" placeholder="Write the memo or announcement here." required />
                   </label>
                   <label>
-                    CTA label
-                    <input name="cta_label" value={announcementForm.cta_label} onChange={updateAnnouncementForm} placeholder="Learn more" />
+                    CTA
+                    <select name="cta_type" value={announcementForm.cta_type} onChange={updateAnnouncementForm}>
+                      {announcementCtaTypeOptions.map((item) => <option key={item} value={item}>{item.replace(/_/g, " ")}</option>)}
+                    </select>
                   </label>
-                  <label>
-                    CTA link
-                    <input name="cta_url" value={announcementForm.cta_url} onChange={updateAnnouncementForm} placeholder="https://... or internal:packages" />
-                  </label>
+                  {announcementForm.cta_type !== "NONE" && (
+                    <label>
+                      CTA label
+                      <input name="cta_label" value={announcementForm.cta_label} onChange={updateAnnouncementForm} placeholder="Message Us" />
+                    </label>
+                  )}
+                  {announcementForm.cta_type === "INTERNAL_PAGE" && (
+                    <label>
+                      Destination
+                      <select name="cta_destination" value={announcementForm.cta_destination} onChange={updateAnnouncementForm}>
+                        <option value="">Choose a page</option>
+                        {announcementInternalPageOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                      </select>
+                    </label>
+                  )}
+                  {announcementForm.cta_type === "EXTERNAL_LINK" && (
+                    <label>
+                      External URL
+                      <input name="cta_url" value={announcementForm.cta_url} onChange={updateAnnouncementForm} placeholder="https://..." />
+                    </label>
+                  )}
                   <label>
                     Placement
                     <select name="placement" value={announcementForm.placement} onChange={updateAnnouncementForm}>
@@ -4788,8 +4991,14 @@ After login, you will only see the bookings and features assigned to your busine
                           </div>
                           <span>{announcement.enabled ? "Enabled" : "Disabled"}</span>
                         </div>
+                        {announcement.image_url && (
+                          <div className="announcementAdminImage">
+                            <img src={announcement.image_url} alt={announcement.title} />
+                          </div>
+                        )}
                         <div className="announcementAdminMeta">
                           <span>{announcement.announcement_type.replace(/_/g, " ")}</span>
+                          <span>{announcement.cta_type || "NONE"}</span>
                           <span>{audience}</span>
                           <span>{placementLabel}</span>
                           <span>{announcement.business_slug || "All businesses"}</span>

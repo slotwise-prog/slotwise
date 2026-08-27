@@ -1471,9 +1471,10 @@ h2 {
 }
 
 .bookingPage {
-  background:
-    radial-gradient(circle at 18% 20%, rgba(0, 129, 255, 0.10), transparent 30%),
-    var(--booking-page-bg, #fbf3f5);
+  background: var(--booking-page-bg, #f4f6f8);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
 }
 
 .backButton {
@@ -5267,6 +5268,15 @@ button,
   width: 100%;
 }
 
+.announcementEditorGrid input,
+.announcementEditorGrid select,
+.announcementEditorGrid textarea {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: #fff;
+}
+
 .announcementFullWidth {
   grid-column: 1 / -1;
 }
@@ -5291,6 +5301,51 @@ button,
 
 .announcementAudienceChoices label,
 .announcementFlags label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #42506d;
+}
+
+.announcementMediaPanel {
+  display: grid;
+  gap: 10px;
+}
+
+.announcementMediaPreview {
+  min-height: 200px;
+  border-radius: 16px;
+  border: 1px dashed rgba(85, 98, 143, 0.24);
+  background: linear-gradient(180deg, rgba(245, 247, 255, 1), rgba(255, 255, 255, 1));
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.announcementMediaPreview img,
+.announcementAdminImage img,
+.announcementImage {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.announcementAdminImage {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.announcementMediaActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.announcementInlineToggle {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -5428,6 +5483,25 @@ button,
   gap: 8px;
 }
 
+.announcementImageWrap {
+  width: 100%;
+  display: grid;
+}
+
+.announcementImageWrap.clickable {
+  cursor: pointer;
+}
+
+.announcementImageLink {
+  display: block;
+}
+
+.announcementImage {
+  max-width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
 .announcementTopLine {
   display: flex;
   gap: 8px;
@@ -5535,5 +5609,9 @@ button,
 
   .announcementCard {
     grid-template-columns: 1fr;
+  }
+
+  .announcementMediaPreview {
+    min-height: 160px;
   }
 }
