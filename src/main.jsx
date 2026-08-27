@@ -1744,7 +1744,7 @@ function App() {
     { key: "customers", label: "Customers", title: "Customer database sample" },
   ];
 
-  const loadBusinessConfigs = async (scopeSlug = "") => {
+  const loadBusinessConfigs = async (scopeSlug = "", accessToken = "") => {
     if (!supabaseUrl || !supabaseAnonKey) return [];
     const businessQuery = scopeSlug
       ? `?select=*&slug=eq.${encodeURIComponent(scopeSlug)}`
@@ -1765,12 +1765,12 @@ function App() {
       ? `?select=*&business_slug=eq.${encodeURIComponent(scopeSlug)}&active=eq.true`
       : "?select=*&active=eq.true";
     const [onlineBusinesses, onlineServices, onlineAvailability, onlineBlockedDates, onlinePaymentSettings, onlinePaymentMethods] = await Promise.all([
-      supabaseRequest("businesses", { query: businessQuery }),
-      supabaseRequest("business_services", { query: serviceQuery }),
-      supabaseRequest("business_availability", { query: availabilityQuery }),
-      supabaseRequest("business_blocked_dates", { query: blockedDatesQuery }).catch(() => []),
-      supabaseRequest("business_payment_settings", { query: paymentSettingsQuery }).catch(() => []),
-      supabaseRequest("business_payment_methods", { query: paymentMethodsQuery }).catch(() => []),
+      supabaseRequest("businesses", { query: businessQuery, accessToken }),
+      supabaseRequest("business_services", { query: serviceQuery, accessToken }),
+      supabaseRequest("business_availability", { query: availabilityQuery, accessToken }),
+      supabaseRequest("business_blocked_dates", { query: blockedDatesQuery, accessToken }).catch(() => []),
+      supabaseRequest("business_payment_settings", { query: paymentSettingsQuery, accessToken }).catch(() => []),
+      supabaseRequest("business_payment_methods", { query: paymentMethodsQuery, accessToken }).catch(() => []),
     ]);
     const servicesByBusiness = (onlineServices || []).reduce((grouped, service) => {
       grouped[service.business_slug] = grouped[service.business_slug] || [];
@@ -2040,12 +2040,45 @@ function App() {
       body: setupToAvailabilityDatabase(nextClient, slug, requestId),
       accessToken,
     });
-    await loadBusinessConfigs();
+    const refreshedBusinesses = await loadBusinessConfigs(slug, accessToken);
+    const confirmedBusiness = (refreshedBusinesses || []).find((business) => business.slug === slug);
+    if (!confirmedBusiness) {
+      throw new Error("Theme could not be saved.");
+    }
+    const expectedBusiness = normalizeBusinessConfig(normalizeDatabaseBusiness({
+      ...businessBody,
+      slug,
+      business: businessBody.business,
+    }, [], null, null, []));
+    const confirmedFields = {
+      bookingTemplate: normalizeBookingTemplate(confirmedBusiness.bookingTemplate),
+      primaryColor: normalizeHexColor(confirmedBusiness.primaryColor, ""),
+      accentColor: normalizeHexColor(confirmedBusiness.accentColor, ""),
+      pageBackgroundType: (confirmedBusiness.pageBackgroundType || "SOLID").toUpperCase(),
+      pageBackgroundColor: normalizeHexColor(confirmedBusiness.pageBackgroundColor, ""),
+      pageBackgroundColor2: normalizeHexColor(confirmedBusiness.pageBackgroundColor2, ""),
+      logo: confirmedBusiness.logo || "",
+      cover: confirmedBusiness.cover || "",
+    };
+    const expectedFields = {
+      bookingTemplate: expectedBusiness.bookingTemplate,
+      primaryColor: normalizeHexColor(expectedBusiness.primaryColor, ""),
+      accentColor: normalizeHexColor(expectedBusiness.accentColor, ""),
+      pageBackgroundType: (expectedBusiness.pageBackgroundType || "SOLID").toUpperCase(),
+      pageBackgroundColor: normalizeHexColor(expectedBusiness.pageBackgroundColor, ""),
+      pageBackgroundColor2: normalizeHexColor(expectedBusiness.pageBackgroundColor2, ""),
+      logo: expectedBusiness.logo || "",
+      cover: expectedBusiness.cover || "",
+    };
+    const mismatch = Object.entries(expectedFields).find(([key, value]) => value !== confirmedFields[key]);
+    if (mismatch) {
+      throw new Error(`Business field did not persist: ${mismatch[0]}.`);
+    }
     return {
       savedOnline: true,
       slug,
       publicPath: `/${slug}`,
-      message: originalSlug ? "Client updated." : "Client created.",
+      message: originalSlug ? "Client updated. Theme saved successfully. Database: Synced ✓" : "Client created. Theme saved successfully. Database: Synced ✓",
     };
   };
 
@@ -3987,6 +4020,15 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
   const [announcements, setAnnouncements] = useState([]);
   const [announcementForm, setAnnouncementForm] = useState(emptyAnnouncementForm());
   const [editingAnnouncementId, setEditingAnnouncementId] = useState("");
+  const [announcementSaveState, setAnnouncementSaveState] = useState({
+    saving: false,
+    status: "",
+    databaseStatus: "",
+    savedCount: 0,
+    error: "",
+    operation: "",
+  });
+  const [announcementToast, setAnnouncementToast] = useState("");
   const logoUploadRef = useRef(null);
   const coverUploadRef = useRef(null);
   const announcementUploadRef = useRef(null);
@@ -4008,7 +4050,18 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
       accessToken: session.access_token,
     });
     setAnnouncements((rows || []).map(normalizeAnnouncement));
+    setAnnouncementSaveState((current) => ({ ...current, savedCount: (rows || []).length }));
     return rows || [];
+  };
+
+  useEffect(() => {
+    if (!announcementToast) return undefined;
+    const timer = window.setTimeout(() => setAnnouncementToast(""), 3500);
+    return () => window.clearTimeout(timer);
+  }, [announcementToast]);
+
+  const refreshAnnouncementSaveStatus = (nextState) => {
+    setAnnouncementSaveState((current) => ({ ...current, ...nextState }));
   };
 
   const verifyAdmin = async (session) => {
@@ -4232,9 +4285,25 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     setStatusMessage("Announcement preset loaded.");
   };
 
+  const getSafeAnnouncementSaveError = (error) => {
+    const message = String(error?.message || error || "").toLowerCase();
+    if (message.includes("permission") || message.includes("rls") || message.includes("not authorized")) return "Permission denied.";
+    if (message.includes("network") || message.includes("fetch") || message.includes("failed to fetch")) return "Network error.";
+    if (message.includes("null value") || message.includes("required") || message.includes("missing")) return "Required field missing.";
+    return error?.message || "Database insert failed.";
+  };
+
   const saveAnnouncement = async (event) => {
     event.preventDefault();
     if (!adminSession?.access_token) return;
+    refreshAnnouncementSaveStatus({
+      saving: true,
+      status: "Saving...",
+      databaseStatus: "Checking database...",
+      error: "",
+      operation: editingAnnouncementId ? "UPDATE" : "INSERT",
+    });
+    setAnnouncementToast("Saving...");
     try {
       const payload = {
         id: editingAnnouncementId || `ann-${Date.now()}`,
@@ -4259,29 +4328,71 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
         updated_at: new Date().toISOString(),
       };
       if (!payload.title || !payload.message) {
-        setStatusMessage("Title and message are required.");
+        refreshAnnouncementSaveStatus({
+          saving: false,
+          status: "Save failed",
+          databaseStatus: "Sync failed",
+          error: "Required field missing.",
+        });
+        setAnnouncementToast("✕ Announcement save failed");
+        setStatusMessage("Announcement could not be saved. Required field missing.");
         return;
       }
+      const targetId = payload.id;
       if (editingAnnouncementId) {
-        await supabaseRequest("announcements", {
+        const updateResult = await supabaseRequest("announcements", {
           method: "PATCH",
           query: `?id=eq.${encodeURIComponent(editingAnnouncementId)}`,
           body: payload,
           accessToken: adminSession.access_token,
         });
+        if (!Array.isArray(updateResult) || !updateResult.length) {
+          throw new Error("Announcement update returned no row.");
+        }
       } else {
-        await supabaseRequest("announcements", {
+        const [insertedRow] = await supabaseRequest("announcements", {
           method: "POST",
           body: payload,
           accessToken: adminSession.access_token,
         });
+        if (insertedRow?.id && insertedRow.id !== targetId) {
+          throw new Error("Announcement insert returned the wrong record.");
+        }
       }
-      await loadAnnouncements(adminSession);
-      setStatusMessage(editingAnnouncementId ? "Announcement updated." : "Announcement created.");
+      const [freshRow] = await supabaseRequest("announcements", {
+        query: `?select=*&id=eq.${encodeURIComponent(targetId)}`,
+        accessToken: adminSession.access_token,
+      });
+      if (!freshRow) {
+        throw new Error("Announcement was not returned after refresh.");
+      }
+      const confirmedRows = (await loadAnnouncements(adminSession)).map(normalizeAnnouncement);
+      const confirmedAnnouncement = confirmedRows.find((row) => row.id === targetId || row.title === payload.title);
+      if (!confirmedAnnouncement) {
+        throw new Error("Announcement was not returned after refresh.");
+      }
+      refreshAnnouncementSaveStatus({
+        saving: false,
+        status: "Announcement saved successfully.",
+        databaseStatus: "Database: Synced ✓",
+        savedCount: confirmedRows.length,
+        error: "",
+      });
+      setAnnouncementToast("✓ Announcement saved");
+      setStatusMessage(`Announcement saved successfully. Database: Synced ✓ (${confirmedRows.length} saved)`);
       startAnnouncement();
     } catch (error) {
       console.error("Announcement save failed", error);
-      setStatusMessage(error.message || "Unable to save announcement.");
+      const safeError = getSafeAnnouncementSaveError(error);
+      refreshAnnouncementSaveStatus({
+        saving: false,
+        status: "Save failed",
+        databaseStatus: "Sync failed",
+        error: safeError,
+        lastErrorCode: error?.code || error?.status || "",
+      });
+      setAnnouncementToast("✕ Announcement save failed");
+      setStatusMessage(`Announcement could not be saved. ${safeError}`);
     }
   };
 
@@ -4821,6 +4932,19 @@ After login, you will only see the bookings and features assigned to your busine
                 ))}
               </div>
             </div>
+            {announcementSaveState.status && (
+              <div className={`announcementSaveBanner ${announcementSaveState.error ? "error" : "success"}`}>
+                <div>
+                  <strong>{announcementSaveState.status}</strong>
+                  <span>{announcementSaveState.error || "Saved to database."}</span>
+                </div>
+                <div className="announcementSaveMeta">
+                  <span>{announcementSaveState.databaseStatus || "Database: Sync pending"}</span>
+                  <span>{announcementSaveState.savedCount} saved</span>
+                </div>
+              </div>
+            )}
+            {announcementToast && <div className="announcementToast">{announcementToast}</div>}
             <div className="announcementManagerGrid">
               <form className="announcementEditorPanel" onSubmit={saveAnnouncement}>
                 <div className="announcementEditorTopRow">
@@ -4967,7 +5091,7 @@ After login, you will only see the bookings and features assigned to your busine
                   </div>
                 </div>
                 <div className="announcementEditorActions">
-                  <button type="submit">{editingAnnouncementId ? "Update Announcement" : "Save Announcement"}</button>
+                  <button type="submit" disabled={announcementSaveState.saving}>{announcementSaveState.saving ? "Saving..." : editingAnnouncementId ? "Update Announcement" : "Save Announcement"}</button>
                 </div>
               </form>
               <div className="announcementListPanel">

@@ -5245,6 +5245,57 @@ button,
   gap: 14px;
 }
 
+.announcementSaveBanner,
+.announcementToast {
+  border-radius: 18px;
+  border: 1px solid rgba(83, 95, 135, 0.15);
+  padding: 14px 16px;
+  background: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  box-shadow: 0 10px 28px rgba(16, 24, 40, 0.05);
+}
+
+.announcementSaveBanner.success {
+  border-color: rgba(12, 138, 112, 0.25);
+  background: #ecfff9;
+  color: #0c8a70;
+}
+
+.announcementSaveBanner.error {
+  border-color: rgba(200, 38, 38, 0.28);
+  background: #fff1f2;
+  color: #b42318;
+}
+
+.announcementSaveBanner strong,
+.announcementToast {
+  font-weight: 700;
+}
+
+.announcementSaveBanner span,
+.announcementSaveMeta span {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.announcementSaveMeta {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+  min-width: 140px;
+}
+
+.announcementToast {
+  margin: 12px 0 0;
+  border-style: dashed;
+  background: linear-gradient(135deg, #f8fbff, #ffffff);
+  color: #35496f;
+}
+
 .announcementEditorPanel,
 .announcementListPanel {
   border-radius: 16px;
