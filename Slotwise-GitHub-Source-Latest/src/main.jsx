@@ -56,6 +56,9 @@ import {
   Waves,
   Mountain,
   Utensils,
+  BedDouble,
+  Building2,
+  Moon,
 } from "lucide-react";
 import "./styles.css";
 
@@ -78,6 +81,7 @@ const defaultFeatureFlags = {
   customerListEnabled: false,
   analyticsEnabled: false,
   staffSelectionEnabled: false,
+  allowMultipleServices: false,
 };
 
 const defaultAvailability = {
@@ -99,6 +103,7 @@ const bookingTemplateOptions = [
   { value: "HOME_SERVICE", label: "Home Service" },
   { value: "AUTO", label: "Auto / Car Wash" },
   { value: "TOURS_TRAVEL", label: "Tours & Travel" },
+  { value: "STAYCATION_ACCOMMODATION", label: "Staycation / Accommodation" },
 ];
 
 const packageCapabilityMap = {
@@ -211,6 +216,10 @@ function resolveServiceIcon(serviceName = "", business = {}) {
   if (hasKeyword(serviceText, ["food tour", "food crawl", "culinary"])) return Utensils;
   if (hasKeyword(serviceText, ["tour", "travel", "package", "trip"])) return MapIcon;
 
+  if (hasKeyword(serviceText, ["villa", "cabin", "house"])) return House;
+  if (hasKeyword(serviceText, ["room", "suite", "bed"])) return BedDouble;
+  if (hasKeyword(serviceText, ["unit", "condo", "apartment", "hotel"])) return Building2;
+
   if (hasKeyword(serviceText, ["haircut", "hair cut", "trim"])) return Scissors;
   if (hasKeyword(serviceText, ["hair color", "hair dye", "color", "dye"])) return isBeauty ? Palette : Paintbrush;
   if (hasKeyword(serviceText, ["styling", "style"])) return WandSparkles;
@@ -249,12 +258,13 @@ function resolveServiceIcon(serviceName = "", business = {}) {
 
   if (hasKeyword(serviceText, ["repair"])) return Wrench;
   if (hasKeyword(serviceText, ["consultation", "consult"])) return MessageSquare;
-  return isToursTravel ? MapPinned : CircleDot;
+  return businessTone === "staycation-accommodation" ? BedDouble : isToursTravel ? MapPinned : CircleDot;
 }
 
 function resolveBusinessTone(business = {}) {
   const businessText = `${business.business || ""} ${business.name || ""} ${business.industry || ""} ${business.businessType || ""} ${business.description || ""}`.toLowerCase();
   const template = normalizeBookingTemplate(business.bookingTemplate);
+  if (template === "STAYCATION_ACCOMMODATION") return "staycation-accommodation";
   if (template === "TOURS_TRAVEL") return "tours-travel";
   if (template === "HOME_SERVICE") return "home-service";
   if (template === "AUTO") return "auto";
@@ -269,6 +279,7 @@ function resolveBusinessTone(business = {}) {
 }
 
 function getToneThemeDefaults(tone) {
+  if (tone === "staycation-accommodation") return { primaryColor: "#7a4f2f", accentColor: "#f8efe6" };
   if (tone === "tours-travel") return { primaryColor: "#0f766e", accentColor: "#e6f7f1" };
   if (tone === "home-service") return { primaryColor: "#155e75", accentColor: "#eaf7fb" };
   if (tone === "auto") return { primaryColor: "#1f2937", accentColor: "#eef2f7" };
@@ -399,12 +410,20 @@ function normalizeBookingTemplate(value) {
 
 function normalizePricingUnit(value, fallback = "FLAT") {
   const nextUnit = (value || fallback || "FLAT").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-  return ["FLAT", "PER_PAX", "PER_PERSON", "PER_GROUP", "PER_TRIP", "PER_DAY", "FIXED"].includes(nextUnit) ? nextUnit : "FLAT";
+  return ["FLAT", "PER_PAX", "PER_PERSON", "PER_GROUP", "PER_TRIP", "PER_DAY", "PER_NIGHT", "FIXED"].includes(nextUnit) ? nextUnit : "FLAT";
 }
 
 function normalizePricingType(value, fallback = "FIXED") {
   const nextType = (value || fallback || "FIXED").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-  return ["PER_PAX", "GROUP_TIER", "PER_TRIP", "PER_DAY", "FIXED"].includes(nextType) ? nextType : "FIXED";
+  return ["PER_PAX", "GROUP_TIER", "PER_TRIP", "PER_DAY", "PER_NIGHT", "FIXED"].includes(nextType) ? nextType : "FIXED";
+}
+
+function getNightCount(checkIn, checkOut) {
+  if (!checkIn || !checkOut) return 0;
+  const start = new Date(`${checkIn}T00:00:00`);
+  const end = new Date(`${checkOut}T00:00:00`);
+  const nights = Math.round((end - start) / 86400000);
+  return Number.isFinite(nights) ? nights : 0;
 }
 
 function normalizePricingTiers(value) {
@@ -444,9 +463,119 @@ function getPricingForGuests(serviceDetail, guestCount) {
     return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price === null ? null : price * guestCount, totalAvailable: price !== null };
   }
   if (pricingType === "PER_DAY") {
-    return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: null, totalAvailable: false };
+    return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: null, totalAvailable: price !== null };
+  }
+  if (pricingType === "PER_NIGHT") {
+    return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: null, totalAvailable: price !== null };
   }
   return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price, totalAvailable: price !== null };
+}
+
+function calculateLineItem(serviceDetail = {}, context = {}) {
+  const quantity = Math.max(1, Number(context.pax || context.days || context.nights || 1) || 1);
+  const pricing = getPricingForGuests(serviceDetail, quantity);
+  const pricingType = pricing.pricingType;
+  const serviceName = serviceDetail.name || serviceDetail.service || "Selected service";
+  const serviceId = serviceDetail.id || null;
+  const basePrice = serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
+  let lineTotal = pricing.estimatedTotal;
+  let lineLabel = basePrice === null ? "Rate on request" : formatPeso(basePrice);
+  let snapshotQuantity = 1;
+
+  if (pricingType === "PER_PAX") {
+    snapshotQuantity = quantity;
+    lineLabel = `${formatPeso(pricing.unitPrice)} x ${quantity} pax`;
+  } else if (pricingType === "PER_TRIP") {
+    lineLabel = `${formatPeso(pricing.unitPrice)} / trip`;
+  } else if (pricingType === "PER_DAY") {
+    snapshotQuantity = quantity;
+    lineTotal = pricing.unitPrice === null ? null : pricing.unitPrice * quantity;
+    lineLabel = `${formatPeso(pricing.unitPrice)} x ${quantity} day${quantity > 1 ? "s" : ""}`;
+  } else if (pricingType === "PER_NIGHT") {
+    const nights = Math.max(1, Number(context.nights || 1) || 1);
+    const totalGuests = Math.max(1, Number(context.totalGuests || context.pax || 1) || 1);
+    const includedGuests = Math.max(1, Number(serviceDetail.includedGuests || serviceDetail.maxGuests || totalGuests) || totalGuests);
+    const extraGuestFee = serviceDetail.extraGuestFee === "" || serviceDetail.extraGuestFee === null || serviceDetail.extraGuestFee === undefined ? 0 : Number(serviceDetail.extraGuestFee);
+    const extraGuests = Math.max(0, totalGuests - includedGuests);
+    const baseTotal = pricing.unitPrice === null ? null : pricing.unitPrice * nights;
+    const extraTotal = baseTotal === null ? null : extraGuestFee * extraGuests * nights;
+    snapshotQuantity = nights;
+    lineTotal = baseTotal === null ? null : baseTotal + extraTotal;
+    lineLabel = `${formatPeso(pricing.unitPrice)} x ${nights} night${nights > 1 ? "s" : ""}${extraGuests && extraGuestFee ? ` + ${extraGuests} extra guest${extraGuests > 1 ? "s" : ""}` : ""}`;
+    pricing.selectedTier = { nights, totalGuests, includedGuests, extraGuests, extraGuestFee };
+  } else if (pricingType === "GROUP_TIER") {
+    lineLabel = pricing.selectedTier
+      ? `${pricing.selectedTier.minGuests}-${pricing.selectedTier.maxGuests} pax rate`
+      : "Group rate unavailable";
+  }
+
+  return {
+    serviceId,
+    serviceName,
+    pricingType,
+    unitPrice: pricing.unitPrice,
+    quantity: snapshotQuantity,
+    selectedTier: pricing.selectedTier,
+    lineTotal,
+    totalAvailable: pricing.totalAvailable,
+    lineLabel,
+  };
+}
+
+function calculateBookingTotal(selectedServices = [], context = {}) {
+  const lineItems = selectedServices.map((service) => calculateLineItem(service, context));
+  const invalidItem = lineItems.find((item) => !item.totalAvailable || item.lineTotal === null || item.lineTotal === undefined || Number.isNaN(Number(item.lineTotal)));
+  const estimatedTotal = invalidItem ? null : lineItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
+  return {
+    lineItems,
+    estimatedTotal,
+    totalAvailable: !invalidItem,
+    invalidItem,
+  };
+}
+
+function getBookingLineItems(booking = {}) {
+  const metadataItems = Array.isArray(booking.metadata?.line_items) ? booking.metadata.line_items : [];
+  const directItems = Array.isArray(booking.booking_items) ? booking.booking_items : [];
+  const items = directItems.length ? directItems : metadataItems;
+  if (items.length) {
+    return items.map((item) => ({
+      serviceName: item.service_name_snapshot || item.serviceName || item.service_name || item.name || booking.service,
+      pricingType: item.pricing_type_snapshot || item.pricingType || item.pricing_type || "FIXED",
+      unitPrice: item.unit_price_snapshot ?? item.unitPrice ?? item.unit_price ?? null,
+      quantity: Number(item.quantity || 1),
+      selectedTier: item.selected_tier_snapshot || item.selectedTier || item.selected_tier || null,
+      lineTotal: item.line_total ?? item.lineTotal ?? null,
+      lineLabel: item.line_label || item.lineLabel || "",
+    }));
+  }
+  return [{
+    serviceName: booking.service || "Booking request",
+    pricingType: booking.metadata?.pricing_type || "FIXED",
+    unitPrice: booking.metadata?.unit_price ?? booking.metadata?.estimated_total ?? booking.estimated_total ?? null,
+    quantity: booking.metadata?.guest_count || 1,
+    selectedTier: booking.metadata?.selected_tier || null,
+    lineTotal: booking.metadata?.estimated_total ?? booking.estimated_total ?? null,
+    lineLabel: "",
+  }];
+}
+
+function getBookingServiceSummary(booking = {}) {
+  const items = getBookingLineItems(booking);
+  if (items.length > 1) return `${items.length} Services`;
+  return items[0]?.serviceName || booking.service || "Booking request";
+}
+
+function attachBookingItems(bookings = [], bookingItems = []) {
+  const itemsByBooking = (bookingItems || []).reduce((grouped, item) => {
+    grouped[item.booking_id] = grouped[item.booking_id] || [];
+    grouped[item.booking_id].push(item);
+    return grouped;
+  }, {});
+  return (bookings || []).map((booking) => ({
+    ...booking,
+    booking_items: itemsByBooking[booking.id] || booking.booking_items || [],
+  }));
 }
 
 function normalizePaymentRequirement(value) {
@@ -490,6 +619,7 @@ function formatServicePriceLabel(detail = {}, fallbackPricingType = "FIXED") {
   if (pricingType === "PER_PAX") return `${base} / pax`;
   if (pricingType === "PER_TRIP") return `${base} / trip`;
   if (pricingType === "PER_DAY") return `${base} / day`;
+  if (pricingType === "PER_NIGHT") return `${base} / night`;
   return base;
 }
 
@@ -658,6 +788,11 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
       pricingUnit: normalizePricingUnit(service.pricing_unit),
       pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
       pricingTiers: normalizePricingTiers(service.pricing_tiers),
+      maxGuests: service.max_guests ?? service.maxGuests ?? "",
+      includedGuests: service.included_guests ?? service.includedGuests ?? "",
+      extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
+      imageUrl: service.image_url || service.imageUrl || "",
+      unitQuantity: service.unit_quantity ?? service.unitQuantity ?? 1,
       description: service.description || "",
       displayOrder: service.display_order || 0,
       status: service.status,
@@ -838,6 +973,10 @@ function parseServiceDetails(value) {
         if (/(per\s*group|\/\s*group)/i.test(detail)) service.pricingUnit = "PER_GROUP";
         if (/(per\s*trip|\/\s*trip)/i.test(detail)) service.pricingType = "PER_TRIP";
         if (/(per\s*day|\/\s*day)/i.test(detail)) service.pricingType = "PER_DAY";
+        if (/(per\s*night|\/\s*night)/i.test(detail)) {
+          service.pricingType = "PER_NIGHT";
+          service.pricingUnit = "PER_NIGHT";
+        }
         if (/(fixed|package price)/i.test(detail)) service.pricingType = "FIXED";
         if (/group\s*tier|tier/i.test(detail)) {
           service.pricingType = "GROUP_TIER";
@@ -880,6 +1019,11 @@ function emptyStructuredServices(count = 3) {
     pricingType: "FIXED",
     pricingUnit: "FLAT",
     pricingTiers: [],
+    maxGuests: "",
+    includedGuests: "",
+    extraGuestFee: "",
+    imageUrl: "",
+    unitQuantity: 1,
     expanded: true,
   }));
 }
@@ -896,6 +1040,11 @@ function serviceRowToStructured(service = {}, index = 0) {
     pricingType: normalizePricingType(service.pricing_type || service.pricingType, service.pricing_unit || service.pricingUnit),
     pricingUnit: normalizePricingUnit(service.pricing_unit || service.pricingUnit),
     pricingTiers: normalizePricingTiers(service.pricing_tiers || service.pricingTiers),
+    maxGuests: service.max_guests ?? service.maxGuests ?? "",
+    includedGuests: service.included_guests ?? service.includedGuests ?? "",
+    extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
+    imageUrl: service.image_url || service.imageUrl || "",
+    unitQuantity: service.unit_quantity ?? service.unitQuantity ?? 1,
     expanded: index < 3,
   };
 }
@@ -909,10 +1058,11 @@ function normalizeStructuredServices(value, minimumSlots = 3) {
 
 function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
+  const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
   return normalizeStructuredServices(value, 0)
     .filter((service) => service.name.trim())
     .map((service, index) => {
-      const pricingType = isTravel ? normalizePricingType(service.pricingType, service.pricingUnit) : "FIXED";
+      const pricingType = isAccommodation ? "PER_NIGHT" : isTravel ? normalizePricingType(service.pricingType, service.pricingUnit) : "FIXED";
       return {
         ...service,
         name: service.name.trim(),
@@ -922,8 +1072,13 @@ function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
         displayOrder: index,
         status: service.status || "Active",
         pricingType,
-        pricingUnit: isTravel ? normalizePricingUnit(service.pricingUnit, pricingType) : "FLAT",
+        pricingUnit: isAccommodation ? "PER_NIGHT" : isTravel ? normalizePricingUnit(service.pricingUnit, pricingType) : "FLAT",
         pricingTiers: isTravel && pricingType === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers) : [],
+        maxGuests: service.maxGuests === "" ? null : Number(service.maxGuests),
+        includedGuests: service.includedGuests === "" ? null : Number(service.includedGuests),
+        extraGuestFee: service.extraGuestFee === "" ? null : Number(service.extraGuestFee),
+        imageUrl: service.imageUrl || "",
+        unitQuantity: service.unitQuantity === "" ? 1 : Number(service.unitQuantity || 1),
       };
     });
 }
@@ -942,7 +1097,12 @@ function structuredServicesToLegacyText(services = [], bookingTemplate = "GENERA
 
 function parseServicesToStructured(value, bookingTemplate = "GENERAL") {
   return normalizeStructuredServices(parseServiceDetails(value).map(serviceRowToStructured), 3)
-    .map((service) => normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL" ? service : {
+    .map((service) => normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL" ? service : normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION" ? {
+      ...service,
+      pricingType: "PER_NIGHT",
+      pricingUnit: "PER_NIGHT",
+      durationMinutes: "",
+    } : {
       ...service,
       pricingType: "FIXED",
       pricingUnit: "FLAT",
@@ -953,6 +1113,7 @@ function parseServicesToStructured(value, bookingTemplate = "GENERAL") {
 function getServiceManagerCopy(bookingTemplate = "GENERAL") {
   const template = normalizeBookingTemplate(bookingTemplate);
   if (template === "TOURS_TRAVEL") return { title: "Tour Packages", single: "Tour package", add: "Add Another Package" };
+  if (template === "STAYCATION_ACCOMMODATION") return { title: "Rooms / Units", single: "Room / unit", add: "Add Room / Unit" };
   if (template === "CLINIC") return { title: "Services / Treatments", single: "Service / treatment", add: "Add Another Service" };
   if (template === "AUTO") return { title: "Services / Packages", single: "Service / package", add: "Add Another Service" };
   return { title: "Services", single: "Service", add: "Add Another Service" };
@@ -986,7 +1147,8 @@ function filterLegacyToursSeedRows(serviceRows = [], bookingTemplate = "GENERAL"
 
 function inferBookingTemplateFromIndustry(industry = "") {
   const lower = industry.toLowerCase();
-  if (/(travel|tour|stay|cabin|resort)/i.test(lower)) return "TOURS_TRAVEL";
+  if (/(staycation|accommodation|resort|villa|transient|apartment|condotel|hotel|guest house|cabin|beach house|room|rental)/i.test(lower)) return "STAYCATION_ACCOMMODATION";
+  if (/(travel|tour)/i.test(lower)) return "TOURS_TRAVEL";
   if (/(clinic|dental|doctor|medical)/i.test(lower)) return "CLINIC";
   if (/(home|aircon|repair|cleaning|maintenance|plumbing|electrical)/i.test(lower)) return "HOME_SERVICE";
   if (/(auto|car|wash|detailing)/i.test(lower)) return "AUTO";
@@ -1032,6 +1194,11 @@ function setupToServiceRows(setup, slug, requestId) {
     pricing_unit: normalizePricingUnit(service.pricingUnit),
     pricing_type: normalizePricingType(service.pricingType, service.pricingUnit),
     pricing_tiers: normalizePricingTiers(service.pricingTiers),
+    max_guests: service.maxGuests,
+    included_guests: service.includedGuests,
+    extra_guest_fee: service.extraGuestFee,
+    image_url: service.imageUrl,
+    unit_quantity: service.unitQuantity,
     description: service.description,
     display_order: service.displayOrder,
     status: service.status,
@@ -1656,13 +1823,31 @@ function App() {
     let nextBooking = { ...booking, id: `SW-${Date.now().toString().slice(-5)}`, status: booking.status || "Confirmed" };
     try {
       if (supabaseUrl && supabaseAnonKey) {
-        const { businessSlug, ...databaseBooking } = nextBooking;
+        const { businessSlug, bookingItems, ...databaseBooking } = nextBooking;
         const [onlineBooking] = await supabaseRequest("bookings", {
           method: "POST",
           body: databaseBooking,
           prefer: "return=minimal",
         });
-        nextBooking = onlineBooking || nextBooking;
+        if (bookingItems?.length) {
+          await supabaseRequest("booking_items", {
+            method: "POST",
+            body: bookingItems.map((item, index) => ({
+              id: `${nextBooking.id}-item-${index + 1}`,
+              booking_id: nextBooking.id,
+              business_slug: nextBooking.business_slug,
+              service_id: item.serviceId,
+              service_name_snapshot: item.serviceName,
+              pricing_type_snapshot: item.pricingType,
+              unit_price_snapshot: item.unitPrice,
+              quantity: item.quantity,
+              selected_tier_snapshot: item.selectedTier,
+              line_total: item.lineTotal,
+            })),
+            prefer: "return=minimal",
+          });
+        }
+        nextBooking = { ...(onlineBooking || nextBooking), booking_items: bookingItems || [] };
       }
     } catch (error) {
       console.error("Slotwise booking insert failed", {
@@ -2182,10 +2367,18 @@ function Feature({ icon, title, text }) {
 
 function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) {
   const [pickedService, setPickedService] = useState(business.services[0]);
+  const [pickedServices, setPickedServices] = useState([business.services[0]].filter(Boolean));
   const availableSlots = business.availability?.slots?.length ? business.availability.slots : slots;
   const [pickedSlot, setPickedSlot] = useState(availableSlots[1] || availableSlots[0] || "10:15 AM");
   const [selectedBookingDate, setSelectedBookingDate] = useState(getTodayDateValue());
+  const [selectedCheckoutDate, setSelectedCheckoutDate] = useState(() => {
+    const next = new Date();
+    next.setDate(next.getDate() + 1);
+    return next.toISOString().slice(0, 10);
+  });
   const [guestCount, setGuestCount] = useState(2);
+  const [adultCount, setAdultCount] = useState(2);
+  const [childCount, setChildCount] = useState(0);
   const [confirmed, setConfirmed] = useState(null);
   const [bookingError, setBookingError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -2204,12 +2397,15 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
   const bookingTone = resolveBusinessTone(business);
   const isClinic = bookingTone === "clinic";
   const isToursTravel = bookingTone === "tours-travel";
+  const isAccommodation = normalizeBookingTemplate(business.bookingTemplate) === "STAYCATION_ACCOMMODATION";
   const isTravel = bookingTone === "travel" || isToursTravel;
   const isHomeService = bookingTone === "home-service";
   const brandInitial = (business.business || "S").trim().charAt(0).toUpperCase();
-  const brandCategory = isToursTravel ? "Tours & Travel" : isClinic ? "Care & Wellness" : isTravel ? "Stay & Travel" : isHomeService ? "Aircon Services" : bookingTone === "auto" ? "Auto Services" : bookingTone === "general" ? "Service Business" : "Beauty & Wellness";
+  const brandCategory = isAccommodation ? "Staycation & Accommodation" : isToursTravel ? "Tours & Travel" : isClinic ? "Care & Wellness" : isTravel ? "Stay & Travel" : isHomeService ? "Aircon Services" : bookingTone === "auto" ? "Auto Services" : bookingTone === "general" ? "Service Business" : "Beauty & Wellness";
   const brandLine = isClinic
     ? ["Your visit, booked with care.", "Private details. Clear schedule."]
+    : isAccommodation
+      ? ["Reserve your stay with ease.", "Choose your unit, dates, and guests."]
     : isToursTravel
       ? ["Tour packages, transfers, and reservations.", "Send your request in less than a minute."]
       : isTravel
@@ -2221,37 +2417,52 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
           : bookingTone === "general"
             ? ["Book the service you need.", "Choose a schedule that works for you."]
             : ["Enhance your glow.", "Reveal your best self."];
-  const headingText = isToursTravel ? "Book Your Tour" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
-  const headerSubtext = isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
-  const serviceStepLabel = isToursTravel ? "Choose a Tour Package" : isHomeService ? "Choose a Service" : "Choose a service";
-  const timeStepLabel = isToursTravel ? "Select Travel Date" : isHomeService ? "Choose date and time" : "Pick a time";
+  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Book Your Tour" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
+  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
+  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Tour Package" : isHomeService ? "Choose a Service" : "Choose a service";
+  const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Date" : isHomeService ? "Choose date and time" : "Pick a time";
   const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : "";
-  const detailsStepLabel = isToursTravel ? "Guest Details" : isHomeService ? "Your contact details" : "Your details";
-  const noteLabel = isToursTravel ? "Special Requests / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
-  const notePlaceholder = isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
-  const submitLabel = isToursTravel ? "Submit Reservation Request" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
+  const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Guest Details" : isHomeService ? "Your contact details" : "Your details";
+  const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
+  const notePlaceholder = isAccommodation ? "Arrival notes, requests, or questions for the host" : isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
+  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Reservation Request" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
   const paymentSettings = business.paymentSettings || {};
   const paymentMethods = (business.paymentMethods || []).filter((method) => method.active !== false);
+  const allowMultipleServices = Boolean(flags.allowMultipleServices);
   const getServiceDetail = (serviceName) => {
     const detail = business.serviceDetails?.find((item) => item.name === serviceName);
     return {
+      id: detail?.id || null,
+      name: serviceName,
       durationMinutes: detail?.durationMinutes ?? null,
       price: detail?.price ?? null,
-      pricingUnit: normalizePricingUnit(detail?.pricingUnit, isToursTravel ? "PER_PAX" : "FLAT"),
-      pricingType: normalizePricingType(detail?.pricingType, isToursTravel ? detail?.pricingUnit || "PER_PAX" : "FIXED"),
+      pricingUnit: normalizePricingUnit(detail?.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT"),
+      pricingType: normalizePricingType(detail?.pricingType, isAccommodation ? "PER_NIGHT" : isToursTravel ? detail?.pricingUnit || "PER_PAX" : "FIXED"),
       pricingTiers: normalizePricingTiers(detail?.pricingTiers),
+      maxGuests: detail?.maxGuests ?? null,
+      includedGuests: detail?.includedGuests ?? null,
+      extraGuestFee: detail?.extraGuestFee ?? null,
+      imageUrl: detail?.imageUrl || "",
+      unitQuantity: detail?.unitQuantity ?? 1,
       description: detail?.description || "",
     };
   };
+  const selectedServiceNames = allowMultipleServices ? pickedServices : [pickedService].filter(Boolean);
+  const selectedServiceDetails = selectedServiceNames.map(getServiceDetail);
   const pickedServiceDetail = getServiceDetail(pickedService);
-  const pickedPricing = getPricingForGuests(pickedServiceDetail, guestCount);
-  const pickedPricingUnit = normalizePricingUnit(pickedServiceDetail.pricingUnit, isToursTravel ? "PER_PAX" : "FLAT");
-  const estimatedTotal = isToursTravel ? pickedPricing.estimatedTotal : Number(pickedServiceDetail.price || 0);
+  const stayNights = getNightCount(selectedBookingDate, selectedCheckoutDate);
+  const accommodationGuests = adultCount + childCount;
+  const needsGuestCount = isAccommodation || selectedServiceDetails.some((detail) => ["PER_PAX", "GROUP_TIER"].includes(normalizePricingType(detail.pricingType, detail.pricingUnit)));
+  const bookingCalculation = calculateBookingTotal(selectedServiceDetails, { pax: isAccommodation ? accommodationGuests : guestCount, totalGuests: accommodationGuests, nights: stayNights || 1 });
+  const pickedPricing = bookingCalculation.lineItems[0] || calculateLineItem(pickedServiceDetail, { pax: guestCount, nights: stayNights || 1, totalGuests: accommodationGuests });
+  const pickedPricingUnit = normalizePricingUnit(pickedServiceDetail.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT");
+  const estimatedTotal = bookingCalculation.estimatedTotal;
+  const primaryServiceLabel = selectedServiceNames.length > 1 ? `${selectedServiceNames.length} Services` : selectedServiceNames[0] || pickedService;
   const servicePriceLabel = (detail) => {
-    return formatServicePriceLabel(detail, isToursTravel ? "PER_PAX" : "FIXED");
+    return formatServicePriceLabel(detail, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FIXED");
   };
   const serviceMetaLabel = (detail) => [
-    detail.durationMinutes ? `${detail.durationMinutes} min` : "",
+    isAccommodation && detail.maxGuests ? `Up to ${detail.maxGuests} guests` : detail.durationMinutes ? `${detail.durationMinutes} min` : "",
     detail.price !== null || detail.pricingTiers?.length ? servicePriceLabel(detail) : "",
   ].filter(Boolean).join(" • ");
   const requiredPaymentAmount = getRequiredPaymentAmount(paymentSettings, estimatedTotal);
@@ -2259,14 +2470,38 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
 
   useEffect(() => {
     setPickedService(business.services[0]);
+    setPickedServices([business.services[0]].filter(Boolean));
     setPickedSlot(availableSlots[1] || availableSlots[0] || "10:15 AM");
     setSelectedBookingDate(getTodayDateValue());
+    setSelectedCheckoutDate(() => {
+      const next = new Date();
+      next.setDate(next.getDate() + 1);
+      return next.toISOString().slice(0, 10);
+    });
     setGuestCount(2);
+    setAdultCount(2);
+    setChildCount(0);
     setConfirmed(null);
     setBookingError("");
     setPaymentOpen(false);
     setPaymentStatus("");
   }, [business.slug]);
+
+  const toggleService = (serviceName) => {
+    if (!allowMultipleServices) {
+      setPickedService(serviceName);
+      setPickedServices([serviceName]);
+      return;
+    }
+    setPickedService(serviceName);
+    setPickedServices((current) => {
+      if (current.includes(serviceName)) {
+        const next = current.filter((item) => item !== serviceName);
+        return next.length ? next : [serviceName];
+      }
+      return [...current, serviceName];
+    });
+  };
 
   const submitBooking = async (event) => {
     event.preventDefault();
@@ -2275,6 +2510,15 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
     setSubmitting(true);
     const data = new FormData(bookingForm);
     const currentGuestCount = Math.max(1, Number(data.get("guestCount") || guestCount) || 1);
+    const currentAdults = Math.max(1, Number(data.get("adultCount") || adultCount) || 1);
+    const currentChildren = Math.max(0, Number(data.get("childCount") || childCount) || 0);
+    const currentTotalGuests = isAccommodation ? currentAdults + currentChildren : currentGuestCount;
+    const currentNights = isAccommodation ? getNightCount(selectedBookingDate, selectedCheckoutDate) : 1;
+    const submittedCalculation = calculateBookingTotal(selectedServiceDetails, {
+      pax: isAccommodation ? currentTotalGuests : currentGuestCount,
+      totalGuests: currentTotalGuests,
+      nights: currentNights || 1,
+    });
     const pickupLocation = String(data.get("address") || "").trim();
     const booking = {
       customer: data.get("customer"),
@@ -2282,24 +2526,40 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
       business: business.business,
       businessSlug: business.slug,
       business_slug: business.slug,
-      service: pickedService,
+      service: primaryServiceLabel,
       booking_date: flags.requireDate ? selectedBookingDate : "",
-      slot: flags.requireTime ? pickedSlot : "Inquiry only",
+      slot: isAccommodation ? `${formatBookingDate(selectedBookingDate)} to ${formatBookingDate(selectedCheckoutDate)}` : flags.requireTime ? pickedSlot : "Inquiry only",
       note: data.get("note"),
       status: isProductionActive ? (isToursTravel ? "PENDING" : "Confirmed") : `${clientStatus} preview`,
-      metadata: isToursTravel ? {
-        booking_template: "TOURS_TRAVEL",
-        guest_count: currentGuestCount,
+      estimated_total: submittedCalculation.estimatedTotal,
+      metadata: {
+        booking_template: business.bookingTemplate,
+        guest_count: currentTotalGuests,
+        adult_count: isAccommodation ? currentAdults : undefined,
+        child_count: isAccommodation ? currentChildren : undefined,
+        check_in: isAccommodation ? selectedBookingDate : undefined,
+        check_out: isAccommodation ? selectedCheckoutDate : undefined,
+        number_of_nights: isAccommodation ? currentNights : undefined,
         pricing_unit: pickedPricingUnit,
         pricing_type: pickedPricing.pricingType,
         unit_price: pickedPricing.unitPrice,
         selected_tier: pickedPricing.selectedTier,
-        estimated_total: pickedPricing.estimatedTotal,
+        estimated_total: submittedCalculation.estimatedTotal,
+        line_items: submittedCalculation.lineItems,
+        allow_multiple_services: allowMultipleServices,
         pickup_location: pickupLocation,
-      } : undefined,
+      },
+      bookingItems: submittedCalculation.lineItems,
     };
-    if (!booking.customer || !booking.contact || !booking.business_slug || !booking.service || !booking.slot || (flags.requireDate && !booking.booking_date) || (isToursTravel && currentGuestCount < 1)) {
+    if (!booking.customer || !booking.contact || !booking.business_slug || !selectedServiceNames.length || !booking.slot || (flags.requireDate && !booking.booking_date) || (needsGuestCount && currentTotalGuests < 1)) {
       setBookingError("Please complete the required booking details before submitting.");
+      setSubmitting(false);
+      return;
+    }
+    if (!bookingCalculation.totalAvailable) {
+      setBookingError(bookingCalculation.invalidItem?.pricingType === "GROUP_TIER"
+        ? "Please contact the business for availability and pricing for this group size."
+        : "One selected service has incomplete pricing. Please choose another service or contact the business.");
       setSubmitting(false);
       return;
     }
@@ -2308,20 +2568,32 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
       setSubmitting(false);
       return;
     }
-    if (isToursTravel) {
-      const submittedPricing = getPricingForGuests(pickedServiceDetail, currentGuestCount);
-      if (submittedPricing.pricingType === "GROUP_TIER" && !submittedPricing.totalAvailable) {
+    if (isAccommodation && currentNights < 1) {
+      setBookingError("Check-out date must be after check-in date.");
+      setSubmitting(false);
+      return;
+    }
+    if (isAccommodation && pickedServiceDetail.maxGuests && currentTotalGuests > Number(pickedServiceDetail.maxGuests)) {
+      setBookingError(`This unit accommodates up to ${pickedServiceDetail.maxGuests} guests.`);
+      setSubmitting(false);
+      return;
+    }
+    if (isToursTravel || isAccommodation || allowMultipleServices) {
+      if (!submittedCalculation.totalAvailable) {
         setBookingError("Please contact the business for availability and pricing for this group size.");
         setSubmitting(false);
         return;
       }
       booking.metadata = {
         ...booking.metadata,
-        pricing_type: submittedPricing.pricingType,
-        unit_price: submittedPricing.unitPrice,
-        selected_tier: submittedPricing.selectedTier,
-        estimated_total: submittedPricing.estimatedTotal,
+        pricing_type: submittedCalculation.lineItems[0]?.pricingType || "FIXED",
+        unit_price: submittedCalculation.lineItems[0]?.unitPrice ?? null,
+        selected_tier: submittedCalculation.lineItems[0]?.selectedTier || null,
+        estimated_total: submittedCalculation.estimatedTotal,
+        line_items: submittedCalculation.lineItems,
       };
+      booking.estimated_total = submittedCalculation.estimatedTotal;
+      booking.bookingItems = submittedCalculation.lineItems;
     }
     try {
       const savedBooking = isProductionActive ? await onSaveBooking(booking) : booking;
@@ -2414,21 +2686,24 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
             <div className="premiumServiceGrid">
               {business.services.map((item) => {
                 const ServiceIcon = resolveServiceIcon(item, business);
+                const isSelected = selectedServiceNames.includes(item);
+                const detail = getServiceDetail(item);
                 return (
-                  <button type="button" key={item} className={pickedService === item ? "premiumService active" : "premiumService"} onClick={() => setPickedService(item)}>
-                    <span className="serviceIcon"><ServiceIcon size={22} /></span>
+                  <button type="button" key={item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
+                    <span className="serviceIcon">{isAccommodation && detail.imageUrl ? <img src={detail.imageUrl} alt="" /> : <ServiceIcon size={22} />}</span>
                     <strong>{item}</strong>
-                    {getServiceDetail(item).description && <p className="serviceDescription">{getServiceDetail(item).description}</p>}
-                    {flags.showPrices && serviceMetaLabel(getServiceDetail(item)) && <small>{serviceMetaLabel(getServiceDetail(item))}</small>}
-                    {pickedService === item && <em><Check size={16} /></em>}
+                    {detail.description && <p className="serviceDescription">{detail.description}</p>}
+                    {flags.showPrices && serviceMetaLabel(detail) && <small>{serviceMetaLabel(detail)}</small>}
+                    {isSelected && <em><Check size={16} /></em>}
                   </button>
                 );
               })}
             </div>
+            {allowMultipleServices && <p className="multiServiceCount">{selectedServiceNames.length} service{selectedServiceNames.length > 1 ? "s" : ""} selected</p>}
           </div>
           )}
 
-          {flags.requireTime && (
+          {(flags.requireTime || isAccommodation) && (
           <div className="bookingStep">
             <div className="bookingStepTitle"><span>2</span><strong>{timeStepLabel}</strong></div>
             {isBlockedDate && (
@@ -2438,25 +2713,37 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
               </div>
             )}
             <div className="timeAndDate">
-              <div className="premiumSlotGrid">
-                {slotLabel && <span className="slotGroupLabel">{slotLabel}</span>}
-                {availableSlots.map((item) => (
-                  <button type="button" key={item} disabled={isBlockedDate} className={pickedSlot === item ? "premiumSlot active" : "premiumSlot"} onClick={() => setPickedSlot(item)}>{item}</button>
-                ))}
-              </div>
+              {!isAccommodation && (
+                <div className="premiumSlotGrid">
+                  {slotLabel && <span className="slotGroupLabel">{slotLabel}</span>}
+                  {availableSlots.map((item) => (
+                    <button type="button" key={item} disabled={isBlockedDate} className={pickedSlot === item ? "premiumSlot active" : "premiumSlot"} onClick={() => setPickedSlot(item)}>{item}</button>
+                  ))}
+                </div>
+              )}
               <div className="selectedDateCard">
                 <CalendarDays size={26} />
-                <span>{isToursTravel ? "Travel date" : "Selected"}</span>
-                <strong>{selectedDateLabel}</strong>
-                <small>{selectedWeekdayLabel}</small>
+                <span>{isAccommodation ? "Stay dates" : isToursTravel ? "Travel date" : "Selected"}</span>
+                <strong>{isAccommodation ? `${stayNights || 0} Night${stayNights === 1 ? "" : "s"}` : selectedDateLabel}</strong>
+                <small>{isAccommodation ? `${formatBookingDate(selectedBookingDate)} to ${formatBookingDate(selectedCheckoutDate)}` : selectedWeekdayLabel}</small>
                 <input
-                  aria-label="Select booking date"
+                  aria-label={isAccommodation ? "Select check-in date" : "Select booking date"}
                   type="date"
                   value={selectedBookingDate}
                   min={getTodayDateValue()}
                   onChange={(event) => setSelectedBookingDate(event.target.value)}
                   required={flags.requireDate}
                 />
+                {isAccommodation && (
+                  <input
+                    aria-label="Select check-out date"
+                    type="date"
+                    value={selectedCheckoutDate}
+                    min={selectedBookingDate || getTodayDateValue()}
+                    onChange={(event) => setSelectedCheckoutDate(event.target.value)}
+                    required
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -2464,11 +2751,30 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
 
           <div className="bookingStep">
             <div className="bookingStepTitle"><span>3</span><strong>{detailsStepLabel}</strong></div>
-            <label className="premiumInput"><User size={20} /><span>Your name<input name="customer" required placeholder="Maria Santos" /></span></label>
-            <label className="premiumInput"><Phone size={20} /><span>Phone or contact number<input name="contact" required placeholder="0912 345 6789" /></span></label>
-            {isToursTravel && (
+            <label className="premiumInput"><User size={20} /><span>{isAccommodation ? "Full Name" : "Your name"}<input name="customer" required placeholder="Maria Santos" /></span></label>
+            <label className="premiumInput"><Phone size={20} /><span>{isAccommodation ? "Mobile Number" : "Phone or contact number"}<input name="contact" required placeholder="0912 345 6789" /></span></label>
+            {isAccommodation ? (
+              <div className="accommodationGuestGrid">
+                <label className="guestStepper">
+                  <span>Adults</span>
+                  <div>
+                    <button type="button" onClick={() => setAdultCount((current) => Math.max(1, current - 1))}>-</button>
+                    <input name="adultCount" type="number" min="1" value={adultCount} onChange={(event) => setAdultCount(Math.max(1, Number(event.target.value) || 1))} required />
+                    <button type="button" onClick={() => setAdultCount((current) => current + 1)}>+</button>
+                  </div>
+                </label>
+                <label className="guestStepper">
+                  <span>Children</span>
+                  <div>
+                    <button type="button" onClick={() => setChildCount((current) => Math.max(0, current - 1))}>-</button>
+                    <input name="childCount" type="number" min="0" value={childCount} onChange={(event) => setChildCount(Math.max(0, Number(event.target.value) || 0))} />
+                    <button type="button" onClick={() => setChildCount((current) => current + 1)}>+</button>
+                  </div>
+                </label>
+              </div>
+            ) : needsGuestCount && (
               <label className="guestStepper">
-                <span>Total guests</span>
+                <span>{isToursTravel ? "Total guests" : "Quantity / pax"}</span>
                 <div>
                   <button type="button" onClick={() => setGuestCount((current) => Math.max(1, current - 1))}>-</button>
                   <input name="guestCount" type="number" min="1" value={guestCount} onChange={(event) => setGuestCount(Math.max(1, Number(event.target.value) || 1))} required />
@@ -2480,14 +2786,21 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
             <label className="premiumInput"><FileText size={20} /><span>{noteLabel}<textarea name="note" placeholder={notePlaceholder} rows="3" /></span></label>
           </div>
 
-          {isToursTravel && (
+          {(isToursTravel || allowMultipleServices || flags.showPrices) && (
             <div className="reservationSummary">
-              <span>Reservation Summary</span>
-              <strong>{pickedService}</strong>
-              <p>{selectedDateLabel} {flags.requireTime ? `at ${pickedSlot}` : ""} • {guestCount} guest{guestCount > 1 ? "s" : ""}</p>
-              {pickedPricing.pricingType === "GROUP_TIER" && !pickedPricing.totalAvailable && <em>Please contact the business for this group size.</em>}
-              {flags.showPrices && pickedPricing.pricingType !== "PER_DAY" && pickedPricing.totalAvailable && <em>Estimated total: {formatPeso(estimatedTotal)}</em>}
-              {flags.showPrices && pickedPricing.pricingType === "PER_DAY" && <em>Rate: {servicePriceLabel(pickedServiceDetail)}</em>}
+              <span>Booking Summary</span>
+              <strong>{primaryServiceLabel}</strong>
+              <p>{selectedDateLabel} {flags.requireTime ? `at ${pickedSlot}` : ""}{needsGuestCount ? ` • ${guestCount} ${isToursTravel ? "guest" : "pax"}${guestCount > 1 ? "s" : ""}` : ""}</p>
+              <div className="bookingLineItems">
+                {bookingCalculation.lineItems.map((item) => (
+                  <div key={item.serviceName}>
+                    <span>{item.serviceName}<small>{item.lineLabel}</small></span>
+                    <strong>{item.lineTotal === null ? "Rate on request" : formatPeso(item.lineTotal)}</strong>
+                  </div>
+                ))}
+              </div>
+              {!bookingCalculation.totalAvailable && <em>Please contact the business for pricing before submitting.</em>}
+              {flags.showPrices && bookingCalculation.totalAvailable && <em>Estimated total: {formatPeso(estimatedTotal)}</em>}
             </div>
           )}
 
@@ -2499,21 +2812,23 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
             <div className="formSuccess premiumSuccess">
               <strong>{isProductionActive ? (isToursTravel ? "Reservation Request Received" : "Booking Request Received") : "Demo booking completed"}</strong>
               <span>
-                {isProductionActive && isToursTravel
-                  ? "Your reservation request has been received. The tour operator may contact you to confirm availability and final details."
+                {isProductionActive && (isToursTravel || isAccommodation)
+                  ? `Your reservation request has been received. The ${isAccommodation ? "host" : "tour operator"} may contact you to confirm availability and final details.`
                   : isProductionActive
                   ? "Your booking request has been received. The business may contact you to confirm your appointment."
                   : "No live booking was created."}
               </span>
               <dl>
                 <div><dt>Business</dt><dd>{business.business}</dd></div>
-                <div><dt>{isToursTravel ? "Tour Package" : "Service"}</dt><dd>{confirmed.service}</dd></div>
-                <div><dt>{isToursTravel ? "Travel Date" : "Date"}</dt><dd>{confirmed.booking_date ? formatBookingDate(confirmed.booking_date) : "Not required"}</dd></div>
-                <div><dt>{isToursTravel ? "Preferred Time" : "Time"}</dt><dd>{confirmed.slot}</dd></div>
-                {isToursTravel && <div><dt>Guests</dt><dd>{confirmed.metadata?.guest_count || guestCount}</dd></div>}
+                <div><dt>{selectedServiceNames.length > 1 ? "Services" : isAccommodation ? "Room / Unit" : isToursTravel ? "Tour Package" : "Service"}</dt><dd>{confirmed.service}</dd></div>
+                <div><dt>{isAccommodation ? "Check-in" : isToursTravel ? "Travel Date" : "Date"}</dt><dd>{confirmed.booking_date ? formatBookingDate(confirmed.booking_date) : "Not required"}</dd></div>
+                {isAccommodation && <div><dt>Check-out</dt><dd>{formatBookingDate(confirmed.metadata?.check_out)}</dd></div>}
+                {isAccommodation && <div><dt>Nights</dt><dd>{confirmed.metadata?.number_of_nights || stayNights}</dd></div>}
+                <div><dt>{isAccommodation ? "Stay" : isToursTravel ? "Preferred Time" : "Time"}</dt><dd>{confirmed.slot}</dd></div>
+                {(isToursTravel || isAccommodation) && <div><dt>Guests</dt><dd>{confirmed.metadata?.guest_count || guestCount}</dd></div>}
                 {isToursTravel && <div><dt>Pricing Type</dt><dd>{confirmed.metadata?.pricing_type || "FIXED"}</dd></div>}
                 {isToursTravel && confirmed.metadata?.selected_tier && <div><dt>Selected Group Rate</dt><dd>{confirmed.metadata.selected_tier.minGuests}-{confirmed.metadata.selected_tier.maxGuests} pax - {formatPeso(confirmed.metadata.selected_tier.price)}</dd></div>}
-                {isToursTravel && flags.showPrices && <div><dt>Estimated Total</dt><dd>{confirmed.metadata?.estimated_total ? formatPeso(confirmed.metadata.estimated_total) : servicePriceLabel(pickedServiceDetail)}</dd></div>}
+                {flags.showPrices && <div><dt>Estimated Total</dt><dd>{confirmed.metadata?.estimated_total || confirmed.estimated_total ? formatPeso(confirmed.metadata?.estimated_total || confirmed.estimated_total) : servicePriceLabel(pickedServiceDetail)}</dd></div>}
                 <div><dt>Name</dt><dd>{confirmed.customer}</dd></div>
                 <div><dt>Reference</dt><dd>{confirmed.id || "Request received"}</dd></div>
               </dl>
@@ -2523,7 +2838,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
               </div>
               {paymentRequired && (
                 <div className="paymentInstructions">
-                  <span>{isToursTravel ? "Reservation Deposit" : "Payment Required"}</span>
+                  <span>{isToursTravel || isAccommodation ? "Reservation Deposit" : "Payment Required"}</span>
                   <p><strong>Estimated Total:</strong> {estimatedTotal === null ? "Rate on request" : formatPeso(estimatedTotal)}</p>
                   <p><strong>Required {normalizePaymentRequirement(paymentSettings.requirement_type) === "DEPOSIT_REQUIRED" ? "Deposit" : "Payment"}:</strong> {formatPeso(requiredPaymentAmount)}</p>
                   <div className="paymentMethodList">
@@ -2624,6 +2939,7 @@ function DemoExpiredPage({ business, onBack }) {
 function StructuredServiceManager({ services, onChange, onDeleteService, bookingTemplate = "GENERAL", compact = false }) {
   const copy = getServiceManagerCopy(bookingTemplate);
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
+  const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
   const updateService = (index, updates) => {
     onChange(services.map((service, itemIndex) => itemIndex === index ? { ...service, ...updates } : service));
   };
@@ -2677,8 +2993,17 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
                 <div className="structuredServiceFields">
                   <input value={service.name} onChange={(event) => updateService(index, { name: event.target.value })} placeholder={`${copy.single} name`} />
                   <input value={service.description} onChange={(event) => updateService(index, { description: event.target.value })} placeholder="Description" />
-                  <input type="number" min="0" value={service.price} onChange={(event) => updateService(index, { price: event.target.value })} placeholder="Price" />
-                  <input type="number" min="0" value={service.durationMinutes} onChange={(event) => updateService(index, { durationMinutes: event.target.value })} placeholder="Duration in minutes" />
+                  <input type="number" min="0" value={service.price} onChange={(event) => updateService(index, { price: event.target.value })} placeholder={isAccommodation ? "Price per night" : "Price"} />
+                  {!isAccommodation && <input type="number" min="0" value={service.durationMinutes} onChange={(event) => updateService(index, { durationMinutes: event.target.value })} placeholder="Duration in minutes" />}
+                  {isAccommodation && (
+                    <>
+                      <input type="number" min="1" value={service.maxGuests} onChange={(event) => updateService(index, { maxGuests: event.target.value })} placeholder="Maximum guests" />
+                      <input type="number" min="1" value={service.includedGuests} onChange={(event) => updateService(index, { includedGuests: event.target.value })} placeholder="Included guests" />
+                      <input type="number" min="0" value={service.extraGuestFee} onChange={(event) => updateService(index, { extraGuestFee: event.target.value })} placeholder="Extra guest fee / night" />
+                      <input type="number" min="1" value={service.unitQuantity} onChange={(event) => updateService(index, { unitQuantity: event.target.value })} placeholder="Available quantity" />
+                      <input value={service.imageUrl} onChange={(event) => updateService(index, { imageUrl: event.target.value })} placeholder="Optional image URL" />
+                    </>
+                  )}
                   {isTravel && (
                     <>
                       <select value={normalizePricingType(service.pricingType, service.pricingUnit)} onChange={(event) => updateService(index, { pricingType: event.target.value, pricingUnit: normalizePricingUnit(service.pricingUnit, event.target.value) })}>
@@ -3326,7 +3651,14 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
       if (name === "businessName" && !editingSlug) next.slug = makeSlug(value);
       if (name === "slug") next.slug = makeSlug(value);
       if (name === "bookingTemplate") {
-        next.serviceEntries = normalizeStructuredServices(current.serviceEntries).map((service) => normalizeBookingTemplate(value) === "TOURS_TRAVEL" ? service : {
+        const nextTemplate = normalizeBookingTemplate(value);
+        next.serviceEntries = normalizeStructuredServices(current.serviceEntries).map((service) => nextTemplate === "TOURS_TRAVEL" ? service : nextTemplate === "STAYCATION_ACCOMMODATION" ? {
+          ...service,
+          pricingType: "PER_NIGHT",
+          pricingUnit: "PER_NIGHT",
+          durationMinutes: "",
+          pricingTiers: [],
+        } : {
           ...service,
           pricingType: "FIXED",
           pricingUnit: "FLAT",
@@ -3924,6 +4256,10 @@ function ClientDashboard({
       query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=created_at.desc`,
       accessToken: session.access_token,
     });
+    const bookingItemRows = await supabaseRequest("booking_items", {
+      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=created_at.asc`,
+      accessToken: session.access_token,
+    }).catch(() => []);
     const [paymentSettingsRow] = await supabaseRequest("business_payment_settings", {
       query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}`,
       accessToken: session.access_token,
@@ -3950,7 +4286,7 @@ function ClientDashboard({
       blocked_dates: blockedDateRows || [],
     }, paymentSettingsRow || null, paymentMethodRows || [])));
     const visibleServiceRows = filterLegacyToursSeedRows(serviceRows || [], businessRow?.booking_template);
-    setClientBookings(bookingRows || []);
+    setClientBookings(attachBookingItems(bookingRows || [], bookingItemRows || []));
     setClientServices(visibleServiceRows);
     setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
     setClientAvailability(normalizedAvailability);
@@ -4043,6 +4379,10 @@ function ClientDashboard({
         query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=created_at.desc`,
         accessToken: clientSession.access_token,
       });
+      const bookingItemRows = await supabaseRequest("booking_items", {
+        query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=created_at.asc`,
+        accessToken: clientSession.access_token,
+      }).catch(() => []);
       const [paymentSettingsRow] = await supabaseRequest("business_payment_settings", {
         query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}`,
         accessToken: clientSession.access_token,
@@ -4066,7 +4406,7 @@ function ClientDashboard({
         blocked_dates: blockedDateRows || [],
       }, paymentSettingsRow || null, paymentMethodRows || [])));
       const visibleServiceRows = filterLegacyToursSeedRows(serviceRows || [], businessRow?.booking_template);
-      setClientBookings(bookingRows || []);
+      setClientBookings(attachBookingItems(bookingRows || [], bookingItemRows || []));
       setClientServices(visibleServiceRows);
       setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
       setClientAvailability(normalizedAvailability);
@@ -4109,6 +4449,11 @@ function ClientDashboard({
       pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
       pricingUnit: normalizePricingUnit(service.pricing_unit),
       pricingTiers: normalizePricingTiers(service.pricing_tiers),
+      maxGuests: service.max_guests ?? "",
+      includedGuests: service.included_guests ?? "",
+      extraGuestFee: service.extra_guest_fee ?? "",
+      imageUrl: service.image_url || "",
+      unitQuantity: service.unit_quantity ?? 1,
       status: service.status || "Active",
     } : emptyServiceForm);
   };
@@ -4118,6 +4463,7 @@ function ClientDashboard({
     setStatusMessage("");
     try {
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
+      const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
       const tierValidation = validatePricingTiers(serviceForm.pricingTiers);
       if (isClientToursTravel && serviceForm.pricingType === "GROUP_TIER" && (!tierValidation.ok || tierValidation.tiers.length === 0)) {
         setStatusMessage(tierValidation.message || "Add at least one valid pricing tier.");
@@ -4129,11 +4475,16 @@ function ClientDashboard({
         service_name: serviceForm.name,
         service_description: serviceForm.description,
         service_price: serviceForm.price === "" ? null : Number(serviceForm.price),
-        service_duration: Number(serviceForm.durationMinutes) || 60,
+        service_duration: isClientAccommodation ? null : Number(serviceForm.durationMinutes) || 60,
         service_status: serviceForm.status,
-        service_pricing_type: isClientToursTravel ? normalizePricingType(serviceForm.pricingType) : "FIXED",
-        service_pricing_unit: isClientToursTravel ? normalizePricingUnit(serviceForm.pricingUnit, serviceForm.pricingType) : "FLAT",
+        service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingType(serviceForm.pricingType) : "FIXED",
+        service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingUnit(serviceForm.pricingUnit, serviceForm.pricingType) : "FLAT",
         service_pricing_tiers: isClientToursTravel ? tierValidation.tiers : [],
+        service_max_guests: serviceForm.maxGuests === "" ? null : Number(serviceForm.maxGuests),
+        service_included_guests: serviceForm.includedGuests === "" ? null : Number(serviceForm.includedGuests),
+        service_extra_guest_fee: serviceForm.extraGuestFee === "" ? null : Number(serviceForm.extraGuestFee),
+        service_image_url: serviceForm.imageUrl || "",
+        service_unit_quantity: serviceForm.unitQuantity === "" ? 1 : Number(serviceForm.unitQuantity || 1),
       };
       await onSaveService(payload, clientSession?.access_token);
       const nextServices = serviceForm.id
@@ -4187,6 +4538,7 @@ function ClientDashboard({
     setStatusMessage("");
     try {
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
+      const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
       const savableServices = getSavableStructuredServices(clientServiceEntries, clientBusiness?.bookingTemplate);
       for (const service of savableServices) {
         if (isClientToursTravel && service.pricingType === "GROUP_TIER" && !validatePricingTiers(service.pricingTiers).ok) {
@@ -4205,9 +4557,14 @@ function ClientDashboard({
           service_price: service.price,
           service_duration: service.durationMinutes,
           service_status: service.status,
-          service_pricing_type: isClientToursTravel ? normalizePricingType(service.pricingType) : "FIXED",
-          service_pricing_unit: isClientToursTravel ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
+          service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingType(service.pricingType) : "FIXED",
+          service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
           service_pricing_tiers: isClientToursTravel ? service.pricingTiers : [],
+          service_max_guests: service.maxGuests,
+          service_included_guests: service.includedGuests,
+          service_extra_guest_fee: service.extraGuestFee,
+          service_image_url: service.imageUrl,
+          service_unit_quantity: service.unitQuantity,
         }, clientSession?.access_token);
       }
       for (const oldService of clientServices) {
@@ -4415,6 +4772,7 @@ function ClientDashboard({
   const currentRole = businessUsers.find((item) => item.business_slug === selectedBusinessSlug)?.role || "OWNER";
   const capabilities = getPackageCapabilities(clientBusiness?.package, clientBusiness?.featureFlags);
   const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
+  const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
   const paymentsByBooking = bookingPayments.reduce((grouped, payment) => {
     grouped[payment.booking_id] = grouped[payment.booking_id] || [];
     grouped[payment.booking_id].push(payment);
@@ -4422,6 +4780,12 @@ function ClientDashboard({
   }, {});
   const selectedBookingPayments = selectedBooking ? paymentsByBooking[selectedBooking.id] || [] : [];
   const latestSelectedPayment = selectedBookingPayments[0];
+  const selectedBookingItems = selectedBooking ? getBookingLineItems(selectedBooking) : [];
+  const selectedBookingTotal = selectedBooking?.estimated_total ?? selectedBooking?.metadata?.estimated_total ?? (
+    selectedBookingItems.every((item) => item.lineTotal !== null && item.lineTotal !== undefined)
+      ? selectedBookingItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0)
+      : null
+  );
   const pendingPaymentCount = bookingPayments.filter((payment) => payment.payment_status === "PENDING_VERIFICATION").length;
   const verifiedPaymentCount = bookingPayments.filter((payment) => payment.payment_status === "VERIFIED").length;
   const customers = Object.values(clientBookings.reduce((grouped, booking) => {
@@ -4739,14 +5103,25 @@ function ClientDashboard({
                 <h2>{selectedBooking.customer}</h2>
               </div>
               <p><strong>Phone:</strong> {selectedBooking.contact}</p>
-              <p><strong>{isClientToursTravel ? "Tour Package" : "Service"}:</strong> {selectedBooking.service}</p>
-              <p><strong>{isClientToursTravel ? "Travel Date" : "Date"}:</strong> {selectedBooking.booking_date || "Not required"}</p>
-              <p><strong>{isClientToursTravel ? "Preferred Time" : "Time"}:</strong> {selectedBooking.slot || "Inquiry only"}</p>
-              {isClientToursTravel && <p><strong>Guest Count:</strong> {selectedBooking.metadata?.guest_count || "Not provided"}</p>}
+              <div className="bookingItemsPanel">
+                <strong>Services</strong>
+                {selectedBookingItems.map((item) => (
+                  <p key={item.serviceName}>
+                    <span>{item.serviceName}{item.lineLabel ? ` - ${item.lineLabel}` : ""}</span>
+                    <em>{item.lineTotal === null || item.lineTotal === undefined ? "Rate on request" : formatPeso(item.lineTotal)}</em>
+                  </p>
+                ))}
+                {selectedBookingTotal !== null && <p className="bookingItemsTotal"><span>Estimated Total</span><em>{formatPeso(selectedBookingTotal)}</em></p>}
+              </div>
+              <p><strong>{isClientAccommodation ? "Check-in" : isClientToursTravel ? "Travel Date" : "Date"}:</strong> {isClientAccommodation ? formatBookingDate(selectedBooking.metadata?.check_in || selectedBooking.booking_date) : selectedBooking.booking_date || "Not required"}</p>
+              {isClientAccommodation && <p><strong>Check-out:</strong> {formatBookingDate(selectedBooking.metadata?.check_out)}</p>}
+              {isClientAccommodation && <p><strong>Nights:</strong> {selectedBooking.metadata?.number_of_nights || "Not saved"}</p>}
+              <p><strong>{isClientAccommodation ? "Stay" : isClientToursTravel ? "Preferred Time" : "Time"}:</strong> {selectedBooking.slot || "Inquiry only"}</p>
+              {(isClientToursTravel || isClientAccommodation) && <p><strong>Guests:</strong> {selectedBooking.metadata?.guest_count || "Not provided"}</p>}
               {isClientToursTravel && <p><strong>Pricing Type:</strong> {selectedBooking.metadata?.pricing_type || "Not saved"}</p>}
               {isClientToursTravel && selectedBooking.metadata?.unit_price !== undefined && <p><strong>Rate:</strong> {formatPeso(selectedBooking.metadata.unit_price)}</p>}
               {isClientToursTravel && selectedBooking.metadata?.selected_tier && <p><strong>Selected Group Rate:</strong> {selectedBooking.metadata.selected_tier.minGuests}-{selectedBooking.metadata.selected_tier.maxGuests} pax - {formatPeso(selectedBooking.metadata.selected_tier.price)}</p>}
-              {isClientToursTravel && <p><strong>Estimated Total:</strong> {selectedBooking.metadata?.estimated_total ? formatPeso(selectedBooking.metadata.estimated_total) : "Rate only"}</p>}
+              {isClientToursTravel && <p><strong>Estimated Total:</strong> {selectedBookingTotal !== null ? formatPeso(selectedBookingTotal) : "Rate only"}</p>}
               {isClientToursTravel && selectedBooking.metadata?.pickup_location && <p><strong>Pickup Location:</strong> {selectedBooking.metadata.pickup_location}</p>}
               <p><strong>{isClientToursTravel ? "Special Requests" : "Notes"}:</strong> {selectedBooking.note || "No notes"}</p>
               {capabilities.paymentVerification && (
@@ -4800,15 +5175,16 @@ function ReservationCalendar({
   onStatusChange,
 }) {
   const isToursTravel = normalizeBookingTemplate(business?.bookingTemplate) === "TOURS_TRAVEL";
+  const isAccommodation = normalizeBookingTemplate(business?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
   const monthKey = getMonthKey(monthDate);
   const monthDays = buildMonthDays(monthDate);
-  const serviceOptions = [...new Set((bookings || []).map((booking) => booking.service).filter(Boolean))];
+  const serviceOptions = [...new Set((bookings || []).flatMap((booking) => getBookingLineItems(booking).map((item) => item.serviceName)).filter(Boolean))];
   const statusOptions = ["All", "Pending", "Confirmed", "Completed", "Cancelled", ...serviceOptions];
   const visibleBookings = (bookings || []).filter((booking) => {
     if (!(booking.booking_date || "").startsWith(monthKey)) return false;
     const statusMatch = ["All", "Pending", "Confirmed", "Completed", "Cancelled"].includes(statusFilter)
       ? statusFilter === "All" || (booking.status || "").toUpperCase() === statusFilter.toUpperCase()
-      : booking.service === statusFilter;
+      : getBookingLineItems(booking).some((item) => item.serviceName === statusFilter);
     return statusMatch;
   });
   const bookingsByDate = visibleBookings.reduce((grouped, booking) => {
@@ -4844,10 +5220,15 @@ function ReservationCalendar({
     onMonthChange(now);
     onDateSelect(getTodayDateValue());
   };
-  const reservationLabel = isToursTravel ? "Reservations" : "Bookings";
+  const reservationLabel = isToursTravel || isAccommodation ? "Reservations" : "Bookings";
   const guestText = (booking) => {
     const guests = booking.metadata?.guest_count;
     return guests ? `${guests} Guest${Number(guests) > 1 ? "s" : ""}` : "";
+  };
+  const stayText = (booking) => {
+    if (!isAccommodation) return "";
+    const nights = booking.metadata?.number_of_nights;
+    return nights ? `${nights} Night${Number(nights) > 1 ? "s" : ""}` : "";
   };
 
   return (
@@ -4856,7 +5237,7 @@ function ReservationCalendar({
         <div>
           <p className="eyebrow">Reservation Calendar</p>
           <h2>{monthTitle}</h2>
-          <p>{isToursTravel ? "View tour reservations by travel date." : "View bookings by selected date."}</p>
+          <p>{isAccommodation ? "View stays by check-in date." : isToursTravel ? "View tour reservations by travel date." : "View bookings by selected date."}</p>
         </div>
         <div className="calendarControls">
           <button type="button" onClick={() => moveMonth(-1)}><ChevronLeft size={16} /> Previous</button>
@@ -4887,8 +5268,8 @@ function ReservationCalendar({
               {blocked && <em className="calendarBlocked">Blocked</em>}
               {dayBookings.slice(0, 2).map((booking) => (
                 <i className={`calendarBookingDot ${getStatusClass(booking.status)}`} key={booking.id} onClick={(event) => { event.stopPropagation(); onSelectBooking(booking); }}>
-                  <b>{booking.service}</b>
-                  <small>{getInitialsName(booking.customer)}{guestText(booking) ? ` • ${guestText(booking)}` : ""}</small>
+                  <b>{getBookingServiceSummary(booking)}</b>
+                  <small>{getInitialsName(booking.customer)}{stayText(booking) ? ` • ${stayText(booking)}` : guestText(booking) ? ` • ${guestText(booking)}` : ""}</small>
                   <small>{(booking.status || "PENDING").toUpperCase()}</small>
                 </i>
               ))}
@@ -4907,8 +5288,8 @@ function ReservationCalendar({
           {selectedBookings.length ? selectedBookings.map((booking) => (
             <article className="clientBookingCard" key={booking.id}>
               <div>
-                <strong>{booking.service}</strong>
-                <span>{booking.customer}{guestText(booking) ? ` • ${guestText(booking)}` : ""}</span>
+                <strong>{getBookingServiceSummary(booking)}</strong>
+                <span>{booking.customer}{stayText(booking) ? ` • ${stayText(booking)}` : guestText(booking) ? ` • ${guestText(booking)}` : ""}</span>
                 <small>{booking.slot || "No preferred time"} / {(booking.status || "PENDING").toUpperCase()}</small>
               </div>
               <p>{booking.note || "No notes provided"}</p>
@@ -4934,7 +5315,7 @@ function BookingList({ bookings, onSelect, onStatusChange }) {
         <article className="clientBookingCard" key={booking.id}>
           <div>
             <strong>{booking.customer}</strong>
-            <span>{booking.service}</span>
+            <span>{getBookingServiceSummary(booking)}</span>
             <small>{booking.booking_date || "No date required"} / {booking.slot || "Inquiry only"}</small>
             <em>{booking.contact}</em>
           </div>

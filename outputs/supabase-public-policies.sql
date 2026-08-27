@@ -11,6 +11,7 @@ alter table booking_payments enable row level security;
 alter table setup_requests enable row level security;
 alter table admin_users enable row level security;
 alter table business_users enable row level security;
+alter table storage.objects enable row level security;
 
 drop policy if exists "Allow public lead reads for demo admin" on leads;
 drop policy if exists "Allow public booking reads for demo admin" on bookings;
@@ -398,3 +399,46 @@ create policy "Allow admin business user deletes"
 on business_users for delete
 to authenticated
 using (public.is_smm_admin());
+
+drop policy if exists "Allow public business media read" on storage.objects;
+create policy "Allow public business media read"
+on storage.objects for select
+using (
+  bucket_id = 'business-media'
+  and (name like 'logos/%' or name like 'covers/%')
+);
+
+drop policy if exists "Allow admin business media inserts" on storage.objects;
+create policy "Allow admin business media inserts"
+on storage.objects for insert
+to authenticated
+with check (
+  bucket_id = 'business-media'
+  and (name like 'logos/%' or name like 'covers/%')
+  and public.is_smm_admin()
+);
+
+drop policy if exists "Allow admin business media updates" on storage.objects;
+create policy "Allow admin business media updates"
+on storage.objects for update
+to authenticated
+using (
+  bucket_id = 'business-media'
+  and (name like 'logos/%' or name like 'covers/%')
+  and public.is_smm_admin()
+)
+with check (
+  bucket_id = 'business-media'
+  and (name like 'logos/%' or name like 'covers/%')
+  and public.is_smm_admin()
+);
+
+drop policy if exists "Allow admin business media deletes" on storage.objects;
+create policy "Allow admin business media deletes"
+on storage.objects for delete
+to authenticated
+using (
+  bucket_id = 'business-media'
+  and (name like 'logos/%' or name like 'covers/%')
+  and public.is_smm_admin()
+);

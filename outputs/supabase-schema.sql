@@ -1141,7 +1141,11 @@ grant execute on function public.reject_booking_payment(text, text) to authentic
 
 insert into businesses (slug, business, industry, booking_link, cover_url)
 values
-  ('glowbeauty', 'Glow Beauty Studio', 'Salon & Beauty', 'glowbeauty.slotwise.app', 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80'),
-  ('drjoseclinic', 'Dr. Jose Dental Clinic', 'Clinic & Dental', 'drjoseclinic.slotwise.app', 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80'),
-  ('liamscabin', 'Liam''s Cabin', 'Travel & Staycation', 'liamscabin.slotwise.app', 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80')
+  ('glowbeauty', 'Glow Beauty Studio', 'Salon & Beauty', 'glowbeauty.slotwise.app', ''),
+  ('drjoseclinic', 'Dr. Jose Dental Clinic', 'Clinic & Dental', 'drjoseclinic.slotwise.app', ''),
+  ('liamscabin', 'Liam''s Cabin', 'Travel & Staycation', 'liamscabin.slotwise.app', '')
 on conflict (slug) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('business-media', 'business-media', true)
+on conflict (id) do update set public = excluded.public;
