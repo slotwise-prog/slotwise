@@ -351,6 +351,41 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const databaseMode = supabaseUrl && supabaseAnonKey ? "Online database" : "Local demo storage";
 const clientStatuses = ["DEMO", "UNPAID", "ACTIVE", "SUSPENDED"];
+const demoDurationHours = 24;
+
+function createDemoWindow() {
+  const started = new Date();
+  const expires = new Date(started.getTime() + demoDurationHours * 60 * 60 * 1000);
+  return {
+    demo_started_at: started.toISOString(),
+    demo_expires_at: expires.toISOString(),
+  };
+}
+
+function formatFriendlyDateTime(value) {
+  if (!value) return "Not set";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function isDemoExpired(business = {}) {
+  return (business.status || "").toUpperCase() === "DEMO"
+    && Boolean(business.demoExpiresAt || business.demo_expires_at)
+    && Date.now() >= new Date(business.demoExpiresAt || business.demo_expires_at).getTime();
+}
+
+function getDemoExpiryState(business = {}) {
+  if ((business.status || "").toUpperCase() !== "DEMO") return { state: "not-demo", label: "Not demo" };
+  const expiresAt = business.demoExpiresAt || business.demo_expires_at;
+  if (!expiresAt) return { state: "missing", label: "Demo Expiry Not Set" };
+  if (isDemoExpired(business)) return { state: "expired", label: "Demo Expired", dateLabel: formatFriendlyDateTime(expiresAt) };
+  return { state: "active", label: "Demo Active", dateLabel: formatFriendlyDateTime(expiresAt) };
+}
 
 function normalizePackage(value) {
   const nextPackage = (value || "STARTER").toUpperCase();
@@ -645,6 +680,8 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     businessType: row.business_type || row.industry || "Service business",
     bookingMode: row.booking_mode || "booking",
     bookingTemplate,
+    demoStartedAt: row.demo_started_at || null,
+    demoExpiresAt: row.demo_expires_at || null,
     status: (row.status || "ACTIVE").toUpperCase(),
     package: normalizePackage(row.business_package),
     featureFlags: row.feature_flags || {},
@@ -718,6 +755,8 @@ function buildBusinessFromSetup(setup) {
     businessType: setup.industry || "Service business",
     bookingMode: "booking",
     bookingTemplate,
+    demoStartedAt: setup.demoStartedAt || setup.demo_started_at || null,
+    demoExpiresAt: setup.demoExpiresAt || setup.demo_expires_at || null,
     status: (setup.status || "DEMO").toUpperCase(),
     package: normalizePackage(setup.package),
     featureFlags: { ...defaultFeatureFlags },
@@ -755,6 +794,8 @@ function normalizeBusinessConfig(business) {
     businessType: business.businessType || business.name || "Service business",
     bookingMode: business.bookingMode || "booking",
     bookingTemplate: normalizeBookingTemplate(business.bookingTemplate),
+    demoStartedAt: business.demoStartedAt || business.demo_started_at || null,
+    demoExpiresAt: business.demoExpiresAt || business.demo_expires_at || null,
     status: (business.status || "ACTIVE").toUpperCase(),
     package: normalizePackage(business.package),
     featureFlags: { ...defaultFeatureFlags, ...(business.featureFlags || {}) },
@@ -974,6 +1015,8 @@ function setupToBusinessDatabase(setup, slug) {
     business_package: normalizePackage(setup.package),
     feature_flags: { ...defaultFeatureFlags, ...(setup.featureFlags || {}) },
     status: (setup.status || "DEMO").toUpperCase(),
+    demo_started_at: setup.demoStartedAt || null,
+    demo_expires_at: setup.demoExpiresAt || null,
   };
 }
 
@@ -1461,7 +1504,19 @@ function App() {
       };
     }
 
-    const businessBody = setupToBusinessDatabase(nextClient, slug);
+    const previousBusiness = originalSlug ? databaseBusinesses.find((business) => business.slug === originalSlug) : null;
+    const nextStatus = (nextClient.status || "DEMO").toUpperCase();
+    const previousStatus = (previousBusiness?.status || "").toUpperCase();
+    const shouldStartDemo = nextStatus === "DEMO" && (!originalSlug || previousStatus !== "DEMO");
+    const demoWindow = shouldStartDemo
+      ? createDemoWindow()
+      : {
+        demo_started_at: previousBusiness?.demoStartedAt || nextClient.demoStartedAt || null,
+        demo_expires_at: previousBusiness?.demoExpiresAt || nextClient.demoExpiresAt || null,
+      };
+    const businessBody = {
+      ...setupToBusinessDatabase({ ...nextClient, demoStartedAt: demoWindow.demo_started_at, demoExpiresAt: demoWindow.demo_expires_at }, slug),
+    };
     if (originalSlug) {
       await supabaseRequest("businesses", {
         method: "PATCH",
@@ -1530,14 +1585,19 @@ function App() {
   };
 
   const updateClientStatus = async (slug, status, accessToken = "") => {
+    const currentBusiness = databaseBusinesses.find((business) => business.slug === slug);
+    const body = { status };
+    if ((status || "").toUpperCase() === "DEMO" && (currentBusiness?.status || "").toUpperCase() !== "DEMO") {
+      Object.assign(body, createDemoWindow());
+    }
     await supabaseRequest("businesses", {
       method: "PATCH",
       query: `?slug=eq.${encodeURIComponent(slug)}`,
-      body: { status },
+      body,
       accessToken,
     });
     setDatabaseBusinesses((current) => current.map((business) => (
-      business.slug === slug ? { ...business, status } : business
+      business.slug === slug ? normalizeBusinessConfig({ ...business, status, demoStartedAt: body.demo_started_at || business.demoStartedAt, demoExpiresAt: body.demo_expires_at || business.demoExpiresAt }) : business
     )));
     if (publicBusinessSlug === slug) await loadBusinessConfigs(slug);
   };
@@ -1652,6 +1712,9 @@ function App() {
   if (page === "publicBusiness") {
     if (publicBusiness && publicBusiness.status === "SUSPENDED") {
       return <BusinessUnavailablePage business={publicBusiness} onBack={() => setPage("home")} />;
+    }
+    if (publicBusiness && isDemoExpired(publicBusiness)) {
+      return <DemoExpiredPage business={publicBusiness} onBack={() => setPage("home")} />;
     }
 
     return publicBusiness ? (
@@ -2133,6 +2196,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
   const isProductionActive = clientStatus === "ACTIVE";
   const isDemoPreview = clientStatus === "DEMO";
   const isAwaitingActivation = clientStatus === "UNPAID";
+  const demoExpiryState = getDemoExpiryState(business);
   const blockedDates = business.availability?.blockedDates || [];
   const isBlockedDate = blockedDates.some((blockedDate) => blockedDate.blocked_date === selectedBookingDate && blockedDate.active !== false);
   const selectedDateLabel = formatBookingDate(selectedBookingDate);
@@ -2325,7 +2389,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
               <strong>{isDemoPreview ? "Demo preview" : "Awaiting activation"}</strong>
               <span>
                 {isDemoPreview
-                  ? "Test the booking flow. Submissions on this preview are simulated and will not be saved as live bookings."
+                  ? `Test the booking flow. Submissions on this preview are simulated and will not be saved as live bookings.${demoExpiryState.dateLabel ? ` Available until: ${demoExpiryState.dateLabel}.` : " Demo expiry not set."}`
                   : "System setup is complete and awaiting activation. Submissions are preview only until the client is activated."}
               </span>
             </div>
@@ -2531,6 +2595,26 @@ function BusinessUnavailablePage({ business, onBack }) {
             {business.messengerLink && <a href={business.messengerLink} target="_blank" rel="noreferrer">Contact Business</a>}
             {business.phone && <span>{business.phone}</span>}
           </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function DemoExpiredPage({ business, onBack }) {
+  return (
+    <main className="setupPage">
+      <button className="backButton" onClick={onBack}><ArrowLeft size={18} /> Back to site</button>
+      <section className="setupComplete">
+        <span><Clock size={22} /></span>
+        <p className="eyebrow">Demo expired</p>
+        <h1>This personalized system preview has ended.</h1>
+        <p>
+          Interested in activating your system? Please contact SMM Solutions by Pabs Rivera.
+          The same configured system can be activated after payment.
+        </p>
+        {business?.demoExpiresAt && (
+          <div className="setupSaveStatus local">Expired: {formatFriendlyDateTime(business.demoExpiresAt)}</div>
         )}
       </section>
     </main>
@@ -3065,6 +3149,8 @@ function emptyAdminClient() {
     package: "STARTER",
     bookingMode: "booking",
     bookingTemplate: "GENERAL",
+    demoStartedAt: null,
+    demoExpiresAt: null,
     contact: "",
     facebookPage: "",
     address: "",
@@ -3097,6 +3183,8 @@ function businessToAdminClient(business) {
     package: normalizePackage(business.package),
     bookingMode: business.bookingMode || "booking",
     bookingTemplate: normalizeBookingTemplate(business.bookingTemplate),
+    demoStartedAt: business.demoStartedAt || null,
+    demoExpiresAt: business.demoExpiresAt || null,
     contact: business.phone || "",
     facebookPage: business.messengerLink || "",
     address: business.address || "",
@@ -3294,6 +3382,26 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     setStatusMessage(`${business.business} is now ${nextStatus}.`);
   };
 
+  const restartDemo = async () => {
+    const targetSlug = editingSlug || form.slug;
+    if (!targetSlug || form.status !== "DEMO") return;
+    if (!window.confirm("Restart this client's 24-hour demo period?")) return;
+    const demoWindow = createDemoWindow();
+    await supabaseRequest("businesses", {
+      method: "PATCH",
+      query: `?slug=eq.${encodeURIComponent(targetSlug)}`,
+      body: demoWindow,
+      accessToken: adminSession?.access_token,
+    });
+    setForm((current) => ({
+      ...current,
+      demoStartedAt: demoWindow.demo_started_at,
+      demoExpiresAt: demoWindow.demo_expires_at,
+    }));
+    await onRefresh();
+    setStatusMessage("24-hour demo restarted.");
+  };
+
   const copyLink = async (slug) => {
     const url = `${window.location.origin}/${slug}`;
     await navigator.clipboard?.writeText(url);
@@ -3389,24 +3497,41 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
   const dashboardLink = `${window.location.origin}/client-dashboard`;
   const packageDisplay = packageOptions.find((item) => item.value === normalizePackage(form.package));
   const packageText = packageDisplay ? `${packageDisplay.label} - ${packageDisplay.price}` : "Starter - PHP 499 lifetime";
-  const demoHandoffMessage = `Hi! Your customized booking system preview is ready.
+  const demoExpiryState = getDemoExpiryState(form);
+  const demoExpiryText = form.demoExpiresAt ? formatFriendlyDateTime(form.demoExpiresAt) : "Demo expiry not set";
+  const demoHandoffMessage = demoExpiryState.state === "expired"
+    ? `Demo has expired.
+
+This client's demo expired on ${demoExpiryText}.
+
+Use "Restart 24-Hour Demo" before sending a new demo link.`
+    : `Hi! Your personalized Booking & Inquiry System preview is ready.
 
 Business:
 ${form.businessName || "Your business"}
 
-Package:
+Package Preview:
 ${packageText}
 
-Preview your system here:
+Demo Link:
 ${publicLink}
 
-You may test the booking flow before activation.
+Demo Duration:
+24 Hours
 
-Please note that this is currently in Demo Mode, so test bookings are not saved as live bookings yet.
+Demo Expires:
+${demoExpiryText}
 
-Once payment is confirmed, we can activate the same system and link immediately.
+You may explore and test the booking/inquiry system before deciding.
 
-- SMM Solutions by Pabs Rivera`;
+Please note:
+This is a demo preview only. Test submissions are not treated as actual customer bookings or reservations.
+
+If you decide to proceed, we can activate the same customized system for lifetime use based on your selected package.
+
+SYSTEM MUNA BAGO BAYAD
+
+SMM Solutions by Pabs Rivera`;
   const activeHandoffMessage = form.status === "SUSPENDED"
     ? `Hi! Your Slotwise booking system for ${form.businessName || "your business"} is currently suspended.
 
@@ -3591,6 +3716,16 @@ After login, you will only see the bookings and features assigned to your busine
               {packageOptions.map((item) => <option value={item.value} key={item.value}>{item.label} - {item.price}</option>)}
             </select>
           </section>
+          {form.status === "DEMO" && (
+            <section className={`smmPackageControl demoExpiryControl ${demoExpiryState.state}`}>
+              <div>
+                <p className="eyebrow">Demo status</p>
+                <h3>{demoExpiryState.label}</h3>
+                <span>{demoExpiryState.dateLabel ? `${demoExpiryState.state === "expired" ? "Expired" : "Expires"}: ${demoExpiryState.dateLabel}` : "Demo expiry not set"}</span>
+              </div>
+              <button type="button" onClick={restartDemo}>Restart 24-Hour Demo</button>
+            </section>
+          )}
           <section className="smmOpsGrid">
             <div className="smmOpsPanel">
               <p className="eyebrow">Client access</p>
@@ -3696,6 +3831,7 @@ After login, you will only see the bookings and features assigned to your busine
                   <h2>{business.business}</h2>
                   <p>{business.slug}</p>
                   <small>{business.businessType} / {business.bookingMode} / {normalizePackage(business.package)} / {business.services.length} services / {bookingCount} bookings</small>
+                  {business.status === "DEMO" && <small>{getDemoExpiryState(business).dateLabel ? `${getDemoExpiryState(business).label}: ${getDemoExpiryState(business).dateLabel}` : getDemoExpiryState(business).label}</small>}
                   <small>Client login: {assignedAccess.length ? `Assigned (${assignedAccess.map((item) => item.role).join(", ")})` : "Not assigned"}</small>
                 </div>
                 <div className="smmClientLink">/{business.slug}</div>

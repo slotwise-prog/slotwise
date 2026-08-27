@@ -52,6 +52,8 @@ alter table businesses add column if not exists description text;
 alter table businesses add column if not exists business_type text;
 alter table businesses add column if not exists booking_mode text default 'booking';
 alter table businesses add column if not exists booking_template text not null default 'GENERAL';
+alter table businesses add column if not exists demo_started_at timestamptz;
+alter table businesses add column if not exists demo_expires_at timestamptz;
 do $$
 begin
   if exists (
