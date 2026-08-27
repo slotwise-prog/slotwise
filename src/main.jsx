@@ -611,7 +611,7 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     bookingTemplate,
   });
   const themeDefaults = getToneThemeDefaults(tone);
-  const activeServices = serviceRows
+  const activeServices = filterLegacyToursSeedRows(serviceRows, bookingTemplate)
     .filter((service) => service.status !== "Inactive")
     .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
   const normalizedServices = dedupeServices(
@@ -921,6 +921,31 @@ function isStandalonePaxTierService(service = {}) {
   const name = (service.name || "").trim().toLowerCase();
   return /^\d+\s*[-–]\s*\d+\s*(pax|guests?|persons?|people)?$/.test(name)
     || /^\d+\s*(pax|guests?|persons?|people)$/.test(name);
+}
+
+const legacyToursServiceNames = new Set([
+  "services + prices",
+  "cebu city tour",
+  "oslob whale shark tour",
+  "moalboal tour",
+  "bohol day tour",
+  "van rental",
+  "airport transfer",
+  "1-2 pax",
+  "1–2 pax",
+  "3-4 pax",
+  "3–4 pax",
+  "5-6 pax",
+  "5–6 pax",
+]);
+
+function isLegacyToursSeedService(service = {}) {
+  return legacyToursServiceNames.has((service.name || "").trim().toLowerCase());
+}
+
+function filterLegacyToursSeedRows(serviceRows = [], bookingTemplate = "GENERAL") {
+  if (normalizeBookingTemplate(bookingTemplate) !== "TOURS_TRAVEL") return serviceRows;
+  return serviceRows.filter((service) => !isLegacyToursSeedService(service));
 }
 
 function inferBookingTemplateFromIndustry(industry = "") {
@@ -3064,7 +3089,7 @@ function emptyAdminClient() {
 function businessToAdminClient(business) {
   const serviceEntries = normalizeStructuredServices(
     business.serviceDetails?.length
-      ? business.serviceDetails.map(serviceRowToStructured)
+      ? filterLegacyToursSeedRows(business.serviceDetails, business.bookingTemplate).map(serviceRowToStructured)
       : (business.services || []).map((service, index) => serviceRowToStructured({ name: service, displayOrder: index }, index)),
   );
   const serviceText = structuredServicesToLegacyText(serviceEntries, business.bookingTemplate);
@@ -3793,9 +3818,10 @@ function ClientDashboard({
       ...(availabilityRow || {}),
       blocked_dates: blockedDateRows || [],
     }, paymentSettingsRow || null, paymentMethodRows || [])));
+    const visibleServiceRows = filterLegacyToursSeedRows(serviceRows || [], businessRow?.booking_template);
     setClientBookings(bookingRows || []);
-    setClientServices(serviceRows || []);
-    setClientServiceEntries(normalizeStructuredServices((serviceRows || []).map(serviceRowToStructured)));
+    setClientServices(visibleServiceRows);
+    setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
     setClientAvailability(normalizedAvailability);
     setAvailabilityForm({
       days: normalizedAvailability.days,
@@ -3908,9 +3934,10 @@ function ClientDashboard({
         ...(availabilityRow || {}),
         blocked_dates: blockedDateRows || [],
       }, paymentSettingsRow || null, paymentMethodRows || [])));
+      const visibleServiceRows = filterLegacyToursSeedRows(serviceRows || [], businessRow?.booking_template);
       setClientBookings(bookingRows || []);
-      setClientServices(serviceRows || []);
-      setClientServiceEntries(normalizeStructuredServices((serviceRows || []).map(serviceRowToStructured)));
+      setClientServices(visibleServiceRows);
+      setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
       setClientAvailability(normalizedAvailability);
       setAvailabilityForm({
         days: normalizedAvailability.days,
@@ -4075,8 +4102,9 @@ function ClientDashboard({
         accessToken: clientSession?.access_token,
       });
       const refreshedServiceRows = serviceRows;
-      setClientServices(refreshedServiceRows || []);
-      setClientServiceEntries(normalizeStructuredServices((refreshedServiceRows || []).map(serviceRowToStructured)));
+      const visibleServiceRows = filterLegacyToursSeedRows(refreshedServiceRows || [], clientBusiness?.bookingTemplate);
+      setClientServices(visibleServiceRows);
+      setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
       setClientBusiness((current) => normalizeBusinessConfig(normalizeDatabaseBusiness({
         slug: current.slug,
         business: current.business,
