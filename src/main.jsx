@@ -611,7 +611,7 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     bookingTemplate,
   });
   const themeDefaults = getToneThemeDefaults(tone);
-  const activeServices = serviceRows
+  const activeServices = filterTemplateServiceRows(serviceRows, bookingTemplate)
     .filter((service) => service.status !== "Inactive")
     .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
   const normalizedServices = dedupeServices(
@@ -915,6 +915,17 @@ function getServiceManagerCopy(bookingTemplate = "GENERAL") {
   if (template === "CLINIC") return { title: "Services / Treatments", single: "Service / treatment", add: "Add Another Service" };
   if (template === "AUTO") return { title: "Services / Packages", single: "Service / package", add: "Add Another Service" };
   return { title: "Services", single: "Service", add: "Add Another Service" };
+}
+
+function isStandalonePaxTierService(service = {}) {
+  const name = (service.name || "").trim().toLowerCase();
+  return /^\d+\s*[-–]\s*\d+\s*(pax|guests?|persons?|people)?$/.test(name)
+    || /^\d+\s*(pax|guests?|persons?|people)$/.test(name);
+}
+
+function filterTemplateServiceRows(serviceRows = [], bookingTemplate = "GENERAL") {
+  if (normalizeBookingTemplate(bookingTemplate) !== "TOURS_TRAVEL") return serviceRows;
+  return serviceRows.filter((service) => !isStandalonePaxTierService(service));
 }
 
 function inferBookingTemplateFromIndustry(industry = "") {
@@ -3044,7 +3055,7 @@ function emptyAdminClient() {
 function businessToAdminClient(business) {
   const serviceEntries = normalizeStructuredServices(
     business.serviceDetails?.length
-      ? business.serviceDetails.map(serviceRowToStructured)
+      ? filterTemplateServiceRows(business.serviceDetails, business.bookingTemplate).map(serviceRowToStructured)
       : (business.services || []).map((service, index) => serviceRowToStructured({ name: service, displayOrder: index }, index)),
   );
   const serviceText = structuredServicesToLegacyText(serviceEntries, business.bookingTemplate);
@@ -3762,9 +3773,10 @@ function ClientDashboard({
       ...(availabilityRow || {}),
       blocked_dates: blockedDateRows || [],
     }, paymentSettingsRow || null, paymentMethodRows || [])));
+    const visibleServiceRows = filterTemplateServiceRows(serviceRows || [], businessRow?.booking_template);
     setClientBookings(bookingRows || []);
-    setClientServices(serviceRows || []);
-    setClientServiceEntries(normalizeStructuredServices((serviceRows || []).map(serviceRowToStructured)));
+    setClientServices(visibleServiceRows);
+    setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
     setClientAvailability(normalizedAvailability);
     setAvailabilityForm({
       days: normalizedAvailability.days,
@@ -3877,9 +3889,10 @@ function ClientDashboard({
         ...(availabilityRow || {}),
         blocked_dates: blockedDateRows || [],
       }, paymentSettingsRow || null, paymentMethodRows || [])));
+      const visibleServiceRows = filterTemplateServiceRows(serviceRows || [], businessRow?.booking_template);
       setClientBookings(bookingRows || []);
-      setClientServices(serviceRows || []);
-      setClientServiceEntries(normalizeStructuredServices((serviceRows || []).map(serviceRowToStructured)));
+      setClientServices(visibleServiceRows);
+      setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
       setClientAvailability(normalizedAvailability);
       setAvailabilityForm({
         days: normalizedAvailability.days,
@@ -4043,8 +4056,31 @@ function ClientDashboard({
         query: `?select=*&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
         accessToken: clientSession?.access_token,
       });
-      setClientServices(serviceRows || []);
-      setClientServiceEntries(normalizeStructuredServices((serviceRows || []).map(serviceRowToStructured)));
+      const hiddenTierRows = (serviceRows || []).filter((service) => isStandalonePaxTierService(service));
+      for (const tierRow of hiddenTierRows) {
+        if (tierRow.status !== "Inactive") {
+          await onSaveService({
+            service_id: tierRow.id,
+            target_slug: selectedBusinessSlug,
+            service_name: tierRow.name,
+            service_description: tierRow.description || "",
+            service_price: tierRow.price,
+            service_duration: tierRow.duration_minutes,
+            service_status: "Inactive",
+            service_pricing_type: tierRow.pricing_type || "FIXED",
+            service_pricing_unit: tierRow.pricing_unit || "FLAT",
+            service_pricing_tiers: tierRow.pricing_tiers || [],
+            service_display_order: tierRow.display_order || 999,
+          }, clientSession?.access_token);
+        }
+      }
+      const refreshedServiceRows = hiddenTierRows.length ? await supabaseRequest("business_services", {
+        query: `?select=*&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
+        accessToken: clientSession?.access_token,
+      }) : serviceRows;
+      const visibleServiceRows = filterTemplateServiceRows(refreshedServiceRows || [], clientBusiness?.bookingTemplate);
+      setClientServices(visibleServiceRows);
+      setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
       setClientBusiness((current) => normalizeBusinessConfig(normalizeDatabaseBusiness({
         slug: current.slug,
         business: current.business,
@@ -4064,7 +4100,7 @@ function ClientDashboard({
         feature_flags: current.featureFlags,
         status: current.status,
         cover_url: current.cover,
-      }, serviceRows || [], {
+      }, refreshedServiceRows || [], {
         open_days: clientAvailability.days,
         open_hours: clientAvailability.hours,
         slots: clientAvailability.slots,
