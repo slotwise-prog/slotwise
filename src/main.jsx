@@ -925,12 +925,6 @@ function isStandalonePaxTierService(service = {}) {
 
 const legacyToursServiceNames = new Set([
   "services + prices",
-  "cebu city tour",
-  "oslob whale shark tour",
-  "moalboal tour",
-  "bohol day tour",
-  "van rental",
-  "airport transfer",
   "1-2 pax",
   "1–2 pax",
   "3-4 pax",
@@ -940,7 +934,8 @@ const legacyToursServiceNames = new Set([
 ]);
 
 function isLegacyToursSeedService(service = {}) {
-  return legacyToursServiceNames.has((service.name || "").trim().toLowerCase());
+  return legacyToursServiceNames.has((service.name || "").trim().toLowerCase())
+    || isStandalonePaxTierService(service);
 }
 
 function filterLegacyToursSeedRows(serviceRows = [], bookingTemplate = "GENERAL") {
@@ -4077,7 +4072,6 @@ function ClientDashboard({
           service_pricing_type: isClientToursTravel ? normalizePricingType(service.pricingType) : "FIXED",
           service_pricing_unit: isClientToursTravel ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
           service_pricing_tiers: isClientToursTravel ? service.pricingTiers : [],
-          service_display_order: service.displayOrder,
         }, clientSession?.access_token);
       }
       for (const oldService of clientServices) {
@@ -4093,7 +4087,6 @@ function ClientDashboard({
             service_pricing_type: oldService.pricing_type || "FIXED",
             service_pricing_unit: oldService.pricing_unit || "FLAT",
             service_pricing_tiers: oldService.pricing_tiers || [],
-            service_display_order: oldService.display_order || 999,
           }, clientSession?.access_token);
         }
       }
