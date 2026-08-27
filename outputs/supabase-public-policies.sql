@@ -420,6 +420,12 @@ using (
   and (ends_at is null or ends_at >= now())
 );
 
+drop policy if exists "Allow admin announcement reads" on announcements;
+create policy "Allow admin announcement reads"
+on announcements for select
+to authenticated
+using (public.is_smm_admin());
+
 drop policy if exists "Allow admin announcement inserts" on announcements;
 create policy "Allow admin announcement inserts"
 on announcements for insert
