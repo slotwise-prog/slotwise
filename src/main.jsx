@@ -279,14 +279,19 @@ function resolveBusinessTone(business = {}) {
 }
 
 function getToneThemeDefaults(tone) {
-  if (tone === "staycation-accommodation") return { primaryColor: "#7a4f2f", accentColor: "#f8efe6" };
-  if (tone === "tours-travel") return { primaryColor: "#0f766e", accentColor: "#e6f7f1" };
-  if (tone === "home-service") return { primaryColor: "#155e75", accentColor: "#eaf7fb" };
-  if (tone === "auto") return { primaryColor: "#1f2937", accentColor: "#eef2f7" };
-  if (tone === "clinic") return { primaryColor: "#148d84", accentColor: "#dff7f3" };
-  if (tone === "travel") return { primaryColor: "#b16f16", accentColor: "#fff1d3" };
-  if (tone === "general") return { primaryColor: "#38516f", accentColor: "#f2f6fb" };
-  return { primaryColor: "#bd5d6d", accentColor: "#f6dfe3" };
+  if (tone === "staycation-accommodation") return { primaryColor: "#7a4f2f", accentColor: "#f8efe6", pageBackgroundColor: "#F4EFE8" };
+  if (tone === "tours-travel") return { primaryColor: "#0f766e", accentColor: "#e6f7f1", pageBackgroundColor: "#F6F2E5" };
+  if (tone === "home-service") return { primaryColor: "#155e75", accentColor: "#eaf7fb", pageBackgroundColor: "#F1F5F9" };
+  if (tone === "auto") return { primaryColor: "#1f2937", accentColor: "#eef2f7", pageBackgroundColor: "#F2F4F7" };
+  if (tone === "clinic") return { primaryColor: "#148d84", accentColor: "#dff7f3", pageBackgroundColor: "#EEF4F8" };
+  if (tone === "travel") return { primaryColor: "#b16f16", accentColor: "#fff1d3", pageBackgroundColor: "#F7F3E8" };
+  if (tone === "general") return { primaryColor: "#38516f", accentColor: "#f2f6fb", pageBackgroundColor: "#F4F6F8" };
+  return { primaryColor: "#bd5d6d", accentColor: "#f6dfe3", pageBackgroundColor: "#FBF3F5" };
+}
+
+function normalizeHexColor(value, fallback = "") {
+  const next = String(value || "").trim();
+  return /^#([0-9a-fA-F]{6})$/.test(next) ? next.toUpperCase() : fallback;
 }
 
 function getTemplateFallbackCover(tone = "beauty") {
@@ -416,6 +421,17 @@ function normalizePackage(value) {
 function normalizeBookingTemplate(value) {
   const nextTemplate = (value || "GENERAL").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
   return bookingTemplateOptions.some((item) => item.value === nextTemplate) ? nextTemplate : "GENERAL";
+}
+
+function getBookingTemplateTone(bookingTemplate) {
+  const nextTemplate = normalizeBookingTemplate(bookingTemplate);
+  if (nextTemplate === "STAYCATION_ACCOMMODATION") return "staycation-accommodation";
+  if (nextTemplate === "TOURS_TRAVEL") return "tours-travel";
+  if (nextTemplate === "HOME_SERVICE") return "home-service";
+  if (nextTemplate === "AUTO") return "auto";
+  if (nextTemplate === "CLINIC") return "clinic";
+  if (nextTemplate === "BEAUTY") return "beauty";
+  return "general";
 }
 
 function normalizePricingUnit(value, fallback = "FLAT") {
@@ -933,6 +949,7 @@ function buildBusinessFromSetup(setup) {
     logo: "",
     primaryColor: themeDefaults.primaryColor,
     accentColor: themeDefaults.accentColor,
+    pageBackgroundColor: setup.pageBackgroundColor || themeDefaults.pageBackgroundColor,
     phone: setup.contact || "",
     messengerLink: setup.facebookPage || "",
     address: "",
@@ -970,6 +987,7 @@ function normalizeBusinessConfig(business) {
     logo: business.logo || "",
     primaryColor: tone === "home-service" && isBeautyDefaultColor(business.primaryColor) ? themeDefaults.primaryColor : business.primaryColor || themeDefaults.primaryColor,
     accentColor: tone === "home-service" && isBeautyDefaultColor(business.accentColor) ? themeDefaults.accentColor : business.accentColor || themeDefaults.accentColor,
+    pageBackgroundColor: normalizeHexColor(business.pageBackgroundColor || business.page_background_color, themeDefaults.pageBackgroundColor),
     phone: business.phone || "",
     messengerLink: business.messengerLink || "",
     address: business.address || "",
@@ -991,6 +1009,161 @@ function normalizeBusinessConfig(business) {
     paymentSettings: business.paymentSettings || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 },
     paymentMethods: business.paymentMethods || [],
   };
+}
+
+const announcementTypeOptions = ["GENERAL", "PACKAGE_UPSELL", "RESELLER", "IMPORTANT_NOTICE"];
+const announcementPlacementOptions = ["DEMO_PREVIEW", "CLIENT_DASHBOARD", "BOTH"];
+const announcementPriorityOptions = ["NORMAL", "IMPORTANT"];
+const announcementPackageAudienceOptions = ["ALL", "STARTER", "BUSINESS", "PRO"];
+const announcementStatusAudienceOptions = ["ALL", "DEMO", "STARTER", "BUSINESS", "PRO", "UNPAID", "ACTIVE"];
+const announcementPresetOptions = [
+  {
+    id: "starter-business",
+    title: "Need More Control?",
+    message: "Upgrade to BUSINESS to unlock additional business management tools.",
+    announcement_type: "PACKAGE_UPSELL",
+    cta_label: "View BUSINESS",
+    target_packages: ["STARTER"],
+    target_statuses: ["ALL"],
+    placement: "BOTH",
+    priority: "NORMAL",
+  },
+  {
+    id: "business-pro",
+    title: "Unlock Advanced Features",
+    message: "Upgrade to PRO for our complete Booking & Inquiry System experience.",
+    announcement_type: "PACKAGE_UPSELL",
+    cta_label: "View PRO",
+    target_packages: ["BUSINESS"],
+    target_statuses: ["ALL"],
+    placement: "BOTH",
+    priority: "NORMAL",
+  },
+  {
+    id: "reseller",
+    title: "Earn With SMM Solutions",
+    message: "Offer Booking & Inquiry Systems to your own clients and earn from every completed sale.",
+    announcement_type: "RESELLER",
+    cta_label: "View Reseller Program",
+    target_packages: ["ALL"],
+    target_statuses: ["ALL"],
+    placement: "BOTH",
+    priority: "NORMAL",
+  },
+  {
+    id: "general",
+    title: "What's New",
+    message: "Check out the latest updates available for your system.",
+    announcement_type: "GENERAL",
+    cta_label: "",
+    target_packages: ["ALL"],
+    target_statuses: ["ALL"],
+    placement: "BOTH",
+    priority: "NORMAL",
+  },
+];
+
+function normalizeAnnouncement(announcement = {}) {
+  const placement = announcementPlacementOptions.includes((announcement.placement || "BOTH").toUpperCase()) ? (announcement.placement || "BOTH").toUpperCase() : "BOTH";
+  const priority = announcementPriorityOptions.includes((announcement.priority || "NORMAL").toUpperCase()) ? (announcement.priority || "NORMAL").toUpperCase() : "NORMAL";
+  const announcementType = announcementTypeOptions.includes((announcement.announcement_type || announcement.type || "GENERAL").toUpperCase())
+    ? (announcement.announcement_type || announcement.type || "GENERAL").toUpperCase()
+    : "GENERAL";
+  const normalizeAudienceList = (value, allowed, fallback) => {
+    const list = Array.isArray(value) ? value : (typeof value === "string" && value.trim() ? value.split(",") : []);
+    const filtered = list.map((item) => String(item || "").trim().toUpperCase()).filter(Boolean).filter((item) => allowed.includes(item));
+    return filtered.length ? filtered : fallback;
+  };
+  return {
+    ...announcement,
+    id: announcement.id || `ANN-${Date.now()}`,
+    title: announcement.title || "What's New",
+    message: announcement.message || "",
+    announcement_type: announcementType,
+    cta_label: announcement.cta_label || announcement.ctaLabel || "",
+    cta_url: announcement.cta_url || announcement.ctaUrl || "",
+    placement,
+    business_slug: announcement.business_slug || announcement.businessSlug || "",
+    target_packages: normalizeAudienceList(announcement.target_packages || announcement.targetPackages, announcementPackageAudienceOptions, ["ALL"]),
+    target_statuses: normalizeAudienceList(announcement.target_statuses || announcement.targetStatuses, announcementStatusAudienceOptions, ["ALL"]),
+    enabled: announcement.enabled !== false,
+    dismissible: announcement.dismissible !== false,
+    priority,
+    starts_at: announcement.starts_at || announcement.startsAt || null,
+    ends_at: announcement.ends_at || announcement.endsAt || null,
+    created_at: announcement.created_at || announcement.createdAt || null,
+    updated_at: announcement.updated_at || announcement.updatedAt || null,
+  };
+}
+
+function announcementIsActive(announcement, now = new Date()) {
+  if (!announcement?.enabled) return false;
+  const startsAt = announcement.starts_at ? new Date(announcement.starts_at) : null;
+  const endsAt = announcement.ends_at ? new Date(announcement.ends_at) : null;
+  if (startsAt && startsAt.getTime() > now.getTime()) return false;
+  if (endsAt && endsAt.getTime() < now.getTime()) return false;
+  return true;
+}
+
+function announcementMatchesBusiness(announcement, business, placement = "BOTH") {
+  if (!announcementIsActive(announcement)) return false;
+  const nextPlacement = (placement || "BOTH").toUpperCase();
+  if (announcement.placement !== "BOTH" && announcement.placement !== nextPlacement) return false;
+  if (announcement.business_slug && business?.slug && announcement.business_slug !== business.slug) return false;
+  const packageKey = normalizePackage(business?.package || "STARTER");
+  const statusKey = (business?.status || "DEMO").toUpperCase();
+  const packageMatch = announcement.target_packages.includes("ALL") || announcement.target_packages.includes(packageKey);
+  const statusMatch = announcement.target_statuses.includes("ALL") || announcement.target_statuses.includes(statusKey);
+  return packageMatch && statusMatch;
+}
+
+function sortAnnouncements(announcements = []) {
+  return [...announcements].sort((a, b) => {
+    const aPriority = (a.priority || "NORMAL") === "IMPORTANT" ? 1 : 0;
+    const bPriority = (b.priority || "NORMAL") === "IMPORTANT" ? 1 : 0;
+    if (aPriority !== bPriority) return bPriority - aPriority;
+    return new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0);
+  });
+}
+
+function resolveAnnouncementCtaHref(ctaUrl = "") {
+  const next = String(ctaUrl || "").trim();
+  if (!next) return "";
+  if (!next.startsWith("internal:")) return next;
+  if (next === "internal:packages") return "#pricing";
+  if (next === "internal:reseller") return "#signup";
+  if (next === "internal:overview") return "#product";
+  return "";
+}
+
+function getAnnouncementIcon(announcementType) {
+  const nextType = (announcementType || "GENERAL").toUpperCase();
+  if (nextType === "PACKAGE_UPSELL") return WandSparkles;
+  if (nextType === "RESELLER") return BriefcaseBusiness;
+  if (nextType === "IMPORTANT_NOTICE") return ShieldCheck;
+  return MessageSquare;
+}
+
+function getAnnouncementAudienceLabel(announcement) {
+  const packages = announcement.target_packages || ["ALL"];
+  const statuses = announcement.target_statuses || ["ALL"];
+  const packageLabel = packages.includes("ALL") ? "All packages" : packages.join(" + ");
+  const statusLabel = statuses.includes("ALL") ? "All statuses" : statuses.join(" + ");
+  return `${packageLabel} · ${statusLabel}`;
+}
+
+function getAnnouncementPlacementLabel(announcement) {
+  const next = (announcement.placement || "BOTH").toUpperCase();
+  if (next === "DEMO_PREVIEW") return "Demo preview";
+  if (next === "CLIENT_DASHBOARD") return "Client dashboard";
+  return "Both";
+}
+
+function getAnnouncementPreviewTone(announcement) {
+  if ((announcement.priority || "NORMAL") === "IMPORTANT") return "important";
+  if ((announcement.announcement_type || "GENERAL") === "PACKAGE_UPSELL") return "upsell";
+  if ((announcement.announcement_type || "GENERAL") === "RESELLER") return "reseller";
+  return "general";
 }
 
 function parseServiceDetails(value) {
@@ -1217,6 +1390,7 @@ function setupToBusinessDatabase(setup, slug) {
     logo_url: setup.logo || setup.logoUrl || "",
     primary_color: setup.primaryColor || business.primaryColor,
     accent_color: setup.accentColor || business.accentColor,
+    page_background_color: normalizeHexColor(setup.pageBackgroundColor, business.pageBackgroundColor || ""),
     phone: setup.contact || "",
     messenger_link: setup.facebookPage || "",
     address: setup.address || "",
@@ -1463,6 +1637,7 @@ function App() {
   const [bookings, setBookings] = useState(() => JSON.parse(localStorage.getItem("slotwiseBookings") || "[]"));
   const [setupRequests, setSetupRequests] = useState(() => JSON.parse(localStorage.getItem("slotwiseSetupRequests") || "[]"));
   const [databaseBusinesses, setDatabaseBusinesses] = useState([]);
+  const [announcementRows, setAnnouncementRows] = useState([]);
   const service = services[serviceIndex];
   const selectedFields = useMemo(() => service.fields.join(" + "), [service]);
   const activeDemo = demoSteps[demoStep];
@@ -1607,14 +1782,16 @@ function App() {
       if (!supabaseUrl || !supabaseAnonKey) return;
       if (isSmmAdminPath) return;
       try {
-        const [onlineLeads, onlineBookings, onlineSetupRequests] = await Promise.all([
+        const [onlineLeads, onlineBookings, onlineSetupRequests, onlineAnnouncements] = await Promise.all([
           supabaseRequest("leads", { query: "?select=*&order=created_at.desc" }),
           supabaseRequest("bookings", { query: "?select=*&order=created_at.desc" }),
           supabaseRequest("setup_requests", { query: "?select=*&order=created_at.desc" }),
+          supabaseRequest("announcements", { query: "?select=*&enabled=eq.true&order=priority.desc,created_at.desc" }).catch(() => []),
         ]);
         setLeads(onlineLeads || []);
         setBookings(onlineBookings || []);
         setSetupRequests((onlineSetupRequests || []).map(normalizeSetupRequest));
+        setAnnouncementRows((onlineAnnouncements || []).map(normalizeAnnouncement));
       } catch {
         // Keep the local demo data if online loading fails.
       }
@@ -1915,7 +2092,7 @@ function App() {
   };
 
   if (page === "booking") {
-    return <BookingPrototype business={selectedBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} />;
+    return <BookingPrototype business={selectedBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} announcements={announcementRows} />;
   }
 
   if (page === "owner") {
@@ -1953,7 +2130,7 @@ function App() {
     }
 
     return publicBusiness ? (
-      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} />
+      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} announcements={announcementRows} />
     ) : (
       <BusinessNotFoundPage slug={publicBusinessSlug} onBack={() => setPage("home")} onSetup={() => setPage("setup")} />
     );
@@ -1992,6 +2169,7 @@ function App() {
         onSavePaymentMethod={saveClientPaymentMethod}
         onVerifyPayment={verifyClientPayment}
         onRejectPayment={rejectClientPayment}
+        announcements={announcementRows}
       />
     );
   }
@@ -2415,7 +2593,72 @@ function Feature({ icon, title, text }) {
   );
 }
 
-function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) {
+function AnnouncementFeed({
+  title = "Announcements",
+  announcements = [],
+  business = { slug: "", package: "STARTER", status: "DEMO" },
+  placement = "BOTH",
+  compact = false,
+  maxVisible = 2,
+  dismissedIds = [],
+  onDismiss,
+  onViewAll,
+  emptyText = "No announcements yet.",
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleAnnouncements = sortAnnouncements((announcements || []).filter((announcement) => announcementMatchesBusiness(announcement, business, placement)))
+    .filter((announcement) => !dismissedIds.includes(announcement.id));
+  const visibleRows = expanded ? visibleAnnouncements : visibleAnnouncements.slice(0, maxVisible);
+  if (!visibleRows.length) return null;
+  return (
+    <section className={compact ? "announcementFeed compact" : "announcementFeed"}>
+      <div className="announcementFeedHeader">
+        <div>
+          <p className="eyebrow">{title}</p>
+          <h3>{compact ? "Updates that matter" : "Latest updates and offers"}</h3>
+        </div>
+        {visibleAnnouncements.length > maxVisible && (
+          <button type="button" className="announcementToggleButton" onClick={() => setExpanded((current) => !current)}>
+            {expanded ? "Show less" : "View All Announcements"}
+          </button>
+        )}
+      </div>
+      <div className="announcementList">
+        {visibleRows.map((announcement) => {
+          const Icon = getAnnouncementIcon(announcement.announcement_type);
+          const href = resolveAnnouncementCtaHref(announcement.cta_url);
+          return (
+            <article key={announcement.id} className={`announcementCard ${getAnnouncementPreviewTone(announcement)}`}>
+              <div className="announcementIcon"><Icon size={18} /></div>
+              <div className="announcementBody">
+                <div className="announcementTopLine">
+                  <strong>{announcement.title}</strong>
+                  <span className={`announcementPriority ${announcement.priority === "IMPORTANT" ? "important" : ""}`}>{announcement.announcement_type.replace(/_/g, " ")}</span>
+                </div>
+                <p>{announcement.message}</p>
+                <small>{getAnnouncementAudienceLabel(announcement)} · {getAnnouncementPlacementLabel(announcement)}</small>
+                {announcement.cta_label && href && (
+                  <div className="announcementActions">
+                    <a href={href} className="announcementCta">{announcement.cta_label}</a>
+                  </div>
+                )}
+              </div>
+              {announcement.dismissible !== false && onDismiss && (
+                <button type="button" className="announcementDismiss" onClick={() => onDismiss(announcement.id)} aria-label={`Dismiss ${announcement.title}`}>×</button>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      {onViewAll && visibleAnnouncements.length > maxVisible && !expanded && (
+        <button type="button" className="announcementMoreButton" onClick={onViewAll}>View All Announcements</button>
+      )}
+      {!visibleRows.length && <div className="announcementEmpty">{emptyText}</div>}
+    </section>
+  );
+}
+
+function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, announcements = [] }) {
   const [pickedService, setPickedService] = useState(business.services[0]);
   const [pickedServices, setPickedServices] = useState([business.services[0]].filter(Boolean));
   const availableSlots = business.availability?.slots?.length ? business.availability.slots : slots;
@@ -2434,6 +2677,13 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
   const [submitting, setSubmitting] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState("");
+  const [dismissedAnnouncementIds, setDismissedAnnouncementIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(`slotwiseAnnouncementDismissals:${business.slug}`) || "[]");
+    } catch {
+      return [];
+    }
+  });
   const flags = { ...defaultFeatureFlags, ...(business.featureFlags || {}) };
   const clientStatus = (business.status || "ACTIVE").toUpperCase();
   const isProductionActive = clientStatus === "ACTIVE";
@@ -2479,6 +2729,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
   const paymentSettings = business.paymentSettings || {};
   const paymentMethods = (business.paymentMethods || []).filter((method) => method.active !== false);
   const allowMultipleServices = Boolean(flags.allowMultipleServices);
+  const announcementRows = useMemo(() => sortAnnouncements((announcements || []).filter((announcement) => announcementMatchesBusiness(announcement, business, "DEMO_PREVIEW"))), [announcements, business]);
   const getServiceDetail = (serviceName) => {
     const detail = business.serviceDetails?.find((item) => item.name === serviceName);
     return {
@@ -2536,6 +2787,14 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
     setPaymentOpen(false);
     setPaymentStatus("");
   }, [business.slug]);
+
+  useEffect(() => {
+    localStorage.setItem(`slotwiseAnnouncementDismissals:${business.slug}`, JSON.stringify(dismissedAnnouncementIds));
+  }, [business.slug, dismissedAnnouncementIds]);
+
+  const dismissAnnouncement = (announcementId) => {
+    setDismissedAnnouncementIds((current) => Array.from(new Set([...current, announcementId])));
+  };
 
   const toggleService = (serviceName) => {
     if (!allowMultipleServices) {
@@ -2686,6 +2945,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
       style={{
         "--booking-primary": business.primaryColor,
         "--booking-accent": business.accentColor,
+        "--booking-page-bg": business.pageBackgroundColor || getToneThemeDefaults(bookingTone).pageBackgroundColor,
       }}
     >
       <button className="backButton premiumBackButton" onClick={onBack}><ArrowLeft size={18} /> Back to Slotwise</button>
@@ -2919,6 +3179,19 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
                 </div>
               )}
               {paymentStatus && <span>{paymentStatus}</span>}
+              {(isDemoPreview || isAwaitingActivation) && announcementRows.length > 0 && (
+                <AnnouncementFeed
+                  title="More from SMM Solutions"
+                  announcements={announcementRows}
+                  business={business}
+                  placement="DEMO_PREVIEW"
+                  compact
+                  maxVisible={2}
+                  dismissedIds={dismissedAnnouncementIds}
+                  onDismiss={dismissAnnouncement}
+                  emptyText="No promo notes right now."
+                />
+              )}
             </div>
           )}
         </form>
@@ -3134,7 +3407,12 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
     const { name, value } = event.target;
     if (name === "slug") setSlugEdited(true);
     setForm((current) => {
-      const next = { ...current, [name]: name === "slug" ? makeSlug(value) : value };
+      const nextValue = name === "pageBackgroundColor"
+        ? normalizeHexColor(value, current.pageBackgroundColor || "")
+        : name === "slug"
+          ? makeSlug(value)
+          : value;
+      const next = { ...current, [name]: nextValue };
       if (name === "businessName" && !slugEdited) {
         next.slug = makeSlug(value);
       }
@@ -3536,6 +3814,7 @@ function emptyAdminClient() {
     cover: "",
     primaryColor: "#bd5d6d",
     accentColor: "#f6dfe3",
+    pageBackgroundColor: "",
     services: "",
     serviceEntries: emptyStructuredServices(),
     openDays: "Monday to Saturday",
@@ -3571,12 +3850,33 @@ function businessToAdminClient(business) {
     cover: business.cover || "",
     primaryColor: business.primaryColor || "#bd5d6d",
     accentColor: business.accentColor || "#f6dfe3",
+    pageBackgroundColor: normalizeHexColor(business.pageBackgroundColor || business.page_background_color, ""),
     services: serviceText,
     serviceEntries,
     openDays: business.availability?.days || defaultAvailability.days,
     openHours: business.availability?.hours || defaultAvailability.hours,
     slotsText: (business.availability?.slots || slots).join(", "),
     featureFlags: { ...defaultFeatureFlags, ...(business.featureFlags || {}) },
+  };
+}
+
+function emptyAnnouncementForm() {
+  return {
+    id: "",
+    title: "",
+    message: "",
+    announcement_type: "GENERAL",
+    cta_label: "",
+    cta_url: "",
+    placement: "BOTH",
+    business_slug: "",
+    target_packages: ["ALL"],
+    target_statuses: ["ALL"],
+    enabled: true,
+    dismissible: true,
+    priority: "NORMAL",
+    starts_at: "",
+    ends_at: "",
   };
 }
 
@@ -3593,6 +3893,9 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
   const [statusMessage, setStatusMessage] = useState("");
   const [copiedMessage, setCopiedMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [announcements, setAnnouncements] = useState([]);
+  const [announcementForm, setAnnouncementForm] = useState(emptyAnnouncementForm());
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState("");
   const logoUploadRef = useRef(null);
   const coverUploadRef = useRef(null);
 
@@ -3603,6 +3906,16 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
       accessToken: session.access_token,
     });
     setClientAccess(rows || []);
+    return rows || [];
+  };
+
+  const loadAnnouncements = async (session) => {
+    if (!session?.access_token) return [];
+    const rows = await supabaseRequest("announcements", {
+      query: "?select=*&order=priority.desc,created_at.desc",
+      accessToken: session.access_token,
+    });
+    setAnnouncements((rows || []).map(normalizeAnnouncement));
     return rows || [];
   };
 
@@ -3624,6 +3937,7 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     setAuthState("authorized");
     await onRefresh();
     await loadClientAccess(session);
+    await loadAnnouncements(session);
     return true;
   };
 
@@ -3703,7 +4017,12 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
       return;
     }
     setForm((current) => {
-      const next = { ...current, [name]: type === "checkbox" ? checked : value };
+      const nextValue = name === "pageBackgroundColor"
+        ? normalizeHexColor(value, current.pageBackgroundColor || "")
+        : type === "checkbox"
+          ? checked
+          : value;
+      const next = { ...current, [name]: nextValue };
       if (name === "businessName" && !editingSlug) next.slug = makeSlug(value);
       if (name === "slug") next.slug = makeSlug(value);
       if (name === "bookingTemplate") {
@@ -3752,6 +4071,132 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     setForm((current) => ({ ...current, [kind]: "" }));
     setStatusMessage(`${kind === "cover" ? "Cover image" : "Logo"} removed.`);
   };
+
+  const startAnnouncement = (announcement = emptyAnnouncementForm()) => {
+    setEditingAnnouncementId(announcement.id || "");
+    setAnnouncementForm({
+      ...emptyAnnouncementForm(),
+      ...announcement,
+      target_packages: Array.isArray(announcement.target_packages) ? announcement.target_packages : ["ALL"],
+      target_statuses: Array.isArray(announcement.target_statuses) ? announcement.target_statuses : ["ALL"],
+    });
+  };
+
+  const updateAnnouncementForm = (event) => {
+    const { name, value, checked, type } = event.target;
+    if (name === "target_packages" || name === "target_statuses") {
+      const nextValue = value.toUpperCase();
+      setAnnouncementForm((current) => {
+        const currentList = current[name] || [];
+        const list = checked ? Array.from(new Set([...currentList, nextValue])) : currentList.filter((item) => item !== nextValue);
+        return { ...current, [name]: list.length ? list : ["ALL"] };
+      });
+      return;
+    }
+    setAnnouncementForm((current) => ({
+      ...current,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const chooseAnnouncementPreset = (preset) => {
+    startAnnouncement({
+      ...emptyAnnouncementForm(),
+      ...preset,
+      id: "",
+      starts_at: "",
+      ends_at: "",
+    });
+    setStatusMessage("Announcement preset loaded.");
+  };
+
+  const saveAnnouncement = async (event) => {
+    event.preventDefault();
+    if (!adminSession?.access_token) return;
+    try {
+      const payload = {
+        id: editingAnnouncementId || `ann-${Date.now()}`,
+        title: announcementForm.title.trim(),
+        message: announcementForm.message.trim(),
+        announcement_type: announcementForm.announcement_type,
+        cta_label: announcementForm.cta_label.trim(),
+        cta_url: announcementForm.cta_url.trim(),
+        placement: announcementForm.placement,
+        business_slug: announcementForm.business_slug.trim() || null,
+        target_packages: announcementForm.target_packages?.length ? announcementForm.target_packages : ["ALL"],
+        target_statuses: announcementForm.target_statuses?.length ? announcementForm.target_statuses : ["ALL"],
+        enabled: Boolean(announcementForm.enabled),
+        dismissible: Boolean(announcementForm.dismissible),
+        priority: announcementForm.priority,
+        starts_at: announcementForm.starts_at || null,
+        ends_at: announcementForm.ends_at || null,
+        updated_at: new Date().toISOString(),
+      };
+      if (!payload.title || !payload.message) {
+        setStatusMessage("Title and message are required.");
+        return;
+      }
+      if (editingAnnouncementId) {
+        await supabaseRequest("announcements", {
+          method: "PATCH",
+          query: `?id=eq.${encodeURIComponent(editingAnnouncementId)}`,
+          body: payload,
+          accessToken: adminSession.access_token,
+        });
+      } else {
+        await supabaseRequest("announcements", {
+          method: "POST",
+          body: payload,
+          accessToken: adminSession.access_token,
+        });
+      }
+      await loadAnnouncements(adminSession);
+      setStatusMessage(editingAnnouncementId ? "Announcement updated." : "Announcement created.");
+      startAnnouncement();
+    } catch (error) {
+      console.error("Announcement save failed", error);
+      setStatusMessage(error.message || "Unable to save announcement.");
+    }
+  };
+
+  const removeAnnouncement = async (announcementId) => {
+    if (!window.confirm("Delete this announcement?")) return;
+    try {
+      await supabaseRequest("announcements", {
+        method: "DELETE",
+        query: `?id=eq.${encodeURIComponent(announcementId)}`,
+        accessToken: adminSession?.access_token,
+      });
+      await loadAnnouncements(adminSession);
+      setStatusMessage("Announcement deleted.");
+    } catch (error) {
+      console.error("Announcement delete failed", error);
+      setStatusMessage(error.message || "Unable to delete announcement.");
+    }
+  };
+
+  const toggleAnnouncementEnabled = async (announcement) => {
+    try {
+      await supabaseRequest("announcements", {
+        method: "PATCH",
+        query: `?id=eq.${encodeURIComponent(announcement.id)}`,
+        body: { enabled: !announcement.enabled, updated_at: new Date().toISOString() },
+        accessToken: adminSession?.access_token,
+      });
+      await loadAnnouncements(adminSession);
+      setStatusMessage(announcement.enabled ? "Announcement disabled." : "Announcement enabled.");
+    } catch (error) {
+      console.error("Announcement status update failed", error);
+      setStatusMessage(error.message || "Unable to update announcement.");
+    }
+  };
+
+  const resetPageBackgroundColor = () => {
+    setForm((current) => ({ ...current, pageBackgroundColor: "" }));
+    setStatusMessage("Page background reset to the template default.");
+  };
+
+  const announcementRows = sortAnnouncements(announcements);
 
   const handleBrandFilePick = async (kind, event) => {
     const file = event.target.files?.[0];
@@ -4160,6 +4605,43 @@ After login, you will only see the bookings and features assigned to your busine
                 <button type="button" onClick={() => clearBrandAsset("cover")}>Remove Cover</button>
               </div>
             </div>
+            <div className="brandingCard">
+              <div className="brandingCardHeader">
+                <div>
+                  <p className="eyebrow">Page background</p>
+                  <h3>Set the outer page color</h3>
+                </div>
+                <button type="button" onClick={resetPageBackgroundColor}>Reset to Template Default</button>
+              </div>
+              <div
+                className="brandingPreview brandingBackgroundPreview"
+                style={{
+                  background: normalizeHexColor(
+                    form.pageBackgroundColor,
+                    getToneThemeDefaults(getBookingTemplateTone(form.bookingTemplate)).pageBackgroundColor,
+                  ),
+                }}
+              />
+              <div className="brandingActions brandingColorActions">
+                <input
+                  name="pageBackgroundColor"
+                  type="color"
+                  value={normalizeHexColor(
+                    form.pageBackgroundColor,
+                    getToneThemeDefaults(getBookingTemplateTone(form.bookingTemplate)).pageBackgroundColor,
+                  )}
+                  onChange={updateForm}
+                  aria-label="Page background color"
+                />
+                <input
+                  name="pageBackgroundColor"
+                  value={form.pageBackgroundColor}
+                  onChange={updateForm}
+                  placeholder={getToneThemeDefaults(getBookingTemplateTone(form.bookingTemplate)).pageBackgroundColor}
+                />
+                <span className="brandingColorHint">Outer page background color</span>
+              </div>
+            </div>
           </section>
           <section className="smmPackageControl">
             <div>
@@ -4170,6 +4652,165 @@ After login, you will only see the bookings and features assigned to your busine
             <select name="package" value={normalizePackage(form.package)} onChange={updateForm} aria-label="Client package">
               {packageOptions.map((item) => <option value={item.value} key={item.value}>{item.label} - {item.price}</option>)}
             </select>
+          </section>
+          <section className="announcementManager">
+            <div className="announcementManagerHeader">
+              <div>
+                <p className="eyebrow">Announcements / memos</p>
+                <h3>Central updates for demo and client dashboards</h3>
+                <span>Use this for promos, reminders, upgrade notes, and important notices.</span>
+              </div>
+              <div className="announcementPresetRow">
+                {announcementPresetOptions.map((preset) => (
+                  <button type="button" key={preset.id} onClick={() => chooseAnnouncementPreset(preset)}>
+                    {preset.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="announcementManagerGrid">
+              <form className="announcementEditorPanel" onSubmit={saveAnnouncement}>
+                <div className="announcementEditorTopRow">
+                  <div>
+                    <p className="eyebrow">{editingAnnouncementId ? "Edit announcement" : "New announcement"}</p>
+                    <h4>{editingAnnouncementId ? "Update memo" : "Create memo"}</h4>
+                  </div>
+                  {editingAnnouncementId && <button type="button" onClick={() => startAnnouncement()}>New Announcement</button>}
+                </div>
+                <div className="announcementEditorGrid">
+                  <label>
+                    Title
+                    <input name="title" value={announcementForm.title} onChange={updateAnnouncementForm} placeholder="System update" required />
+                  </label>
+                  <label>
+                    Type
+                    <select name="announcement_type" value={announcementForm.announcement_type} onChange={updateAnnouncementForm}>
+                      {announcementTypeOptions.map((item) => <option key={item} value={item}>{item.replace(/_/g, " ")}</option>)}
+                    </select>
+                  </label>
+                  <label className="announcementFullWidth">
+                    Message
+                    <textarea name="message" value={announcementForm.message} onChange={updateAnnouncementForm} rows="4" placeholder="Write the memo or announcement here." required />
+                  </label>
+                  <label>
+                    CTA label
+                    <input name="cta_label" value={announcementForm.cta_label} onChange={updateAnnouncementForm} placeholder="Learn more" />
+                  </label>
+                  <label>
+                    CTA link
+                    <input name="cta_url" value={announcementForm.cta_url} onChange={updateAnnouncementForm} placeholder="https://... or internal:packages" />
+                  </label>
+                  <label>
+                    Placement
+                    <select name="placement" value={announcementForm.placement} onChange={updateAnnouncementForm}>
+                      {announcementPlacementOptions.map((item) => <option key={item} value={item}>{item.replace(/_/g, " ")}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    Priority
+                    <select name="priority" value={announcementForm.priority} onChange={updateAnnouncementForm}>
+                      {announcementPriorityOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    Specific business slug
+                    <input name="business_slug" value={announcementForm.business_slug} onChange={updateAnnouncementForm} placeholder="Leave blank for all businesses" />
+                  </label>
+                  <label>
+                    Starts at
+                    <input name="starts_at" type="datetime-local" value={announcementForm.starts_at} onChange={updateAnnouncementForm} />
+                  </label>
+                  <label>
+                    Ends at
+                    <input name="ends_at" type="datetime-local" value={announcementForm.ends_at} onChange={updateAnnouncementForm} />
+                  </label>
+                  <div className="announcementFlags">
+                    <label><input type="checkbox" name="enabled" checked={Boolean(announcementForm.enabled)} onChange={updateAnnouncementForm} /> Enabled</label>
+                    <label><input type="checkbox" name="dismissible" checked={Boolean(announcementForm.dismissible)} onChange={updateAnnouncementForm} /> Dismissible</label>
+                  </div>
+                  <div className="announcementAudienceGroup">
+                    <span>Target packages</span>
+                    <div className="announcementAudienceChoices">
+                      {announcementPackageAudienceOptions.map((item) => (
+                        <label key={item}>
+                          <input
+                            type="checkbox"
+                            name="target_packages"
+                            value={item}
+                            checked={(announcementForm.target_packages || []).includes(item)}
+                            onChange={updateAnnouncementForm}
+                          />
+                          {item}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="announcementAudienceGroup">
+                    <span>Target statuses</span>
+                    <div className="announcementAudienceChoices">
+                      {announcementStatusAudienceOptions.map((item) => (
+                        <label key={item}>
+                          <input
+                            type="checkbox"
+                            name="target_statuses"
+                            value={item}
+                            checked={(announcementForm.target_statuses || []).includes(item)}
+                            onChange={updateAnnouncementForm}
+                          />
+                          {item}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="announcementEditorActions">
+                  <button type="submit">{editingAnnouncementId ? "Update Announcement" : "Save Announcement"}</button>
+                </div>
+              </form>
+              <div className="announcementListPanel">
+                <div className="announcementManagerSubhead">
+                  <div>
+                    <p className="eyebrow">Active list</p>
+                    <h4>Current memos</h4>
+                  </div>
+                  <span>{announcementRows.length} saved</span>
+                </div>
+                <div className="announcementAdminList">
+                  {announcementRows.length ? announcementRows.map((announcement) => {
+                    const audience = getAnnouncementAudienceLabel(announcement);
+                    const placementLabel = getAnnouncementPlacementLabel(announcement);
+                    return (
+                      <article key={announcement.id} className={`announcementAdminCard ${getAnnouncementPreviewTone(announcement)}`}>
+                        <div className="announcementAdminCardTop">
+                          <div>
+                            <strong>{announcement.title}</strong>
+                            <small>{announcement.message}</small>
+                          </div>
+                          <span>{announcement.enabled ? "Enabled" : "Disabled"}</span>
+                        </div>
+                        <div className="announcementAdminMeta">
+                          <span>{announcement.announcement_type.replace(/_/g, " ")}</span>
+                          <span>{audience}</span>
+                          <span>{placementLabel}</span>
+                          <span>{announcement.business_slug || "All businesses"}</span>
+                        </div>
+                        <div className="announcementAdminMeta">
+                          <span>{announcement.starts_at ? `Starts ${formatBookingDate(announcement.starts_at.slice(0, 10))}` : "No start"}</span>
+                          <span>{announcement.ends_at ? `Ends ${formatBookingDate(announcement.ends_at.slice(0, 10))}` : "No end"}</span>
+                          <span>{announcement.dismissible !== false ? "Dismissible" : "Locked"}</span>
+                          <span>{announcement.priority}</span>
+                        </div>
+                        <div className="announcementAdminActions">
+                          <button type="button" onClick={() => startAnnouncement(announcement)}>Edit</button>
+                          <button type="button" onClick={() => toggleAnnouncementEnabled(announcement)}>{announcement.enabled ? "Disable" : "Enable"}</button>
+                          <button type="button" onClick={() => removeAnnouncement(announcement.id)}>Delete</button>
+                        </div>
+                      </article>
+                    );
+                  }) : <div className="announcementEmpty">No announcements created yet.</div>}
+                </div>
+              </div>
+            </div>
           </section>
           {form.status === "DEMO" && (
             <section className={`smmPackageControl demoExpiryControl ${demoExpiryState.state}`}>
@@ -4320,6 +4961,7 @@ function ClientDashboard({
   onSavePaymentMethod,
   onVerifyPayment,
   onRejectPayment,
+  announcements = [],
 }) {
   const [authState, setAuthState] = useState("checking");
   const [clientSession, setClientSession] = useState(null);
@@ -4334,6 +4976,7 @@ function ClientDashboard({
   const [paymentSettings, setPaymentSettings] = useState({ enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [bookingPayments, setBookingPayments] = useState([]);
+  const [announcementDismissals, setAnnouncementDismissals] = useState([]);
   const [activeTab, setActiveTab] = useState(initialView === "login" ? "dashboard" : "dashboard");
   const [filter, setFilter] = useState("All");
   const [calendarFilter, setCalendarFilter] = useState("All");
@@ -4395,6 +5038,10 @@ function ClientDashboard({
       query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=submitted_at.desc`,
       accessToken: session.access_token,
     }).catch(() => []);
+    const dismissalRows = await supabaseRequest("announcement_dismissals", {
+      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&user_id=eq.${encodeURIComponent(session.user.id)}&order=dismissed_at.desc`,
+      accessToken: session.access_token,
+    }).catch(() => []);
     const normalizedAvailability = {
       days: availabilityRow?.open_days || defaultAvailability.days,
       hours: availabilityRow?.open_hours || defaultAvailability.hours,
@@ -4422,6 +5069,7 @@ function ClientDashboard({
     setPaymentSettings(paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
     setPaymentMethods(paymentMethodRows || []);
     setBookingPayments(paymentRows || []);
+    setAnnouncementDismissals(dismissalRows || []);
     setAuthState("authorized");
     return true;
   };
@@ -4518,6 +5166,10 @@ function ClientDashboard({
         query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=submitted_at.desc`,
         accessToken: clientSession.access_token,
       }).catch(() => []);
+      const dismissalRows = await supabaseRequest("announcement_dismissals", {
+        query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&user_id=eq.${encodeURIComponent(clientSession.user.id)}&order=dismissed_at.desc`,
+        accessToken: clientSession.access_token,
+      }).catch(() => []);
       const normalizedAvailability = {
         days: availabilityRow?.open_days || defaultAvailability.days,
         hours: availabilityRow?.open_hours || defaultAvailability.hours,
@@ -4542,6 +5194,7 @@ function ClientDashboard({
       setPaymentSettings(paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
       setPaymentMethods(paymentMethodRows || []);
       setBookingPayments(paymentRows || []);
+      setAnnouncementDismissals(dismissalRows || []);
       setSelectedBooking(null);
     }
   };
@@ -4909,6 +5562,8 @@ function ClientDashboard({
   const capabilities = getPackageCapabilities(clientBusiness?.package, clientBusiness?.featureFlags);
   const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
   const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
+  const visibleAnnouncements = useMemo(() => sortAnnouncements((announcements || []).filter((announcement) => announcementMatchesBusiness(announcement, clientBusiness, "CLIENT_DASHBOARD"))), [announcements, clientBusiness]);
+  const announcementDismissalIds = announcementDismissals.map((item) => item.announcement_id);
   const paymentsByBooking = bookingPayments.reduce((grouped, payment) => {
     grouped[payment.booking_id] = grouped[payment.booking_id] || [];
     grouped[payment.booking_id].push(payment);
@@ -4917,6 +5572,27 @@ function ClientDashboard({
   const selectedBookingPayments = selectedBooking ? paymentsByBooking[selectedBooking.id] || [] : [];
   const latestSelectedPayment = selectedBookingPayments[0];
   const selectedBookingItems = selectedBooking ? getBookingLineItems(selectedBooking) : [];
+  const dismissAnnouncement = async (announcementId) => {
+    if (!clientSession?.user?.id || !selectedBusinessSlug) return;
+    try {
+      const payload = {
+        id: `dismiss-${announcementId}-${clientSession.user.id}-${selectedBusinessSlug}`,
+        announcement_id: announcementId,
+        user_id: clientSession.user.id,
+        business_slug: selectedBusinessSlug,
+        dismissed_at: new Date().toISOString(),
+      };
+      await supabaseRequest("announcement_dismissals", {
+        method: "POST",
+        body: payload,
+        accessToken: clientSession.access_token,
+      });
+      setAnnouncementDismissals((current) => [...current.filter((item) => item.announcement_id !== announcementId), payload]);
+    } catch (error) {
+      console.error("Announcement dismissal failed", error);
+      setStatusMessage("Could not save the announcement dismissal.");
+    }
+  };
   const selectedBookingTotal = selectedBooking?.estimated_total ?? selectedBooking?.metadata?.estimated_total ?? (
     selectedBookingItems.every((item) => item.lineTotal !== null && item.lineTotal !== undefined)
       ? selectedBookingItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0)
@@ -5039,6 +5715,17 @@ function ClientDashboard({
                 <p>{clientBusiness?.bookingMode === "inquiry" ? "Review new inquiries and customer messages." : "Review bookings and keep appointment statuses updated."}</p>
                 <span className="clientPackageBadge">{packageOptions.find((item) => item.value === capabilities.packageKey)?.label || "Starter"} package</span>
               </div>
+              <AnnouncementFeed
+                title="Updates & Offers"
+                announcements={visibleAnnouncements}
+                business={clientBusiness}
+                placement="CLIENT_DASHBOARD"
+                compact
+                maxVisible={3}
+                dismissedIds={announcementDismissalIds}
+                onDismiss={dismissAnnouncement}
+                emptyText="No active updates right now."
+              />
               <div className="clientMetricGrid">
                 <article><span>Today</span><strong>{todayCount}</strong></article>
                 <article><span>Pending</span><strong>{pendingCount}</strong></article>

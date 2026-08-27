@@ -5,13 +5,14 @@ alter table businesses enable row level security;
 alter table business_services enable row level security;
 alter table business_availability enable row level security;
 alter table business_blocked_dates enable row level security;
+alter table announcements enable row level security;
+alter table announcement_dismissals enable row level security;
 alter table business_payment_settings enable row level security;
 alter table business_payment_methods enable row level security;
 alter table booking_payments enable row level security;
 alter table setup_requests enable row level security;
 alter table admin_users enable row level security;
 alter table business_users enable row level security;
-alter table storage.objects enable row level security;
 
 drop policy if exists "Allow public lead reads for demo admin" on leads;
 drop policy if exists "Allow public booking reads for demo admin" on bookings;
@@ -47,6 +48,15 @@ drop policy if exists "Allow own business user reads" on business_users;
 drop policy if exists "Allow admin business user inserts" on business_users;
 drop policy if exists "Allow admin business user updates" on business_users;
 drop policy if exists "Allow admin business user deletes" on business_users;
+drop policy if exists "Allow public announcement reads" on announcements;
+drop policy if exists "Allow authenticated announcement reads" on announcements;
+drop policy if exists "Allow admin announcement inserts" on announcements;
+drop policy if exists "Allow admin announcement updates" on announcements;
+drop policy if exists "Allow admin announcement deletes" on announcements;
+drop policy if exists "Allow own announcement dismissal reads" on announcement_dismissals;
+drop policy if exists "Allow own announcement dismissal inserts" on announcement_dismissals;
+drop policy if exists "Allow own announcement dismissal updates" on announcement_dismissals;
+drop policy if exists "Allow own announcement dismissal deletes" on announcement_dismissals;
 
 drop policy if exists "Allow public lead inserts" on leads;
 create policy "Allow public lead inserts"
@@ -399,6 +409,60 @@ create policy "Allow admin business user deletes"
 on business_users for delete
 to authenticated
 using (public.is_smm_admin());
+
+drop policy if exists "Allow public announcement reads" on announcements;
+create policy "Allow public announcement reads"
+on announcements for select
+to anon, authenticated
+using (
+  enabled = true
+  and (starts_at is null or starts_at <= now())
+  and (ends_at is null or ends_at >= now())
+);
+
+drop policy if exists "Allow admin announcement inserts" on announcements;
+create policy "Allow admin announcement inserts"
+on announcements for insert
+to authenticated
+with check (public.is_smm_admin());
+
+drop policy if exists "Allow admin announcement updates" on announcements;
+create policy "Allow admin announcement updates"
+on announcements for update
+to authenticated
+using (public.is_smm_admin())
+with check (public.is_smm_admin());
+
+drop policy if exists "Allow admin announcement deletes" on announcements;
+create policy "Allow admin announcement deletes"
+on announcements for delete
+to authenticated
+using (public.is_smm_admin());
+
+drop policy if exists "Allow own announcement dismissal reads" on announcement_dismissals;
+create policy "Allow own announcement dismissal reads"
+on announcement_dismissals for select
+to authenticated
+using (user_id = auth.uid());
+
+drop policy if exists "Allow own announcement dismissal inserts" on announcement_dismissals;
+create policy "Allow own announcement dismissal inserts"
+on announcement_dismissals for insert
+to authenticated
+with check (user_id = auth.uid());
+
+drop policy if exists "Allow own announcement dismissal updates" on announcement_dismissals;
+create policy "Allow own announcement dismissal updates"
+on announcement_dismissals for update
+to authenticated
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
+
+drop policy if exists "Allow own announcement dismissal deletes" on announcement_dismissals;
+create policy "Allow own announcement dismissal deletes"
+on announcement_dismissals for delete
+to authenticated
+using (user_id = auth.uid());
 
 drop policy if exists "Allow public business media read" on storage.objects;
 create policy "Allow public business media read"

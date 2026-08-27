@@ -64,6 +64,7 @@ alter table businesses alter column status set default 'DEMO';
 alter table businesses add column if not exists logo_url text;
 alter table businesses add column if not exists primary_color text default '#bd5d6d';
 alter table businesses add column if not exists accent_color text default '#f6dfe3';
+alter table businesses add column if not exists page_background_color text;
 alter table businesses add column if not exists phone text;
 alter table businesses add column if not exists messenger_link text;
 alter table businesses add column if not exists address text;
@@ -577,6 +578,87 @@ create table if not exists business_users (
   created_at timestamptz not null default now(),
   unique (user_id, business_slug)
 );
+
+create table if not exists announcements (
+  id text primary key,
+  title text not null,
+  message text not null,
+  announcement_type text not null default 'GENERAL',
+  cta_label text,
+  cta_url text,
+  placement text not null default 'BOTH',
+  business_slug text references businesses(slug) on delete cascade,
+  target_packages text[] not null default ARRAY['ALL']::text[],
+  target_statuses text[] not null default ARRAY['ALL']::text[],
+  enabled boolean not null default true,
+  dismissible boolean not null default true,
+  priority text not null default 'NORMAL',
+  starts_at timestamptz,
+  ends_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table announcements add column if not exists announcement_type text not null default 'GENERAL';
+alter table announcements add column if not exists cta_label text;
+alter table announcements add column if not exists cta_url text;
+alter table announcements add column if not exists placement text not null default 'BOTH';
+alter table announcements add column if not exists business_slug text;
+alter table announcements add column if not exists target_packages text[] not null default ARRAY['ALL']::text[];
+alter table announcements add column if not exists target_statuses text[] not null default ARRAY['ALL']::text[];
+alter table announcements add column if not exists enabled boolean not null default true;
+alter table announcements add column if not exists dismissible boolean not null default true;
+alter table announcements add column if not exists priority text not null default 'NORMAL';
+alter table announcements add column if not exists starts_at timestamptz;
+alter table announcements add column if not exists ends_at timestamptz;
+alter table announcements add column if not exists created_at timestamptz not null default now();
+alter table announcements add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'announcements_type_allowed') then
+    alter table announcements drop constraint announcements_type_allowed;
+  end if;
+  alter table announcements add constraint announcements_type_allowed
+  check (announcement_type in ('GENERAL', 'PACKAGE_UPSELL', 'RESELLER', 'IMPORTANT_NOTICE')) not valid;
+end $$;
+
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'announcements_placement_allowed') then
+    alter table announcements drop constraint announcements_placement_allowed;
+  end if;
+  alter table announcements add constraint announcements_placement_allowed
+  check (placement in ('DEMO_PREVIEW', 'CLIENT_DASHBOARD', 'BOTH')) not valid;
+end $$;
+
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'announcements_priority_allowed') then
+    alter table announcements drop constraint announcements_priority_allowed;
+  end if;
+  alter table announcements add constraint announcements_priority_allowed
+  check (priority in ('NORMAL', 'IMPORTANT')) not valid;
+end $$;
+
+create index if not exists announcements_enabled_idx on announcements (enabled, priority, created_at desc);
+create index if not exists announcements_business_slug_idx on announcements (business_slug);
+
+create table if not exists announcement_dismissals (
+  id text primary key,
+  announcement_id text not null references announcements(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  business_slug text not null references businesses(slug) on delete cascade,
+  dismissed_at timestamptz not null default now()
+);
+
+alter table announcement_dismissals add column if not exists announcement_id text not null;
+alter table announcement_dismissals add column if not exists user_id uuid not null;
+alter table announcement_dismissals add column if not exists business_slug text not null;
+alter table announcement_dismissals add column if not exists dismissed_at timestamptz not null default now();
+
+create unique index if not exists announcement_dismissals_unique_idx
+on announcement_dismissals (announcement_id, user_id, business_slug);
 
 create index if not exists business_users_user_id_idx
 on business_users (user_id);
