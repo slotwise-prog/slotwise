@@ -56,9 +56,6 @@ import {
   Waves,
   Mountain,
   Utensils,
-  BedDouble,
-  Building2,
-  Moon,
 } from "lucide-react";
 import "./styles.css";
 
@@ -81,7 +78,6 @@ const defaultFeatureFlags = {
   customerListEnabled: false,
   analyticsEnabled: false,
   staffSelectionEnabled: false,
-  allowMultipleServices: false,
 };
 
 const defaultAvailability = {
@@ -103,7 +99,6 @@ const bookingTemplateOptions = [
   { value: "HOME_SERVICE", label: "Home Service" },
   { value: "AUTO", label: "Auto / Car Wash" },
   { value: "TOURS_TRAVEL", label: "Tours & Travel" },
-  { value: "STAYCATION_ACCOMMODATION", label: "Staycation / Accommodation" },
 ];
 
 const packageCapabilityMap = {
@@ -113,8 +108,6 @@ const packageCapabilityMap = {
     customers: false,
     basicStats: false,
     blockedDates: false,
-    reservationCalendar: false,
-    paymentVerification: false,
     customerHistory: false,
     enhancedStats: false,
   },
@@ -124,8 +117,6 @@ const packageCapabilityMap = {
     customers: true,
     basicStats: true,
     blockedDates: false,
-    reservationCalendar: false,
-    paymentVerification: false,
     customerHistory: false,
     enhancedStats: false,
   },
@@ -135,8 +126,6 @@ const packageCapabilityMap = {
     customers: true,
     basicStats: true,
     blockedDates: true,
-    reservationCalendar: true,
-    paymentVerification: true,
     customerHistory: true,
     enhancedStats: true,
   },
@@ -156,38 +145,6 @@ function formatBookingWeekday(dateValue) {
   if (!dateValue) return "";
   const date = new Date(`${dateValue}T00:00:00`);
   return date.toLocaleDateString("en-US", { weekday: "long" });
-}
-
-function getMonthKey(date) {
-  return date.toISOString().slice(0, 7);
-}
-
-function getDateKey(date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function getInitialsName(name = "") {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length <= 1) return name || "Customer";
-  return `${parts[0]} ${parts[1].charAt(0)}.`;
-}
-
-function buildMonthDays(monthDate) {
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
-  const first = new Date(year, month, 1);
-  const start = new Date(first);
-  start.setDate(first.getDate() - first.getDay());
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(start);
-    date.setDate(start.getDate() + index);
-    return {
-      date,
-      key: getDateKey(date),
-      inMonth: date.getMonth() === month,
-      day: date.getDate(),
-    };
-  });
 }
 
 function hasKeyword(text, keywords) {
@@ -215,10 +172,6 @@ function resolveServiceIcon(serviceName = "", business = {}) {
   if (hasKeyword(serviceText, ["photography", "photo"])) return Camera;
   if (hasKeyword(serviceText, ["food tour", "food crawl", "culinary"])) return Utensils;
   if (hasKeyword(serviceText, ["tour", "travel", "package", "trip"])) return MapIcon;
-
-  if (hasKeyword(serviceText, ["villa", "cabin", "house"])) return House;
-  if (hasKeyword(serviceText, ["room", "suite", "bed"])) return BedDouble;
-  if (hasKeyword(serviceText, ["unit", "condo", "apartment", "hotel"])) return Building2;
 
   if (hasKeyword(serviceText, ["haircut", "hair cut", "trim"])) return Scissors;
   if (hasKeyword(serviceText, ["hair color", "hair dye", "color", "dye"])) return isBeauty ? Palette : Paintbrush;
@@ -258,13 +211,12 @@ function resolveServiceIcon(serviceName = "", business = {}) {
 
   if (hasKeyword(serviceText, ["repair"])) return Wrench;
   if (hasKeyword(serviceText, ["consultation", "consult"])) return MessageSquare;
-  return businessTone === "staycation-accommodation" ? BedDouble : isToursTravel ? MapPinned : CircleDot;
+  return isToursTravel ? MapPinned : CircleDot;
 }
 
 function resolveBusinessTone(business = {}) {
   const businessText = `${business.business || ""} ${business.name || ""} ${business.industry || ""} ${business.businessType || ""} ${business.description || ""}`.toLowerCase();
   const template = normalizeBookingTemplate(business.bookingTemplate);
-  if (template === "STAYCATION_ACCOMMODATION") return "staycation-accommodation";
   if (template === "TOURS_TRAVEL") return "tours-travel";
   if (template === "HOME_SERVICE") return "home-service";
   if (template === "AUTO") return "auto";
@@ -279,7 +231,6 @@ function resolveBusinessTone(business = {}) {
 }
 
 function getToneThemeDefaults(tone) {
-  if (tone === "staycation-accommodation") return { primaryColor: "#7a4f2f", accentColor: "#f8efe6" };
   if (tone === "tours-travel") return { primaryColor: "#0f766e", accentColor: "#e6f7f1" };
   if (tone === "home-service") return { primaryColor: "#155e75", accentColor: "#eaf7fb" };
   if (tone === "auto") return { primaryColor: "#1f2937", accentColor: "#eef2f7" };
@@ -362,41 +313,6 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const databaseMode = supabaseUrl && supabaseAnonKey ? "Online database" : "Local demo storage";
 const clientStatuses = ["DEMO", "UNPAID", "ACTIVE", "SUSPENDED"];
-const demoDurationHours = 24;
-
-function createDemoWindow() {
-  const started = new Date();
-  const expires = new Date(started.getTime() + demoDurationHours * 60 * 60 * 1000);
-  return {
-    demo_started_at: started.toISOString(),
-    demo_expires_at: expires.toISOString(),
-  };
-}
-
-function formatFriendlyDateTime(value) {
-  if (!value) return "Not set";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function isDemoExpired(business = {}) {
-  return (business.status || "").toUpperCase() === "DEMO"
-    && Boolean(business.demoExpiresAt || business.demo_expires_at)
-    && Date.now() >= new Date(business.demoExpiresAt || business.demo_expires_at).getTime();
-}
-
-function getDemoExpiryState(business = {}) {
-  if ((business.status || "").toUpperCase() !== "DEMO") return { state: "not-demo", label: "Not demo" };
-  const expiresAt = business.demoExpiresAt || business.demo_expires_at;
-  if (!expiresAt) return { state: "missing", label: "Demo Expiry Not Set" };
-  if (isDemoExpired(business)) return { state: "expired", label: "Demo Expired", dateLabel: formatFriendlyDateTime(expiresAt) };
-  return { state: "active", label: "Demo Active", dateLabel: formatFriendlyDateTime(expiresAt) };
-}
 
 function normalizePackage(value) {
   const nextPackage = (value || "STARTER").toUpperCase();
@@ -410,217 +326,12 @@ function normalizeBookingTemplate(value) {
 
 function normalizePricingUnit(value, fallback = "FLAT") {
   const nextUnit = (value || fallback || "FLAT").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-  return ["FLAT", "PER_PAX", "PER_PERSON", "PER_GROUP", "PER_TRIP", "PER_DAY", "PER_NIGHT", "FIXED"].includes(nextUnit) ? nextUnit : "FLAT";
-}
-
-function normalizePricingType(value, fallback = "FIXED") {
-  const nextType = (value || fallback || "FIXED").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-  return ["PER_PAX", "GROUP_TIER", "PER_TRIP", "PER_DAY", "PER_NIGHT", "FIXED"].includes(nextType) ? nextType : "FIXED";
-}
-
-function getNightCount(checkIn, checkOut) {
-  if (!checkIn || !checkOut) return 0;
-  const start = new Date(`${checkIn}T00:00:00`);
-  const end = new Date(`${checkOut}T00:00:00`);
-  const nights = Math.round((end - start) / 86400000);
-  return Number.isFinite(nights) ? nights : 0;
-}
-
-function normalizePricingTiers(value) {
-  const tiers = Array.isArray(value) ? value : [];
-  return tiers
-    .map((tier) => ({
-      minGuests: Number(tier.minGuests ?? tier.min_guests),
-      maxGuests: Number(tier.maxGuests ?? tier.max_guests),
-      price: Number(tier.price),
-    }))
-    .filter((tier) => tier.minGuests > 0 && tier.maxGuests >= tier.minGuests && tier.price >= 0)
-    .sort((a, b) => a.minGuests - b.minGuests);
-}
-
-function validatePricingTiers(tiers) {
-  const normalized = normalizePricingTiers(tiers);
-  for (let index = 1; index < normalized.length; index += 1) {
-    if (normalized[index].minGuests <= normalized[index - 1].maxGuests) {
-      return { ok: false, message: "Pricing tiers cannot overlap." };
-    }
-  }
-  return { ok: true, tiers: normalized };
-}
-
-function getPricingForGuests(serviceDetail, guestCount) {
-  const pricingType = normalizePricingType(serviceDetail.pricingType, serviceDetail.pricingUnit);
-  const price = serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
-  if (pricingType === "GROUP_TIER") {
-    const selectedTier = normalizePricingTiers(serviceDetail.pricingTiers).find((tier) => (
-      guestCount >= tier.minGuests && guestCount <= tier.maxGuests
-    ));
-    return selectedTier
-      ? { pricingType, unitPrice: selectedTier.price, selectedTier, estimatedTotal: selectedTier.price, totalAvailable: true }
-      : { pricingType, unitPrice: null, selectedTier: null, estimatedTotal: null, totalAvailable: false };
-  }
-  if (pricingType === "PER_PAX") {
-    return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price === null ? null : price * guestCount, totalAvailable: price !== null };
-  }
-  if (pricingType === "PER_DAY") {
-    return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: null, totalAvailable: price !== null };
-  }
-  if (pricingType === "PER_NIGHT") {
-    return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: null, totalAvailable: price !== null };
-  }
-  return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price, totalAvailable: price !== null };
-}
-
-function calculateLineItem(serviceDetail = {}, context = {}) {
-  const quantity = Math.max(1, Number(context.pax || context.days || context.nights || 1) || 1);
-  const pricing = getPricingForGuests(serviceDetail, quantity);
-  const pricingType = pricing.pricingType;
-  const serviceName = serviceDetail.name || serviceDetail.service || "Selected service";
-  const serviceId = serviceDetail.id || null;
-  const basePrice = serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
-  let lineTotal = pricing.estimatedTotal;
-  let lineLabel = basePrice === null ? "Rate on request" : formatPeso(basePrice);
-  let snapshotQuantity = 1;
-
-  if (pricingType === "PER_PAX") {
-    snapshotQuantity = quantity;
-    lineLabel = `${formatPeso(pricing.unitPrice)} x ${quantity} pax`;
-  } else if (pricingType === "PER_TRIP") {
-    lineLabel = `${formatPeso(pricing.unitPrice)} / trip`;
-  } else if (pricingType === "PER_DAY") {
-    snapshotQuantity = quantity;
-    lineTotal = pricing.unitPrice === null ? null : pricing.unitPrice * quantity;
-    lineLabel = `${formatPeso(pricing.unitPrice)} x ${quantity} day${quantity > 1 ? "s" : ""}`;
-  } else if (pricingType === "PER_NIGHT") {
-    const nights = Math.max(1, Number(context.nights || 1) || 1);
-    const totalGuests = Math.max(1, Number(context.totalGuests || context.pax || 1) || 1);
-    const includedGuests = Math.max(1, Number(serviceDetail.includedGuests || serviceDetail.maxGuests || totalGuests) || totalGuests);
-    const extraGuestFee = serviceDetail.extraGuestFee === "" || serviceDetail.extraGuestFee === null || serviceDetail.extraGuestFee === undefined ? 0 : Number(serviceDetail.extraGuestFee);
-    const extraGuests = Math.max(0, totalGuests - includedGuests);
-    const baseTotal = pricing.unitPrice === null ? null : pricing.unitPrice * nights;
-    const extraTotal = baseTotal === null ? null : extraGuestFee * extraGuests * nights;
-    snapshotQuantity = nights;
-    lineTotal = baseTotal === null ? null : baseTotal + extraTotal;
-    lineLabel = `${formatPeso(pricing.unitPrice)} x ${nights} night${nights > 1 ? "s" : ""}${extraGuests && extraGuestFee ? ` + ${extraGuests} extra guest${extraGuests > 1 ? "s" : ""}` : ""}`;
-    pricing.selectedTier = { nights, totalGuests, includedGuests, extraGuests, extraGuestFee };
-  } else if (pricingType === "GROUP_TIER") {
-    lineLabel = pricing.selectedTier
-      ? `${pricing.selectedTier.minGuests}-${pricing.selectedTier.maxGuests} pax rate`
-      : "Group rate unavailable";
-  }
-
-  return {
-    serviceId,
-    serviceName,
-    pricingType,
-    unitPrice: pricing.unitPrice,
-    quantity: snapshotQuantity,
-    selectedTier: pricing.selectedTier,
-    lineTotal,
-    totalAvailable: pricing.totalAvailable,
-    lineLabel,
-  };
-}
-
-function calculateBookingTotal(selectedServices = [], context = {}) {
-  const lineItems = selectedServices.map((service) => calculateLineItem(service, context));
-  const invalidItem = lineItems.find((item) => !item.totalAvailable || item.lineTotal === null || item.lineTotal === undefined || Number.isNaN(Number(item.lineTotal)));
-  const estimatedTotal = invalidItem ? null : lineItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
-  return {
-    lineItems,
-    estimatedTotal,
-    totalAvailable: !invalidItem,
-    invalidItem,
-  };
-}
-
-function getBookingLineItems(booking = {}) {
-  const metadataItems = Array.isArray(booking.metadata?.line_items) ? booking.metadata.line_items : [];
-  const directItems = Array.isArray(booking.booking_items) ? booking.booking_items : [];
-  const items = directItems.length ? directItems : metadataItems;
-  if (items.length) {
-    return items.map((item) => ({
-      serviceName: item.service_name_snapshot || item.serviceName || item.service_name || item.name || booking.service,
-      pricingType: item.pricing_type_snapshot || item.pricingType || item.pricing_type || "FIXED",
-      unitPrice: item.unit_price_snapshot ?? item.unitPrice ?? item.unit_price ?? null,
-      quantity: Number(item.quantity || 1),
-      selectedTier: item.selected_tier_snapshot || item.selectedTier || item.selected_tier || null,
-      lineTotal: item.line_total ?? item.lineTotal ?? null,
-      lineLabel: item.line_label || item.lineLabel || "",
-    }));
-  }
-  return [{
-    serviceName: booking.service || "Booking request",
-    pricingType: booking.metadata?.pricing_type || "FIXED",
-    unitPrice: booking.metadata?.unit_price ?? booking.metadata?.estimated_total ?? booking.estimated_total ?? null,
-    quantity: booking.metadata?.guest_count || 1,
-    selectedTier: booking.metadata?.selected_tier || null,
-    lineTotal: booking.metadata?.estimated_total ?? booking.estimated_total ?? null,
-    lineLabel: "",
-  }];
-}
-
-function getBookingServiceSummary(booking = {}) {
-  const items = getBookingLineItems(booking);
-  if (items.length > 1) return `${items.length} Services`;
-  return items[0]?.serviceName || booking.service || "Booking request";
-}
-
-function attachBookingItems(bookings = [], bookingItems = []) {
-  const itemsByBooking = (bookingItems || []).reduce((grouped, item) => {
-    grouped[item.booking_id] = grouped[item.booking_id] || [];
-    grouped[item.booking_id].push(item);
-    return grouped;
-  }, {});
-  return (bookings || []).map((booking) => ({
-    ...booking,
-    booking_items: itemsByBooking[booking.id] || booking.booking_items || [],
-  }));
-}
-
-function normalizePaymentRequirement(value) {
-  const next = (value || "NO_PAYMENT_REQUIRED").toUpperCase();
-  return ["NO_PAYMENT_REQUIRED", "DEPOSIT_REQUIRED", "FULL_PAYMENT_REQUIRED"].includes(next) ? next : "NO_PAYMENT_REQUIRED";
-}
-
-function getRequiredPaymentAmount(settings = {}, estimatedTotal = null) {
-  const requirement = normalizePaymentRequirement(settings.requirement_type);
-  if (!settings.enabled || requirement === "NO_PAYMENT_REQUIRED") return null;
-  if (requirement === "FULL_PAYMENT_REQUIRED") return estimatedTotal;
-  if ((settings.deposit_type || "FIXED_AMOUNT") === "PERCENTAGE" && estimatedTotal !== null) {
-    return Math.round(estimatedTotal * (Number(settings.deposit_value || 0) / 100));
-  }
-  return Number(settings.deposit_value || 0);
-}
-
-function maskAccountNumber(value = "") {
-  const clean = String(value);
-  if (clean.length <= 6) return clean;
-  return `${clean.slice(0, 4)}***${clean.slice(-4)}`;
+  return ["FLAT", "PER_PAX", "PER_PERSON", "PER_GROUP"].includes(nextUnit) ? nextUnit : "FLAT";
 }
 
 function formatPeso(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "Rate on request";
   return `PHP ${Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-}
-
-function formatServicePriceLabel(detail = {}, fallbackPricingType = "FIXED") {
-  const pricingType = normalizePricingType(detail.pricingType ?? detail.pricing_type, detail.pricingUnit ?? detail.pricing_unit ?? fallbackPricingType);
-  const price = detail.price;
-  const base = formatPeso(price);
-  const tiers = normalizePricingTiers(detail.pricingTiers ?? detail.pricing_tiers);
-  if (pricingType === "GROUP_TIER" && tiers.length) {
-    const prices = tiers.map((tier) => tier.price);
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
-    return minPrice === maxPrice ? `${formatPeso(minPrice)} / group` : `${formatPeso(minPrice)} - ${formatPeso(maxPrice)}`;
-  }
-  if (base === "Rate on request") return base;
-  if (pricingType === "PER_PAX") return `${base} / pax`;
-  if (pricingType === "PER_TRIP") return `${base} / trip`;
-  if (pricingType === "PER_DAY") return `${base} / day`;
-  if (pricingType === "PER_NIGHT") return `${base} / night`;
-  return base;
 }
 
 function getPackageCapabilities(value, featureFlags = {}) {
@@ -766,7 +477,7 @@ function setupRequestToDatabase(setup) {
   };
 }
 
-function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null, paymentSettingsRow = null, paymentMethodRows = []) {
+function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null) {
   const bookingTemplate = normalizeBookingTemplate(row.booking_template);
   const tone = resolveBusinessTone({
     business: row.business,
@@ -776,23 +487,15 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     bookingTemplate,
   });
   const themeDefaults = getToneThemeDefaults(tone);
-  const activeServices = filterLegacyToursSeedRows(serviceRows, bookingTemplate)
+  const activeServices = serviceRows
     .filter((service) => service.status !== "Inactive")
     .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
   const normalizedServices = dedupeServices(
     activeServices.map((service) => ({
-      id: service.id,
       name: service.name,
       durationMinutes: service.duration_minutes,
       price: service.price,
       pricingUnit: normalizePricingUnit(service.pricing_unit),
-      pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
-      pricingTiers: normalizePricingTiers(service.pricing_tiers),
-      maxGuests: service.max_guests ?? service.maxGuests ?? "",
-      includedGuests: service.included_guests ?? service.includedGuests ?? "",
-      extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
-      imageUrl: service.image_url || service.imageUrl || "",
-      unitQuantity: service.unit_quantity ?? service.unitQuantity ?? 1,
       description: service.description || "",
       displayOrder: service.display_order || 0,
       status: service.status,
@@ -800,7 +503,6 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     activeServices.map((service) => service.name),
   );
   return {
-    source: "database",
     slug: row.slug,
     name: row.industry || row.business_type || "Service business",
     business: row.business,
@@ -815,8 +517,6 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     businessType: row.business_type || row.industry || "Service business",
     bookingMode: row.booking_mode || "booking",
     bookingTemplate,
-    demoStartedAt: row.demo_started_at || null,
-    demoExpiresAt: row.demo_expires_at || null,
     status: (row.status || "ACTIVE").toUpperCase(),
     package: normalizePackage(row.business_package),
     featureFlags: row.feature_flags || {},
@@ -830,8 +530,6 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     serviceDetails: normalizedServices.serviceDetails,
     services: normalizedServices.services,
     forms: tone === "home-service" ? ["Service concern"] : ["Notes before the appointment"],
-    paymentSettings: paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 },
-    paymentMethods: paymentMethodRows || [],
   };
 }
 
@@ -858,7 +556,7 @@ function buildBusinessFromSetup(setup) {
   const slug = makeSlug(setup.businessSlug || setup.slug || setup.businessName);
   const lowerIndustry = (setup.industry || "").toLowerCase();
   const isHomeService = ["aircon", "air con", "hvac", "home", "repair", "maintenance", "plumbing", "electrical", "appliance"].some((keyword) => lowerIndustry.includes(keyword));
-  const bookingTemplate = normalizeBookingTemplate(setup.bookingTemplate || inferBookingTemplateFromIndustry(setup.industry));
+  const bookingTemplate = normalizeBookingTemplate(setup.bookingTemplate || (lowerIndustry.includes("tour") ? "TOURS_TRAVEL" : ""));
   const cover = lowerIndustry.includes("clinic") || lowerIndustry.includes("dental")
     ? "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=80"
     : lowerIndustry.includes("travel") || lowerIndustry.includes("stay")
@@ -867,15 +565,9 @@ function buildBusinessFromSetup(setup) {
         ? ""
         : "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=1200&q=80";
   const themeDefaults = getToneThemeDefaults(isHomeService ? "home-service" : lowerIndustry.includes("clinic") || lowerIndustry.includes("dental") ? "clinic" : lowerIndustry.includes("travel") || lowerIndustry.includes("stay") ? "travel" : "beauty");
-  const setupStructuredServices = getSavableStructuredServices(setup.serviceEntries, bookingTemplate);
-  const parsedServices = setupStructuredServices.length
-    ? dedupeServices(setupStructuredServices, setupStructuredServices.map((service) => service.name))
-    : setup.services?.trim()
-      ? dedupeServices(parseServiceDetails(setup.services), parseSetupServices(setup.services))
-      : dedupeServices([], []);
+  const parsedServices = dedupeServices(parseServiceDetails(setup.services), parseSetupServices(setup.services));
 
   return {
-    source: "setup",
     slug,
     name: setup.industry || "Service business",
     business: setup.businessName || "Client Business",
@@ -890,8 +582,6 @@ function buildBusinessFromSetup(setup) {
     businessType: setup.industry || "Service business",
     bookingMode: "booking",
     bookingTemplate,
-    demoStartedAt: setup.demoStartedAt || setup.demo_started_at || null,
-    demoExpiresAt: setup.demoExpiresAt || setup.demo_expires_at || null,
     status: (setup.status || "DEMO").toUpperCase(),
     package: normalizePackage(setup.package),
     featureFlags: { ...defaultFeatureFlags },
@@ -929,8 +619,6 @@ function normalizeBusinessConfig(business) {
     businessType: business.businessType || business.name || "Service business",
     bookingMode: business.bookingMode || "booking",
     bookingTemplate: normalizeBookingTemplate(business.bookingTemplate),
-    demoStartedAt: business.demoStartedAt || business.demo_started_at || null,
-    demoExpiresAt: business.demoExpiresAt || business.demo_expires_at || null,
     status: (business.status || "ACTIVE").toUpperCase(),
     package: normalizePackage(business.package),
     featureFlags: { ...defaultFeatureFlags, ...(business.featureFlags || {}) },
@@ -938,8 +626,6 @@ function normalizeBusinessConfig(business) {
     services: normalizedServices.services,
     serviceDetails: normalizedServices.serviceDetails,
     forms: business.forms?.length ? business.forms : [tone === "home-service" ? "Service concern" : "Notes before the appointment"],
-    paymentSettings: business.paymentSettings || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 },
-    paymentMethods: business.paymentMethods || [],
   };
 }
 
@@ -959,8 +645,6 @@ function parseServiceDetails(value) {
         displayOrder: index,
         status: "Active",
         pricingUnit: "FLAT",
-        pricingType: "FIXED",
-        pricingTiers: [],
       };
 
       details.forEach((detail) => {
@@ -969,31 +653,7 @@ function parseServiceDetails(value) {
         if (priceMatch) service.price = Number(priceMatch[1].replace(/,/g, ""));
         if (durationMatch) service.durationMinutes = Number(durationMatch[1]);
         if (/(per\s*pax|\/\s*pax|per\s*person|\/\s*person)/i.test(detail)) service.pricingUnit = "PER_PAX";
-        if (/(per\s*pax|\/\s*pax|per\s*person|\/\s*person)/i.test(detail)) service.pricingType = "PER_PAX";
         if (/(per\s*group|\/\s*group)/i.test(detail)) service.pricingUnit = "PER_GROUP";
-        if (/(per\s*trip|\/\s*trip)/i.test(detail)) service.pricingType = "PER_TRIP";
-        if (/(per\s*day|\/\s*day)/i.test(detail)) service.pricingType = "PER_DAY";
-        if (/(per\s*night|\/\s*night)/i.test(detail)) {
-          service.pricingType = "PER_NIGHT";
-          service.pricingUnit = "PER_NIGHT";
-        }
-        if (/(fixed|package price)/i.test(detail)) service.pricingType = "FIXED";
-        if (/group\s*tier|tier/i.test(detail)) {
-          service.pricingType = "GROUP_TIER";
-          service.pricingUnit = "PER_GROUP";
-          service.pricingTiers = detail
-            .replace(/group\s*tier\s*:/i, "")
-            .split(",")
-            .map((tierText) => {
-              const tierMatch = tierText.match(/(\d+)\s*-\s*(\d+)\s*=\s*(?:php|p)?\s*([\d,.]+)/i);
-              return tierMatch ? {
-                minGuests: Number(tierMatch[1]),
-                maxGuests: Number(tierMatch[2]),
-                price: Number(tierMatch[3].replace(/,/g, "")),
-              } : null;
-            })
-            .filter(Boolean);
-        }
         if (!priceMatch && !durationMatch) {
           service.description = service.description ? `${service.description}. ${detail}` : detail;
         }
@@ -1003,157 +663,8 @@ function parseServiceDetails(value) {
     });
 
   return parsed.length > 0 ? parsed : [
-    { name: "Consultation", description: "", price: null, durationMinutes: 30, displayOrder: 0, status: "Active", pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [] },
+    { name: "Consultation", description: "", price: null, durationMinutes: 30, displayOrder: 0, status: "Active", pricingUnit: "FLAT" },
   ];
-}
-
-function emptyStructuredServices(count = 3) {
-  return Array.from({ length: count }, (_, index) => ({
-    id: "",
-    name: "",
-    description: "",
-    price: "",
-    durationMinutes: "",
-    displayOrder: index,
-    status: "Active",
-    pricingType: "FIXED",
-    pricingUnit: "FLAT",
-    pricingTiers: [],
-    maxGuests: "",
-    includedGuests: "",
-    extraGuestFee: "",
-    imageUrl: "",
-    unitQuantity: 1,
-    expanded: true,
-  }));
-}
-
-function serviceRowToStructured(service = {}, index = 0) {
-  return {
-    id: service.id || "",
-    name: service.name || "",
-    description: service.description || "",
-    price: service.price ?? "",
-    durationMinutes: service.duration_minutes ?? service.durationMinutes ?? "",
-    displayOrder: service.display_order ?? service.displayOrder ?? index,
-    status: service.status || "Active",
-    pricingType: normalizePricingType(service.pricing_type || service.pricingType, service.pricing_unit || service.pricingUnit),
-    pricingUnit: normalizePricingUnit(service.pricing_unit || service.pricingUnit),
-    pricingTiers: normalizePricingTiers(service.pricing_tiers || service.pricingTiers),
-    maxGuests: service.max_guests ?? service.maxGuests ?? "",
-    includedGuests: service.included_guests ?? service.includedGuests ?? "",
-    extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
-    imageUrl: service.image_url || service.imageUrl || "",
-    unitQuantity: service.unit_quantity ?? service.unitQuantity ?? 1,
-    expanded: index < 3,
-  };
-}
-
-function normalizeStructuredServices(value, minimumSlots = 3) {
-  const source = Array.isArray(value) && value.length ? value : emptyStructuredServices(minimumSlots);
-  const normalized = source.map(serviceRowToStructured);
-  while (normalized.length < minimumSlots) normalized.push(...emptyStructuredServices(1));
-  return normalized.map((service, index) => ({ ...service, displayOrder: index }));
-}
-
-function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
-  const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
-  const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
-  return normalizeStructuredServices(value, 0)
-    .filter((service) => service.name.trim())
-    .map((service, index) => {
-      const pricingType = isAccommodation ? "PER_NIGHT" : isTravel ? normalizePricingType(service.pricingType, service.pricingUnit) : "FIXED";
-      return {
-        ...service,
-        name: service.name.trim(),
-        description: service.description.trim(),
-        price: service.price === "" ? null : Number(service.price),
-        durationMinutes: service.durationMinutes === "" ? null : Number(service.durationMinutes),
-        displayOrder: index,
-        status: service.status || "Active",
-        pricingType,
-        pricingUnit: isAccommodation ? "PER_NIGHT" : isTravel ? normalizePricingUnit(service.pricingUnit, pricingType) : "FLAT",
-        pricingTiers: isTravel && pricingType === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers) : [],
-        maxGuests: service.maxGuests === "" ? null : Number(service.maxGuests),
-        includedGuests: service.includedGuests === "" ? null : Number(service.includedGuests),
-        extraGuestFee: service.extraGuestFee === "" ? null : Number(service.extraGuestFee),
-        imageUrl: service.imageUrl || "",
-        unitQuantity: service.unitQuantity === "" ? 1 : Number(service.unitQuantity || 1),
-      };
-    });
-}
-
-function structuredServicesToLegacyText(services = [], bookingTemplate = "GENERAL") {
-  return getSavableStructuredServices(services, bookingTemplate)
-    .map((service) => {
-      const pieces = [service.name];
-      if (service.price !== null && service.price !== "") pieces.push(`PHP ${service.price}`);
-      if (service.durationMinutes) pieces.push(`${service.durationMinutes} minutes`);
-      if (service.description) pieces.push(service.description);
-      return pieces.join(" - ");
-    })
-    .join("\n");
-}
-
-function parseServicesToStructured(value, bookingTemplate = "GENERAL") {
-  return normalizeStructuredServices(parseServiceDetails(value).map(serviceRowToStructured), 3)
-    .map((service) => normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL" ? service : normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION" ? {
-      ...service,
-      pricingType: "PER_NIGHT",
-      pricingUnit: "PER_NIGHT",
-      durationMinutes: "",
-    } : {
-      ...service,
-      pricingType: "FIXED",
-      pricingUnit: "FLAT",
-      pricingTiers: [],
-    });
-}
-
-function getServiceManagerCopy(bookingTemplate = "GENERAL") {
-  const template = normalizeBookingTemplate(bookingTemplate);
-  if (template === "TOURS_TRAVEL") return { title: "Tour Packages", single: "Tour package", add: "Add Another Package" };
-  if (template === "STAYCATION_ACCOMMODATION") return { title: "Rooms / Units", single: "Room / unit", add: "Add Room / Unit" };
-  if (template === "CLINIC") return { title: "Services / Treatments", single: "Service / treatment", add: "Add Another Service" };
-  if (template === "AUTO") return { title: "Services / Packages", single: "Service / package", add: "Add Another Service" };
-  return { title: "Services", single: "Service", add: "Add Another Service" };
-}
-
-function isStandalonePaxTierService(service = {}) {
-  const name = (service.name || "").trim().toLowerCase();
-  return /^\d+\s*[-–]\s*\d+\s*(pax|guests?|persons?|people)?$/.test(name)
-    || /^\d+\s*(pax|guests?|persons?|people)$/.test(name);
-}
-
-const legacyToursServiceNames = new Set([
-  "services + prices",
-  "1-2 pax",
-  "1–2 pax",
-  "3-4 pax",
-  "3–4 pax",
-  "5-6 pax",
-  "5–6 pax",
-]);
-
-function isLegacyToursSeedService(service = {}) {
-  return legacyToursServiceNames.has((service.name || "").trim().toLowerCase())
-    || isStandalonePaxTierService(service);
-}
-
-function filterLegacyToursSeedRows(serviceRows = [], bookingTemplate = "GENERAL") {
-  if (normalizeBookingTemplate(bookingTemplate) !== "TOURS_TRAVEL") return serviceRows;
-  return serviceRows.filter((service) => !isLegacyToursSeedService(service));
-}
-
-function inferBookingTemplateFromIndustry(industry = "") {
-  const lower = industry.toLowerCase();
-  if (/(staycation|accommodation|resort|villa|transient|apartment|condotel|hotel|guest house|cabin|beach house|room|rental)/i.test(lower)) return "STAYCATION_ACCOMMODATION";
-  if (/(travel|tour)/i.test(lower)) return "TOURS_TRAVEL";
-  if (/(clinic|dental|doctor|medical)/i.test(lower)) return "CLINIC";
-  if (/(home|aircon|repair|cleaning|maintenance|plumbing|electrical)/i.test(lower)) return "HOME_SERVICE";
-  if (/(auto|car|wash|detailing)/i.test(lower)) return "AUTO";
-  if (/(salon|beauty|hair|lash|nail|makeup)/i.test(lower)) return "BEAUTY";
-  return "GENERAL";
 }
 
 function setupToBusinessDatabase(setup, slug) {
@@ -1177,28 +688,17 @@ function setupToBusinessDatabase(setup, slug) {
     business_package: normalizePackage(setup.package),
     feature_flags: { ...defaultFeatureFlags, ...(setup.featureFlags || {}) },
     status: (setup.status || "DEMO").toUpperCase(),
-    demo_started_at: setup.demoStartedAt || null,
-    demo_expires_at: setup.demoExpiresAt || null,
   };
 }
 
 function setupToServiceRows(setup, slug, requestId) {
-  const sourceServices = getSavableStructuredServices(setup.serviceEntries, setup.bookingTemplate || inferBookingTemplateFromIndustry(setup.industry));
-  const servicesToSave = sourceServices.length ? sourceServices : (setup.services?.trim() ? parseServiceDetails(setup.services) : []);
-  return servicesToSave.map((service, index) => ({
-    id: service.id || `${requestId}-SVC-${index + 1}`,
+  return parseServiceDetails(setup.services).map((service, index) => ({
+    id: `${requestId}-SVC-${index + 1}`,
     business_slug: slug,
     name: service.name,
     duration_minutes: service.durationMinutes,
     price: service.price,
     pricing_unit: normalizePricingUnit(service.pricingUnit),
-    pricing_type: normalizePricingType(service.pricingType, service.pricingUnit),
-    pricing_tiers: normalizePricingTiers(service.pricingTiers),
-    max_guests: service.maxGuests,
-    included_guests: service.includedGuests,
-    extra_guest_fee: service.extraGuestFee,
-    image_url: service.imageUrl,
-    unit_quantity: service.unitQuantity,
     description: service.description,
     display_order: service.displayOrder,
     status: service.status,
@@ -1336,9 +836,9 @@ const templates = [
     stat: "Sample travel page",
     services: ["Cebu City Tour", "Island Hopping Package", "Airport Transfer"],
     serviceDetails: [
-      { name: "Cebu City Tour", description: "Private city tour with pickup", price: 999, pricingUnit: "PER_PAX", pricingType: "PER_PAX", pricingTiers: [], durationMinutes: 480, displayOrder: 0, status: "Active" },
-      { name: "Island Hopping Package", description: "Boat day tour with guide coordination", price: 1500, pricingUnit: "PER_GROUP", pricingType: "GROUP_TIER", pricingTiers: [{ minGuests: 1, maxGuests: 2, price: 3500 }, { minGuests: 3, maxGuests: 4, price: 4500 }, { minGuests: 5, maxGuests: 6, price: 5500 }, { minGuests: 7, maxGuests: 10, price: 7500 }], durationMinutes: 540, displayOrder: 1, status: "Active" },
-      { name: "Airport Transfer", description: "Point-to-point pickup or drop-off", price: 1200, pricingUnit: "PER_TRIP", pricingType: "PER_TRIP", pricingTiers: [], durationMinutes: 90, displayOrder: 2, status: "Active" },
+      { name: "Cebu City Tour", description: "Private city tour with pickup", price: 999, pricingUnit: "PER_PAX", durationMinutes: 480, displayOrder: 0, status: "Active" },
+      { name: "Island Hopping Package", description: "Boat day tour with guide coordination", price: 1500, pricingUnit: "PER_PAX", durationMinutes: 540, displayOrder: 1, status: "Active" },
+      { name: "Airport Transfer", description: "Point-to-point pickup or drop-off", price: 1200, pricingUnit: "PER_GROUP", durationMinutes: 90, displayOrder: 2, status: "Active" },
     ],
     forms: ["Pickup location", "Guest count", "Special requests"],
   },
@@ -1423,12 +923,11 @@ function App() {
     const bySlug = new Map();
     [...templates, ...setupBusinesses, ...databaseBusinesses].forEach((business) => {
       const previous = bySlug.get(business.slug) || {};
-      const isDatabaseBusiness = business.source === "database";
       const next = normalizeBusinessConfig({
         ...previous,
         ...business,
-        services: isDatabaseBusiness ? (business.services || []) : (business.services?.length ? business.services : previous.services),
-        serviceDetails: isDatabaseBusiness ? (business.serviceDetails || []) : (business.serviceDetails?.length ? business.serviceDetails : previous.serviceDetails),
+        services: business.services?.length ? business.services : previous.services,
+        serviceDetails: business.serviceDetails?.length ? business.serviceDetails : previous.serviceDetails,
         forms: business.forms?.length ? business.forms : previous.forms,
         availability: { ...(previous.availability || {}), ...(business.availability || {}) },
         featureFlags: { ...(previous.featureFlags || {}), ...(business.featureFlags || {}) },
@@ -1462,19 +961,11 @@ function App() {
     const blockedDatesQuery = scopeSlug
       ? `?select=id,business_slug,blocked_date,active&business_slug=eq.${encodeURIComponent(scopeSlug)}&active=eq.true&order=blocked_date.asc`
       : "?select=id,business_slug,blocked_date,active&active=eq.true&order=blocked_date.asc";
-    const paymentSettingsQuery = scopeSlug
-      ? `?select=*&business_slug=eq.${encodeURIComponent(scopeSlug)}`
-      : "?select=*";
-    const paymentMethodsQuery = scopeSlug
-      ? `?select=*&business_slug=eq.${encodeURIComponent(scopeSlug)}&active=eq.true`
-      : "?select=*&active=eq.true";
-    const [onlineBusinesses, onlineServices, onlineAvailability, onlineBlockedDates, onlinePaymentSettings, onlinePaymentMethods] = await Promise.all([
+    const [onlineBusinesses, onlineServices, onlineAvailability, onlineBlockedDates] = await Promise.all([
       supabaseRequest("businesses", { query: businessQuery }),
       supabaseRequest("business_services", { query: serviceQuery }),
       supabaseRequest("business_availability", { query: availabilityQuery }),
       supabaseRequest("business_blocked_dates", { query: blockedDatesQuery }).catch(() => []),
-      supabaseRequest("business_payment_settings", { query: paymentSettingsQuery }).catch(() => []),
-      supabaseRequest("business_payment_methods", { query: paymentMethodsQuery }).catch(() => []),
     ]);
     const servicesByBusiness = (onlineServices || []).reduce((grouped, service) => {
       grouped[service.business_slug] = grouped[service.business_slug] || [];
@@ -1490,15 +981,6 @@ function App() {
       grouped[blockedDate.business_slug].push(blockedDate);
       return grouped;
     }, {});
-    const paymentSettingsByBusiness = (onlinePaymentSettings || []).reduce((grouped, item) => {
-      grouped[item.business_slug] = item;
-      return grouped;
-    }, {});
-    const paymentMethodsByBusiness = (onlinePaymentMethods || []).reduce((grouped, item) => {
-      grouped[item.business_slug] = grouped[item.business_slug] || [];
-      grouped[item.business_slug].push(item);
-      return grouped;
-    }, {});
     const normalized = (onlineBusinesses || []).map((business) => (
       normalizeBusinessConfig(normalizeDatabaseBusiness(
         business,
@@ -1506,9 +988,7 @@ function App() {
         {
           ...(availabilityByBusiness[business.slug] || {}),
           blocked_dates: blockedDatesByBusiness[business.slug] || [],
-        },
-        paymentSettingsByBusiness[business.slug] || null,
-        paymentMethodsByBusiness[business.slug] || [],
+        }
       ))
     ));
 
@@ -1671,24 +1151,17 @@ function App() {
       };
     }
 
-    const previousBusiness = originalSlug ? databaseBusinesses.find((business) => business.slug === originalSlug) : null;
-    const nextStatus = (nextClient.status || "DEMO").toUpperCase();
-    const previousStatus = (previousBusiness?.status || "").toUpperCase();
-    const shouldStartDemo = nextStatus === "DEMO" && (!originalSlug || previousStatus !== "DEMO");
-    const demoWindow = shouldStartDemo
-      ? createDemoWindow()
-      : {
-        demo_started_at: previousBusiness?.demoStartedAt || nextClient.demoStartedAt || null,
-        demo_expires_at: previousBusiness?.demoExpiresAt || nextClient.demoExpiresAt || null,
-      };
-    const businessBody = {
-      ...setupToBusinessDatabase({ ...nextClient, demoStartedAt: demoWindow.demo_started_at, demoExpiresAt: demoWindow.demo_expires_at }, slug),
-    };
+    const businessBody = setupToBusinessDatabase(nextClient, slug);
     if (originalSlug) {
       await supabaseRequest("businesses", {
         method: "PATCH",
         query: `?slug=eq.${encodeURIComponent(originalSlug)}`,
         body: businessBody,
+        accessToken,
+      });
+      await supabaseRequest("business_services", {
+        method: "DELETE",
+        query: `?business_slug=eq.${encodeURIComponent(originalSlug)}`,
         accessToken,
       });
       await supabaseRequest("business_availability", {
@@ -1700,43 +1173,11 @@ function App() {
       await supabaseRequest("businesses", { method: "POST", body: businessBody, accessToken });
     }
 
-    const serviceRows = setupToServiceRows(nextClient, slug, requestId);
-    if (originalSlug) {
-      const existingServices = await supabaseRequest("business_services", {
-        query: `?select=*&business_slug=eq.${encodeURIComponent(originalSlug)}`,
-        accessToken,
-      }).catch(() => []);
-      const nextIds = new Set(serviceRows.map((service) => service.id));
-      for (const service of serviceRows) {
-        const existing = existingServices.find((item) => item.id === service.id);
-        if (existing) {
-          await supabaseRequest("business_services", {
-            method: "PATCH",
-            query: `?id=eq.${encodeURIComponent(service.id)}`,
-            body: service,
-            accessToken,
-          });
-        } else {
-          await supabaseRequest("business_services", { method: "POST", body: service, accessToken });
-        }
-      }
-      for (const existing of existingServices) {
-        if (!nextIds.has(existing.id)) {
-          await supabaseRequest("business_services", {
-            method: "PATCH",
-            query: `?id=eq.${encodeURIComponent(existing.id)}`,
-            body: { status: "Inactive" },
-            accessToken,
-          });
-        }
-      }
-    } else if (serviceRows.length) {
-      await supabaseRequest("business_services", {
-        method: "POST",
-        body: serviceRows,
-        accessToken,
-      });
-    }
+    await supabaseRequest("business_services", {
+      method: "POST",
+      body: setupToServiceRows(nextClient, slug, requestId),
+      accessToken,
+    });
     await supabaseRequest("business_availability", {
       method: "POST",
       body: setupToAvailabilityDatabase(nextClient, slug, requestId),
@@ -1752,19 +1193,14 @@ function App() {
   };
 
   const updateClientStatus = async (slug, status, accessToken = "") => {
-    const currentBusiness = databaseBusinesses.find((business) => business.slug === slug);
-    const body = { status };
-    if ((status || "").toUpperCase() === "DEMO" && (currentBusiness?.status || "").toUpperCase() !== "DEMO") {
-      Object.assign(body, createDemoWindow());
-    }
     await supabaseRequest("businesses", {
       method: "PATCH",
       query: `?slug=eq.${encodeURIComponent(slug)}`,
-      body,
+      body: { status },
       accessToken,
     });
     setDatabaseBusinesses((current) => current.map((business) => (
-      business.slug === slug ? normalizeBusinessConfig({ ...business, status, demoStartedAt: body.demo_started_at || business.demoStartedAt, demoExpiresAt: body.demo_expires_at || business.demoExpiresAt }) : business
+      business.slug === slug ? { ...business, status } : business
     )));
     if (publicBusinessSlug === slug) await loadBusinessConfigs(slug);
   };
@@ -1778,10 +1214,6 @@ function App() {
 
   const saveClientService = async (serviceData, accessToken = "") => {
     await supabaseRpcRequest("upsert_client_service", serviceData, accessToken);
-  };
-
-  const deleteClientService = async (serviceId, accessToken = "") => {
-    await supabaseRpcRequest("delete_client_service", { service_id_value: serviceId }, accessToken);
   };
 
   const saveClientAvailability = async (availabilityData, accessToken = "") => {
@@ -1799,55 +1231,17 @@ function App() {
     }, accessToken);
   };
 
-  const submitPublicPayment = async (payment) => {
-    return supabaseRpcRequest("submit_public_booking_payment", payment);
-  };
-
-  const saveClientPaymentSettings = async (settingsData, accessToken = "") => {
-    return supabaseRpcRequest("upsert_client_payment_settings", settingsData, accessToken);
-  };
-
-  const saveClientPaymentMethod = async (methodData, accessToken = "") => {
-    return supabaseRpcRequest("upsert_client_payment_method", methodData, accessToken);
-  };
-
-  const verifyClientPayment = async (paymentId, accessToken = "") => {
-    return supabaseRpcRequest("verify_booking_payment", { payment_id_value: paymentId }, accessToken);
-  };
-
-  const rejectClientPayment = async (paymentId, rejectionNote, accessToken = "") => {
-    return supabaseRpcRequest("reject_booking_payment", { payment_id_value: paymentId, rejection_note_value: rejectionNote }, accessToken);
-  };
-
   const saveBooking = async (booking) => {
     let nextBooking = { ...booking, id: `SW-${Date.now().toString().slice(-5)}`, status: booking.status || "Confirmed" };
     try {
       if (supabaseUrl && supabaseAnonKey) {
-        const { businessSlug, bookingItems, ...databaseBooking } = nextBooking;
+        const { businessSlug, ...databaseBooking } = nextBooking;
         const [onlineBooking] = await supabaseRequest("bookings", {
           method: "POST",
           body: databaseBooking,
           prefer: "return=minimal",
         });
-        if (bookingItems?.length) {
-          await supabaseRequest("booking_items", {
-            method: "POST",
-            body: bookingItems.map((item, index) => ({
-              id: `${nextBooking.id}-item-${index + 1}`,
-              booking_id: nextBooking.id,
-              business_slug: nextBooking.business_slug,
-              service_id: item.serviceId,
-              service_name_snapshot: item.serviceName,
-              pricing_type_snapshot: item.pricingType,
-              unit_price_snapshot: item.unitPrice,
-              quantity: item.quantity,
-              selected_tier_snapshot: item.selectedTier,
-              line_total: item.lineTotal,
-            })),
-            prefer: "return=minimal",
-          });
-        }
-        nextBooking = { ...(onlineBooking || nextBooking), booking_items: bookingItems || [] };
+        nextBooking = onlineBooking || nextBooking;
       }
     } catch (error) {
       console.error("Slotwise booking insert failed", {
@@ -1865,7 +1259,7 @@ function App() {
   };
 
   if (page === "booking") {
-    return <BookingPrototype business={selectedBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} />;
+    return <BookingPrototype business={selectedBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} />;
   }
 
   if (page === "owner") {
@@ -1898,12 +1292,9 @@ function App() {
     if (publicBusiness && publicBusiness.status === "SUSPENDED") {
       return <BusinessUnavailablePage business={publicBusiness} onBack={() => setPage("home")} />;
     }
-    if (publicBusiness && isDemoExpired(publicBusiness)) {
-      return <DemoExpiredPage business={publicBusiness} onBack={() => setPage("home")} />;
-    }
 
     return publicBusiness ? (
-      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} />
+      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} />
     ) : (
       <BusinessNotFoundPage slug={publicBusinessSlug} onBack={() => setPage("home")} onSetup={() => setPage("setup")} />
     );
@@ -1934,14 +1325,9 @@ function App() {
         onBack={() => setPage("home")}
         onUpdateBookingStatus={updateBookingStatus}
         onSaveService={saveClientService}
-        onDeleteService={deleteClientService}
         onSaveAvailability={saveClientAvailability}
         onSaveBlockedDate={saveClientBlockedDate}
         onSetBlockedDateActive={setClientBlockedDateActive}
-        onSavePaymentSettings={saveClientPaymentSettings}
-        onSavePaymentMethod={saveClientPaymentMethod}
-        onVerifyPayment={verifyClientPayment}
-        onRejectPayment={rejectClientPayment}
       />
     );
   }
@@ -2365,31 +1751,20 @@ function Feature({ icon, title, text }) {
   );
 }
 
-function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) {
+function BookingPrototype({ business, onBack, onSaveBooking }) {
   const [pickedService, setPickedService] = useState(business.services[0]);
-  const [pickedServices, setPickedServices] = useState([business.services[0]].filter(Boolean));
   const availableSlots = business.availability?.slots?.length ? business.availability.slots : slots;
   const [pickedSlot, setPickedSlot] = useState(availableSlots[1] || availableSlots[0] || "10:15 AM");
   const [selectedBookingDate, setSelectedBookingDate] = useState(getTodayDateValue());
-  const [selectedCheckoutDate, setSelectedCheckoutDate] = useState(() => {
-    const next = new Date();
-    next.setDate(next.getDate() + 1);
-    return next.toISOString().slice(0, 10);
-  });
   const [guestCount, setGuestCount] = useState(2);
-  const [adultCount, setAdultCount] = useState(2);
-  const [childCount, setChildCount] = useState(0);
   const [confirmed, setConfirmed] = useState(null);
   const [bookingError, setBookingError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [paymentOpen, setPaymentOpen] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState("");
   const flags = { ...defaultFeatureFlags, ...(business.featureFlags || {}) };
   const clientStatus = (business.status || "ACTIVE").toUpperCase();
   const isProductionActive = clientStatus === "ACTIVE";
   const isDemoPreview = clientStatus === "DEMO";
   const isAwaitingActivation = clientStatus === "UNPAID";
-  const demoExpiryState = getDemoExpiryState(business);
   const blockedDates = business.availability?.blockedDates || [];
   const isBlockedDate = blockedDates.some((blockedDate) => blockedDate.blocked_date === selectedBookingDate && blockedDate.active !== false);
   const selectedDateLabel = formatBookingDate(selectedBookingDate);
@@ -2397,15 +1772,12 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
   const bookingTone = resolveBusinessTone(business);
   const isClinic = bookingTone === "clinic";
   const isToursTravel = bookingTone === "tours-travel";
-  const isAccommodation = normalizeBookingTemplate(business.bookingTemplate) === "STAYCATION_ACCOMMODATION";
   const isTravel = bookingTone === "travel" || isToursTravel;
   const isHomeService = bookingTone === "home-service";
   const brandInitial = (business.business || "S").trim().charAt(0).toUpperCase();
-  const brandCategory = isAccommodation ? "Staycation & Accommodation" : isToursTravel ? "Tours & Travel" : isClinic ? "Care & Wellness" : isTravel ? "Stay & Travel" : isHomeService ? "Aircon Services" : bookingTone === "auto" ? "Auto Services" : bookingTone === "general" ? "Service Business" : "Beauty & Wellness";
+  const brandCategory = isToursTravel ? "Tours & Travel" : isClinic ? "Care & Wellness" : isTravel ? "Stay & Travel" : isHomeService ? "Aircon Services" : bookingTone === "auto" ? "Auto Services" : bookingTone === "general" ? "Service Business" : "Beauty & Wellness";
   const brandLine = isClinic
     ? ["Your visit, booked with care.", "Private details. Clear schedule."]
-    : isAccommodation
-      ? ["Reserve your stay with ease.", "Choose your unit, dates, and guests."]
     : isToursTravel
       ? ["Tour packages, transfers, and reservations.", "Send your request in less than a minute."]
       : isTravel
@@ -2417,91 +1789,47 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
           : bookingTone === "general"
             ? ["Book the service you need.", "Choose a schedule that works for you."]
             : ["Enhance your glow.", "Reveal your best self."];
-  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Book Your Tour" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
-  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
-  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Tour Package" : isHomeService ? "Choose a Service" : "Choose a service";
-  const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Date" : isHomeService ? "Choose date and time" : "Pick a time";
+  const headingText = isToursTravel ? "Book Your Tour" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
+  const headerSubtext = isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
+  const serviceStepLabel = isToursTravel ? "Choose a Tour Package" : isHomeService ? "Choose a Service" : "Choose a service";
+  const timeStepLabel = isToursTravel ? "Select Travel Date" : isHomeService ? "Choose date and time" : "Pick a time";
   const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : "";
-  const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Guest Details" : isHomeService ? "Your contact details" : "Your details";
-  const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
-  const notePlaceholder = isAccommodation ? "Arrival notes, requests, or questions for the host" : isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
-  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Reservation Request" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
-  const paymentSettings = business.paymentSettings || {};
-  const paymentMethods = (business.paymentMethods || []).filter((method) => method.active !== false);
-  const allowMultipleServices = Boolean(flags.allowMultipleServices);
+  const detailsStepLabel = isToursTravel ? "Guest Details" : isHomeService ? "Your contact details" : "Your details";
+  const noteLabel = isToursTravel ? "Special Requests / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
+  const notePlaceholder = isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
+  const submitLabel = isToursTravel ? "Submit Reservation Request" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
   const getServiceDetail = (serviceName) => {
     const detail = business.serviceDetails?.find((item) => item.name === serviceName);
     return {
-      id: detail?.id || null,
-      name: serviceName,
-      durationMinutes: detail?.durationMinutes ?? null,
-      price: detail?.price ?? null,
-      pricingUnit: normalizePricingUnit(detail?.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT"),
-      pricingType: normalizePricingType(detail?.pricingType, isAccommodation ? "PER_NIGHT" : isToursTravel ? detail?.pricingUnit || "PER_PAX" : "FIXED"),
-      pricingTiers: normalizePricingTiers(detail?.pricingTiers),
-      maxGuests: detail?.maxGuests ?? null,
-      includedGuests: detail?.includedGuests ?? null,
-      extraGuestFee: detail?.extraGuestFee ?? null,
-      imageUrl: detail?.imageUrl || "",
-      unitQuantity: detail?.unitQuantity ?? 1,
+      durationMinutes: detail?.durationMinutes || 60,
+      price: detail?.price ?? 350,
+      pricingUnit: normalizePricingUnit(detail?.pricingUnit, isToursTravel ? "PER_PAX" : "FLAT"),
       description: detail?.description || "",
     };
   };
-  const selectedServiceNames = allowMultipleServices ? pickedServices : [pickedService].filter(Boolean);
-  const selectedServiceDetails = selectedServiceNames.map(getServiceDetail);
   const pickedServiceDetail = getServiceDetail(pickedService);
-  const stayNights = getNightCount(selectedBookingDate, selectedCheckoutDate);
-  const accommodationGuests = adultCount + childCount;
-  const needsGuestCount = isAccommodation || selectedServiceDetails.some((detail) => ["PER_PAX", "GROUP_TIER"].includes(normalizePricingType(detail.pricingType, detail.pricingUnit)));
-  const bookingCalculation = calculateBookingTotal(selectedServiceDetails, { pax: isAccommodation ? accommodationGuests : guestCount, totalGuests: accommodationGuests, nights: stayNights || 1 });
-  const pickedPricing = bookingCalculation.lineItems[0] || calculateLineItem(pickedServiceDetail, { pax: guestCount, nights: stayNights || 1, totalGuests: accommodationGuests });
-  const pickedPricingUnit = normalizePricingUnit(pickedServiceDetail.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT");
-  const estimatedTotal = bookingCalculation.estimatedTotal;
-  const primaryServiceLabel = selectedServiceNames.length > 1 ? `${selectedServiceNames.length} Services` : selectedServiceNames[0] || pickedService;
+  const pickedPricingUnit = normalizePricingUnit(pickedServiceDetail.pricingUnit, isToursTravel ? "PER_PAX" : "FLAT");
+  const pricedPerGuest = ["PER_PAX", "PER_PERSON"].includes(pickedPricingUnit);
+  const estimatedTotal = isToursTravel && pickedServiceDetail.price !== null
+    ? pickedServiceDetail.price * (pricedPerGuest ? guestCount : 1)
+    : null;
   const servicePriceLabel = (detail) => {
-    return formatServicePriceLabel(detail, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FIXED");
+    const unit = normalizePricingUnit(detail.pricingUnit, isToursTravel ? "PER_PAX" : "FLAT");
+    const base = formatPeso(detail.price);
+    if (base === "Rate on request") return base;
+    if (unit === "PER_PAX" || unit === "PER_PERSON") return `${base} / pax`;
+    if (unit === "PER_GROUP") return `${base} / group`;
+    return base;
   };
-  const serviceMetaLabel = (detail) => [
-    isAccommodation && detail.maxGuests ? `Up to ${detail.maxGuests} guests` : detail.durationMinutes ? `${detail.durationMinutes} min` : "",
-    detail.price !== null || detail.pricingTiers?.length ? servicePriceLabel(detail) : "",
-  ].filter(Boolean).join(" • ");
-  const requiredPaymentAmount = getRequiredPaymentAmount(paymentSettings, estimatedTotal);
-  const paymentRequired = isProductionActive && paymentSettings.enabled && requiredPaymentAmount !== null && paymentMethods.length > 0;
 
   useEffect(() => {
     setPickedService(business.services[0]);
-    setPickedServices([business.services[0]].filter(Boolean));
     setPickedSlot(availableSlots[1] || availableSlots[0] || "10:15 AM");
     setSelectedBookingDate(getTodayDateValue());
-    setSelectedCheckoutDate(() => {
-      const next = new Date();
-      next.setDate(next.getDate() + 1);
-      return next.toISOString().slice(0, 10);
-    });
     setGuestCount(2);
-    setAdultCount(2);
-    setChildCount(0);
     setConfirmed(null);
     setBookingError("");
-    setPaymentOpen(false);
-    setPaymentStatus("");
   }, [business.slug]);
-
-  const toggleService = (serviceName) => {
-    if (!allowMultipleServices) {
-      setPickedService(serviceName);
-      setPickedServices([serviceName]);
-      return;
-    }
-    setPickedService(serviceName);
-    setPickedServices((current) => {
-      if (current.includes(serviceName)) {
-        const next = current.filter((item) => item !== serviceName);
-        return next.length ? next : [serviceName];
-      }
-      return [...current, serviceName];
-    });
-  };
 
   const submitBooking = async (event) => {
     event.preventDefault();
@@ -2510,15 +1838,6 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
     setSubmitting(true);
     const data = new FormData(bookingForm);
     const currentGuestCount = Math.max(1, Number(data.get("guestCount") || guestCount) || 1);
-    const currentAdults = Math.max(1, Number(data.get("adultCount") || adultCount) || 1);
-    const currentChildren = Math.max(0, Number(data.get("childCount") || childCount) || 0);
-    const currentTotalGuests = isAccommodation ? currentAdults + currentChildren : currentGuestCount;
-    const currentNights = isAccommodation ? getNightCount(selectedBookingDate, selectedCheckoutDate) : 1;
-    const submittedCalculation = calculateBookingTotal(selectedServiceDetails, {
-      pax: isAccommodation ? currentTotalGuests : currentGuestCount,
-      totalGuests: currentTotalGuests,
-      nights: currentNights || 1,
-    });
     const pickupLocation = String(data.get("address") || "").trim();
     const booking = {
       customer: data.get("customer"),
@@ -2526,40 +1845,21 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
       business: business.business,
       businessSlug: business.slug,
       business_slug: business.slug,
-      service: primaryServiceLabel,
+      service: pickedService,
       booking_date: flags.requireDate ? selectedBookingDate : "",
-      slot: isAccommodation ? `${formatBookingDate(selectedBookingDate)} to ${formatBookingDate(selectedCheckoutDate)}` : flags.requireTime ? pickedSlot : "Inquiry only",
+      slot: flags.requireTime ? pickedSlot : "Inquiry only",
       note: data.get("note"),
       status: isProductionActive ? (isToursTravel ? "PENDING" : "Confirmed") : `${clientStatus} preview`,
-      estimated_total: submittedCalculation.estimatedTotal,
-      metadata: {
-        booking_template: business.bookingTemplate,
-        guest_count: currentTotalGuests,
-        adult_count: isAccommodation ? currentAdults : undefined,
-        child_count: isAccommodation ? currentChildren : undefined,
-        check_in: isAccommodation ? selectedBookingDate : undefined,
-        check_out: isAccommodation ? selectedCheckoutDate : undefined,
-        number_of_nights: isAccommodation ? currentNights : undefined,
+      metadata: isToursTravel ? {
+        booking_template: "TOURS_TRAVEL",
+        guest_count: currentGuestCount,
         pricing_unit: pickedPricingUnit,
-        pricing_type: pickedPricing.pricingType,
-        unit_price: pickedPricing.unitPrice,
-        selected_tier: pickedPricing.selectedTier,
-        estimated_total: submittedCalculation.estimatedTotal,
-        line_items: submittedCalculation.lineItems,
-        allow_multiple_services: allowMultipleServices,
+        estimated_total: estimatedTotal,
         pickup_location: pickupLocation,
-      },
-      bookingItems: submittedCalculation.lineItems,
+      } : undefined,
     };
-    if (!booking.customer || !booking.contact || !booking.business_slug || !selectedServiceNames.length || !booking.slot || (flags.requireDate && !booking.booking_date) || (needsGuestCount && currentTotalGuests < 1)) {
+    if (!booking.customer || !booking.contact || !booking.business_slug || !booking.service || !booking.slot || (flags.requireDate && !booking.booking_date) || (isToursTravel && currentGuestCount < 1)) {
       setBookingError("Please complete the required booking details before submitting.");
-      setSubmitting(false);
-      return;
-    }
-    if (!bookingCalculation.totalAvailable) {
-      setBookingError(bookingCalculation.invalidItem?.pricingType === "GROUP_TIER"
-        ? "Please contact the business for availability and pricing for this group size."
-        : "One selected service has incomplete pricing. Please choose another service or contact the business.");
       setSubmitting(false);
       return;
     }
@@ -2568,36 +1868,11 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
       setSubmitting(false);
       return;
     }
-    if (isAccommodation && currentNights < 1) {
-      setBookingError("Check-out date must be after check-in date.");
-      setSubmitting(false);
-      return;
-    }
-    if (isAccommodation && pickedServiceDetail.maxGuests && currentTotalGuests > Number(pickedServiceDetail.maxGuests)) {
-      setBookingError(`This unit accommodates up to ${pickedServiceDetail.maxGuests} guests.`);
-      setSubmitting(false);
-      return;
-    }
-    if (isToursTravel || isAccommodation || allowMultipleServices) {
-      if (!submittedCalculation.totalAvailable) {
-        setBookingError("Please contact the business for availability and pricing for this group size.");
-        setSubmitting(false);
-        return;
-      }
-      booking.metadata = {
-        ...booking.metadata,
-        pricing_type: submittedCalculation.lineItems[0]?.pricingType || "FIXED",
-        unit_price: submittedCalculation.lineItems[0]?.unitPrice ?? null,
-        selected_tier: submittedCalculation.lineItems[0]?.selectedTier || null,
-        estimated_total: submittedCalculation.estimatedTotal,
-        line_items: submittedCalculation.lineItems,
-      };
-      booking.estimated_total = submittedCalculation.estimatedTotal;
-      booking.bookingItems = submittedCalculation.lineItems;
-    }
     try {
-      const savedBooking = isProductionActive ? await onSaveBooking(booking) : booking;
-      setConfirmed(savedBooking);
+      if (isProductionActive) {
+        await onSaveBooking(booking);
+      }
+      setConfirmed(booking);
       bookingForm.reset();
       setGuestCount(2);
     } catch (error) {
@@ -2605,28 +1880,6 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
       setBookingError("Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const submitPaymentDetails = async (event) => {
-    event.preventDefault();
-    if (!confirmed?.id) return;
-    const data = new FormData(event.currentTarget);
-    setPaymentStatus("");
-    try {
-      await onSubmitPayment({
-        booking_id_value: confirmed.id,
-        business_slug_value: business.slug,
-        payment_method_value: data.get("paymentMethod"),
-        amount_submitted_value: Number(data.get("amountSubmitted") || 0),
-        reference_number_value: data.get("referenceNumber"),
-        customer_note_value: data.get("paymentNote") || "",
-      });
-      setPaymentStatus("Payment details submitted. Payment is pending business verification.");
-      setPaymentOpen(false);
-    } catch (error) {
-      console.error("Payment detail submission failed", error);
-      setPaymentStatus("Payment details could not be submitted. Please contact the business.");
     }
   };
 
@@ -2661,7 +1914,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
               <strong>{isDemoPreview ? "Demo preview" : "Awaiting activation"}</strong>
               <span>
                 {isDemoPreview
-                  ? `Test the booking flow. Submissions on this preview are simulated and will not be saved as live bookings.${demoExpiryState.dateLabel ? ` Available until: ${demoExpiryState.dateLabel}.` : " Demo expiry not set."}`
+                  ? "Test the booking flow. Submissions on this preview are simulated and will not be saved as live bookings."
                   : "System setup is complete and awaiting activation. Submissions are preview only until the client is activated."}
               </span>
             </div>
@@ -2686,24 +1939,21 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
             <div className="premiumServiceGrid">
               {business.services.map((item) => {
                 const ServiceIcon = resolveServiceIcon(item, business);
-                const isSelected = selectedServiceNames.includes(item);
-                const detail = getServiceDetail(item);
                 return (
-                  <button type="button" key={item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
-                    <span className="serviceIcon">{isAccommodation && detail.imageUrl ? <img src={detail.imageUrl} alt="" /> : <ServiceIcon size={22} />}</span>
+                  <button type="button" key={item} className={pickedService === item ? "premiumService active" : "premiumService"} onClick={() => setPickedService(item)}>
+                    <span className="serviceIcon"><ServiceIcon size={22} /></span>
                     <strong>{item}</strong>
-                    {detail.description && <p className="serviceDescription">{detail.description}</p>}
-                    {flags.showPrices && serviceMetaLabel(detail) && <small>{serviceMetaLabel(detail)}</small>}
-                    {isSelected && <em><Check size={16} /></em>}
+                    {getServiceDetail(item).description && <p className="serviceDescription">{getServiceDetail(item).description}</p>}
+                    {flags.showPrices && <small>{getServiceDetail(item).durationMinutes} min • {servicePriceLabel(getServiceDetail(item))}</small>}
+                    {pickedService === item && <em><Check size={16} /></em>}
                   </button>
                 );
               })}
             </div>
-            {allowMultipleServices && <p className="multiServiceCount">{selectedServiceNames.length} service{selectedServiceNames.length > 1 ? "s" : ""} selected</p>}
           </div>
           )}
 
-          {(flags.requireTime || isAccommodation) && (
+          {flags.requireTime && (
           <div className="bookingStep">
             <div className="bookingStepTitle"><span>2</span><strong>{timeStepLabel}</strong></div>
             {isBlockedDate && (
@@ -2713,37 +1963,25 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
               </div>
             )}
             <div className="timeAndDate">
-              {!isAccommodation && (
-                <div className="premiumSlotGrid">
-                  {slotLabel && <span className="slotGroupLabel">{slotLabel}</span>}
-                  {availableSlots.map((item) => (
-                    <button type="button" key={item} disabled={isBlockedDate} className={pickedSlot === item ? "premiumSlot active" : "premiumSlot"} onClick={() => setPickedSlot(item)}>{item}</button>
-                  ))}
-                </div>
-              )}
+              <div className="premiumSlotGrid">
+                {slotLabel && <span className="slotGroupLabel">{slotLabel}</span>}
+                {availableSlots.map((item) => (
+                  <button type="button" key={item} disabled={isBlockedDate} className={pickedSlot === item ? "premiumSlot active" : "premiumSlot"} onClick={() => setPickedSlot(item)}>{item}</button>
+                ))}
+              </div>
               <div className="selectedDateCard">
                 <CalendarDays size={26} />
-                <span>{isAccommodation ? "Stay dates" : isToursTravel ? "Travel date" : "Selected"}</span>
-                <strong>{isAccommodation ? `${stayNights || 0} Night${stayNights === 1 ? "" : "s"}` : selectedDateLabel}</strong>
-                <small>{isAccommodation ? `${formatBookingDate(selectedBookingDate)} to ${formatBookingDate(selectedCheckoutDate)}` : selectedWeekdayLabel}</small>
+                <span>{isToursTravel ? "Travel date" : "Selected"}</span>
+                <strong>{selectedDateLabel}</strong>
+                <small>{selectedWeekdayLabel}</small>
                 <input
-                  aria-label={isAccommodation ? "Select check-in date" : "Select booking date"}
+                  aria-label="Select booking date"
                   type="date"
                   value={selectedBookingDate}
                   min={getTodayDateValue()}
                   onChange={(event) => setSelectedBookingDate(event.target.value)}
                   required={flags.requireDate}
                 />
-                {isAccommodation && (
-                  <input
-                    aria-label="Select check-out date"
-                    type="date"
-                    value={selectedCheckoutDate}
-                    min={selectedBookingDate || getTodayDateValue()}
-                    onChange={(event) => setSelectedCheckoutDate(event.target.value)}
-                    required
-                  />
-                )}
               </div>
             </div>
           </div>
@@ -2751,30 +1989,11 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
 
           <div className="bookingStep">
             <div className="bookingStepTitle"><span>3</span><strong>{detailsStepLabel}</strong></div>
-            <label className="premiumInput"><User size={20} /><span>{isAccommodation ? "Full Name" : "Your name"}<input name="customer" required placeholder="Maria Santos" /></span></label>
-            <label className="premiumInput"><Phone size={20} /><span>{isAccommodation ? "Mobile Number" : "Phone or contact number"}<input name="contact" required placeholder="0912 345 6789" /></span></label>
-            {isAccommodation ? (
-              <div className="accommodationGuestGrid">
-                <label className="guestStepper">
-                  <span>Adults</span>
-                  <div>
-                    <button type="button" onClick={() => setAdultCount((current) => Math.max(1, current - 1))}>-</button>
-                    <input name="adultCount" type="number" min="1" value={adultCount} onChange={(event) => setAdultCount(Math.max(1, Number(event.target.value) || 1))} required />
-                    <button type="button" onClick={() => setAdultCount((current) => current + 1)}>+</button>
-                  </div>
-                </label>
-                <label className="guestStepper">
-                  <span>Children</span>
-                  <div>
-                    <button type="button" onClick={() => setChildCount((current) => Math.max(0, current - 1))}>-</button>
-                    <input name="childCount" type="number" min="0" value={childCount} onChange={(event) => setChildCount(Math.max(0, Number(event.target.value) || 0))} />
-                    <button type="button" onClick={() => setChildCount((current) => current + 1)}>+</button>
-                  </div>
-                </label>
-              </div>
-            ) : needsGuestCount && (
+            <label className="premiumInput"><User size={20} /><span>Your name<input name="customer" required placeholder="Maria Santos" /></span></label>
+            <label className="premiumInput"><Phone size={20} /><span>Phone or contact number<input name="contact" required placeholder="0912 345 6789" /></span></label>
+            {isToursTravel && (
               <label className="guestStepper">
-                <span>{isToursTravel ? "Total guests" : "Quantity / pax"}</span>
+                <span>Total guests</span>
                 <div>
                   <button type="button" onClick={() => setGuestCount((current) => Math.max(1, current - 1))}>-</button>
                   <input name="guestCount" type="number" min="1" value={guestCount} onChange={(event) => setGuestCount(Math.max(1, Number(event.target.value) || 1))} required />
@@ -2786,21 +2005,12 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
             <label className="premiumInput"><FileText size={20} /><span>{noteLabel}<textarea name="note" placeholder={notePlaceholder} rows="3" /></span></label>
           </div>
 
-          {(isToursTravel || allowMultipleServices || flags.showPrices) && (
+          {isToursTravel && (
             <div className="reservationSummary">
-              <span>Booking Summary</span>
-              <strong>{primaryServiceLabel}</strong>
-              <p>{selectedDateLabel} {flags.requireTime ? `at ${pickedSlot}` : ""}{needsGuestCount ? ` • ${guestCount} ${isToursTravel ? "guest" : "pax"}${guestCount > 1 ? "s" : ""}` : ""}</p>
-              <div className="bookingLineItems">
-                {bookingCalculation.lineItems.map((item) => (
-                  <div key={item.serviceName}>
-                    <span>{item.serviceName}<small>{item.lineLabel}</small></span>
-                    <strong>{item.lineTotal === null ? "Rate on request" : formatPeso(item.lineTotal)}</strong>
-                  </div>
-                ))}
-              </div>
-              {!bookingCalculation.totalAvailable && <em>Please contact the business for pricing before submitting.</em>}
-              {flags.showPrices && bookingCalculation.totalAvailable && <em>Estimated total: {formatPeso(estimatedTotal)}</em>}
+              <span>Reservation Summary</span>
+              <strong>{pickedService}</strong>
+              <p>{selectedDateLabel} {flags.requireTime ? `at ${pickedSlot}` : ""} • {guestCount} guest{guestCount > 1 ? "s" : ""}</p>
+              {flags.showPrices && <em>Estimated total: {estimatedTotal === null ? "Rate on request" : formatPeso(estimatedTotal)}</em>}
             </div>
           )}
 
@@ -2812,23 +2022,19 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
             <div className="formSuccess premiumSuccess">
               <strong>{isProductionActive ? (isToursTravel ? "Reservation Request Received" : "Booking Request Received") : "Demo booking completed"}</strong>
               <span>
-                {isProductionActive && (isToursTravel || isAccommodation)
-                  ? `Your reservation request has been received. The ${isAccommodation ? "host" : "tour operator"} may contact you to confirm availability and final details.`
+                {isProductionActive && isToursTravel
+                  ? "Your reservation request has been received. The tour operator may contact you to confirm availability and final details."
                   : isProductionActive
                   ? "Your booking request has been received. The business may contact you to confirm your appointment."
                   : "No live booking was created."}
               </span>
               <dl>
                 <div><dt>Business</dt><dd>{business.business}</dd></div>
-                <div><dt>{selectedServiceNames.length > 1 ? "Services" : isAccommodation ? "Room / Unit" : isToursTravel ? "Tour Package" : "Service"}</dt><dd>{confirmed.service}</dd></div>
-                <div><dt>{isAccommodation ? "Check-in" : isToursTravel ? "Travel Date" : "Date"}</dt><dd>{confirmed.booking_date ? formatBookingDate(confirmed.booking_date) : "Not required"}</dd></div>
-                {isAccommodation && <div><dt>Check-out</dt><dd>{formatBookingDate(confirmed.metadata?.check_out)}</dd></div>}
-                {isAccommodation && <div><dt>Nights</dt><dd>{confirmed.metadata?.number_of_nights || stayNights}</dd></div>}
-                <div><dt>{isAccommodation ? "Stay" : isToursTravel ? "Preferred Time" : "Time"}</dt><dd>{confirmed.slot}</dd></div>
-                {(isToursTravel || isAccommodation) && <div><dt>Guests</dt><dd>{confirmed.metadata?.guest_count || guestCount}</dd></div>}
-                {isToursTravel && <div><dt>Pricing Type</dt><dd>{confirmed.metadata?.pricing_type || "FIXED"}</dd></div>}
-                {isToursTravel && confirmed.metadata?.selected_tier && <div><dt>Selected Group Rate</dt><dd>{confirmed.metadata.selected_tier.minGuests}-{confirmed.metadata.selected_tier.maxGuests} pax - {formatPeso(confirmed.metadata.selected_tier.price)}</dd></div>}
-                {flags.showPrices && <div><dt>Estimated Total</dt><dd>{confirmed.metadata?.estimated_total || confirmed.estimated_total ? formatPeso(confirmed.metadata?.estimated_total || confirmed.estimated_total) : servicePriceLabel(pickedServiceDetail)}</dd></div>}
+                <div><dt>{isToursTravel ? "Tour Package" : "Service"}</dt><dd>{confirmed.service}</dd></div>
+                <div><dt>{isToursTravel ? "Travel Date" : "Date"}</dt><dd>{confirmed.booking_date ? formatBookingDate(confirmed.booking_date) : "Not required"}</dd></div>
+                <div><dt>{isToursTravel ? "Preferred Time" : "Time"}</dt><dd>{confirmed.slot}</dd></div>
+                {isToursTravel && <div><dt>Guests</dt><dd>{confirmed.metadata?.guest_count || guestCount}</dd></div>}
+                {isToursTravel && flags.showPrices && <div><dt>Estimated Total</dt><dd>{confirmed.metadata?.estimated_total ? formatPeso(confirmed.metadata.estimated_total) : "Rate on request"}</dd></div>}
                 <div><dt>Name</dt><dd>{confirmed.customer}</dd></div>
                 <div><dt>Reference</dt><dd>{confirmed.id || "Request received"}</dd></div>
               </dl>
@@ -2836,37 +2042,6 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) 
                 <button type="button" onClick={() => setConfirmed(null)}>Book Another</button>
                 {business.messengerLink && <a href={business.messengerLink} target="_blank" rel="noreferrer">Contact Business</a>}
               </div>
-              {paymentRequired && (
-                <div className="paymentInstructions">
-                  <span>{isToursTravel || isAccommodation ? "Reservation Deposit" : "Payment Required"}</span>
-                  <p><strong>Estimated Total:</strong> {estimatedTotal === null ? "Rate on request" : formatPeso(estimatedTotal)}</p>
-                  <p><strong>Required {normalizePaymentRequirement(paymentSettings.requirement_type) === "DEPOSIT_REQUIRED" ? "Deposit" : "Payment"}:</strong> {formatPeso(requiredPaymentAmount)}</p>
-                  <div className="paymentMethodList">
-                    {paymentMethods.map((method) => (
-                      <article key={method.id}>
-                        <strong>{method.method_name || method.method_type}</strong>
-                        <small>{method.account_name}</small>
-                        <small>{method.account_number}</small>
-                        {method.instructions && <p>{method.instructions}</p>}
-                      </article>
-                    ))}
-                  </div>
-                  <button type="button" onClick={() => setPaymentOpen((current) => !current)}>I've Made My Payment</button>
-                  {paymentOpen && (
-                    <form className="paymentDetailForm" onSubmit={submitPaymentDetails}>
-                      <select name="paymentMethod" required>
-                        {paymentMethods.map((method) => <option value={method.method_type} key={method.id}>{method.method_name || method.method_type}</option>)}
-                      </select>
-                      <input name="amountSubmitted" type="number" min="0" step="0.01" placeholder="Amount sent" required />
-                      <input name="referenceNumber" placeholder="Payment reference number" required />
-                      <textarea name="paymentNote" placeholder="Optional note" rows="2" />
-                      <p>Submitting payment details does not automatically confirm your reservation. Payment will be verified by the business.</p>
-                      <button type="submit">Submit Payment Details</button>
-                    </form>
-                  )}
-                </div>
-              )}
-              {paymentStatus && <span>{paymentStatus}</span>}
             </div>
           )}
         </form>
@@ -2916,145 +2091,6 @@ function BusinessUnavailablePage({ business, onBack }) {
   );
 }
 
-function DemoExpiredPage({ business, onBack }) {
-  return (
-    <main className="setupPage">
-      <button className="backButton" onClick={onBack}><ArrowLeft size={18} /> Back to site</button>
-      <section className="setupComplete">
-        <span><Clock size={22} /></span>
-        <p className="eyebrow">Demo expired</p>
-        <h1>This personalized system preview has ended.</h1>
-        <p>
-          Interested in activating your system? Please contact SMM Solutions by Pabs Rivera.
-          The same configured system can be activated after payment.
-        </p>
-        {business?.demoExpiresAt && (
-          <div className="setupSaveStatus local">Expired: {formatFriendlyDateTime(business.demoExpiresAt)}</div>
-        )}
-      </section>
-    </main>
-  );
-}
-
-function StructuredServiceManager({ services, onChange, onDeleteService, bookingTemplate = "GENERAL", compact = false }) {
-  const copy = getServiceManagerCopy(bookingTemplate);
-  const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
-  const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
-  const updateService = (index, updates) => {
-    onChange(services.map((service, itemIndex) => itemIndex === index ? { ...service, ...updates } : service));
-  };
-  const removeService = async (index) => {
-    const service = services[index];
-    if (service?.id && onDeleteService) {
-      const ok = window.confirm("Delete this service/package?\n\nThis will permanently remove it from this business and it will no longer appear on the public booking page.");
-      if (!ok) return;
-      await onDeleteService(service);
-    }
-    const next = services.filter((_, itemIndex) => itemIndex !== index);
-    onChange(next.map((service, itemIndex) => ({ ...service, displayOrder: itemIndex })));
-  };
-  const moveService = (index, direction) => {
-    const next = [...services];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target], next[index]];
-    onChange(next.map((service, itemIndex) => ({ ...service, displayOrder: itemIndex })));
-  };
-  const updateTier = (serviceIndex, tierIndex, updates) => {
-    const tiers = normalizePricingTiers(services[serviceIndex].pricingTiers);
-    updateService(serviceIndex, {
-      pricingTiers: tiers.map((tier, itemIndex) => itemIndex === tierIndex ? { ...tier, ...updates } : tier),
-    });
-  };
-
-  return (
-    <section className={compact ? "structuredServiceManager compact" : "structuredServiceManager"}>
-      <div className="structuredServiceTop">
-        <div>
-          <p className="eyebrow">{copy.title}</p>
-          <h3>{copy.title}</h3>
-        </div>
-        <button type="button" onClick={() => onChange([...services, ...emptyStructuredServices(1)])}>+ {copy.add}</button>
-      </div>
-      <div className="structuredServiceList">
-        {!services.length && (
-          <div className="clientEmptyState">No services/packages yet.</div>
-        )}
-        {services.map((service, index) => {
-          const expanded = service.expanded !== false;
-          return (
-            <article className={expanded ? "structuredServiceCard expanded" : "structuredServiceCard"} key={`${service.id || "new"}-${index}`}>
-              <button type="button" className="structuredServiceSummary" onClick={() => updateService(index, { expanded: !expanded })}>
-                <strong>{service.name || `${copy.single} ${index + 1}`}</strong>
-                <span>{service.price !== "" ? formatPeso(service.price) : "No price"}</span>
-                <em>{service.status || "Active"}</em>
-              </button>
-              {expanded && (
-                <div className="structuredServiceFields">
-                  <input value={service.name} onChange={(event) => updateService(index, { name: event.target.value })} placeholder={`${copy.single} name`} />
-                  <input value={service.description} onChange={(event) => updateService(index, { description: event.target.value })} placeholder="Description" />
-                  <input type="number" min="0" value={service.price} onChange={(event) => updateService(index, { price: event.target.value })} placeholder={isAccommodation ? "Price per night" : "Price"} />
-                  {!isAccommodation && <input type="number" min="0" value={service.durationMinutes} onChange={(event) => updateService(index, { durationMinutes: event.target.value })} placeholder="Duration in minutes" />}
-                  {isAccommodation && (
-                    <>
-                      <input type="number" min="1" value={service.maxGuests} onChange={(event) => updateService(index, { maxGuests: event.target.value })} placeholder="Maximum guests" />
-                      <input type="number" min="1" value={service.includedGuests} onChange={(event) => updateService(index, { includedGuests: event.target.value })} placeholder="Included guests" />
-                      <input type="number" min="0" value={service.extraGuestFee} onChange={(event) => updateService(index, { extraGuestFee: event.target.value })} placeholder="Extra guest fee / night" />
-                      <input type="number" min="1" value={service.unitQuantity} onChange={(event) => updateService(index, { unitQuantity: event.target.value })} placeholder="Available quantity" />
-                      <input value={service.imageUrl} onChange={(event) => updateService(index, { imageUrl: event.target.value })} placeholder="Optional image URL" />
-                    </>
-                  )}
-                  {isTravel && (
-                    <>
-                      <select value={normalizePricingType(service.pricingType, service.pricingUnit)} onChange={(event) => updateService(index, { pricingType: event.target.value, pricingUnit: normalizePricingUnit(service.pricingUnit, event.target.value) })}>
-                        <option value="PER_PAX">Per pax</option>
-                        <option value="GROUP_TIER">Group tier</option>
-                        <option value="PER_TRIP">Per trip</option>
-                        <option value="PER_DAY">Per day</option>
-                        <option value="FIXED">Fixed</option>
-                      </select>
-                      <select value={normalizePricingUnit(service.pricingUnit, service.pricingType)} onChange={(event) => updateService(index, { pricingUnit: event.target.value })}>
-                        <option value="PER_PAX">/ pax</option>
-                        <option value="PER_GROUP">/ group</option>
-                        <option value="PER_TRIP">/ trip</option>
-                        <option value="PER_DAY">/ day</option>
-                        <option value="FIXED">fixed</option>
-                      </select>
-                    </>
-                  )}
-                  <select value={service.status || "Active"} onChange={(event) => updateService(index, { status: event.target.value })}>
-                    <option>Active</option>
-                    <option>Inactive</option>
-                  </select>
-                  {isTravel && normalizePricingType(service.pricingType, service.pricingUnit) === "GROUP_TIER" && (
-                    <div className="pricingTierEditor serviceTierEditor">
-                      <span>Group pricing tiers</span>
-                      {normalizePricingTiers(service.pricingTiers).map((tier, tierIndex) => (
-                        <div key={`${index}-${tierIndex}`}>
-                          <input type="number" min="1" value={tier.minGuests} onChange={(event) => updateTier(index, tierIndex, { minGuests: Number(event.target.value) })} placeholder="Min pax" />
-                          <input type="number" min="1" value={tier.maxGuests} onChange={(event) => updateTier(index, tierIndex, { maxGuests: Number(event.target.value) })} placeholder="Max pax" />
-                          <input type="number" min="0" value={tier.price} onChange={(event) => updateTier(index, tierIndex, { price: Number(event.target.value) })} placeholder="Price" />
-                          <button type="button" onClick={() => updateService(index, { pricingTiers: normalizePricingTiers(service.pricingTiers).filter((_, itemIndex) => itemIndex !== tierIndex) })}>Remove</button>
-                        </div>
-                      ))}
-                      <button type="button" onClick={() => updateService(index, { pricingTiers: [...normalizePricingTiers(service.pricingTiers), { minGuests: 1, maxGuests: 2, price: 0 }] })}>+ Add Pricing Tier</button>
-                    </div>
-                  )}
-                  <div className="structuredServiceActions">
-                    <button type="button" onClick={() => moveService(index, -1)} disabled={index === 0}>Move Up</button>
-                    <button type="button" onClick={() => moveService(index, 1)} disabled={index === services.length - 1}>Move Down</button>
-                    <button type="button" onClick={() => removeService(index)}>{service.id ? "Delete" : "Remove"}</button>
-                  </div>
-                </div>
-              )}
-            </article>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 const setupSteps = ["Business", "Services", "Schedule", "Rules", "Review"];
 
 function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
@@ -3069,8 +2105,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
     contact: "",
     industry: "Salon / beauty",
     facebookPage: "",
-    services: "",
-    serviceEntries: emptyStructuredServices(),
+    services: "Hair color - PHP 350 - 60 minutes\nHair treatment - PHP 250 - 45 minutes",
     openDays: "Monday to Saturday",
     openHours: "9:00 AM to 6:00 PM",
     staff: "Ana - Hair color, hair treatment\nBea - Makeup appointment",
@@ -3088,16 +2123,6 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
       }
       return next;
     });
-  };
-
-  const setupBookingTemplate = inferBookingTemplateFromIndustry(form.industry);
-  const updateSetupServices = (serviceEntries) => {
-    const nextEntries = normalizeStructuredServices(serviceEntries);
-    setForm((current) => ({
-      ...current,
-      serviceEntries: nextEntries,
-      services: structuredServicesToLegacyText(nextEntries, setupBookingTemplate),
-    }));
   };
 
   const finishSetup = async (event) => {
@@ -3198,8 +2223,8 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
             <div className="setupPanel">
               <p className="eyebrow">Step 2</p>
               <h2>Services and prices</h2>
-              <p>Add each service with price and duration. Blank slots will not be saved.</p>
-              <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} bookingTemplate={setupBookingTemplate} />
+              <p>Add each service with price and duration. One service per line is perfect.</p>
+              <label>Service list<textarea name="services" value={form.services} onChange={updateForm} rows="8" /></label>
             </div>
           )}
 
@@ -3233,7 +2258,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
                 <article><span>Contact</span><strong>{form.ownerName || "Owner name"}</strong><em>{form.contact || "Contact details"}</em></article>
                 <article><span>Public page</span><strong>/{form.slug || makeSlug(form.businessName)}</strong><em>Permanent client booking URL</em></article>
                 <article><span>Schedule</span><strong>{form.openDays}</strong><em>{form.openHours}</em></article>
-                <article><span>Services</span><strong>{getSavableStructuredServices(form.serviceEntries, setupBookingTemplate).length} services listed</strong><em>Ready for page setup</em></article>
+                <article><span>Services</span><strong>{form.services.split("\n").filter(Boolean).length} services listed</strong><em>Ready for page setup</em></article>
               </div>
             </div>
           )}
@@ -3474,8 +2499,6 @@ function emptyAdminClient() {
     package: "STARTER",
     bookingMode: "booking",
     bookingTemplate: "GENERAL",
-    demoStartedAt: null,
-    demoExpiresAt: null,
     contact: "",
     facebookPage: "",
     address: "",
@@ -3483,8 +2506,7 @@ function emptyAdminClient() {
     logo: "",
     primaryColor: "#bd5d6d",
     accentColor: "#f6dfe3",
-    services: "",
-    serviceEntries: emptyStructuredServices(),
+    services: "Consultation - PHP 350 - 60 minutes",
     openDays: "Monday to Saturday",
     openHours: "9:00 AM to 6:00 PM",
     slotsText: slots.join(", "),
@@ -3493,12 +2515,17 @@ function emptyAdminClient() {
 }
 
 function businessToAdminClient(business) {
-  const serviceEntries = normalizeStructuredServices(
-    business.serviceDetails?.length
-      ? filterLegacyToursSeedRows(business.serviceDetails, business.bookingTemplate).map(serviceRowToStructured)
-      : (business.services || []).map((service, index) => serviceRowToStructured({ name: service, displayOrder: index }, index)),
-  );
-  const serviceText = structuredServicesToLegacyText(serviceEntries, business.bookingTemplate);
+  const serviceText = business.serviceDetails?.length
+    ? business.serviceDetails.map((service) => {
+      const pricingUnit = normalizePricingUnit(service.pricingUnit);
+      const unitText = pricingUnit === "PER_PAX" || pricingUnit === "PER_PERSON"
+        ? " - per pax"
+        : pricingUnit === "PER_GROUP"
+          ? " - per group"
+          : "";
+      return `${service.name} - PHP ${service.price ?? 0}${unitText} - ${service.durationMinutes || 60} minutes`;
+    }).join("\n")
+    : (business.services || []).map((service) => `${service} - PHP 350 - 60 minutes`).join("\n");
 
   return {
     businessName: business.business || "",
@@ -3508,8 +2535,6 @@ function businessToAdminClient(business) {
     package: normalizePackage(business.package),
     bookingMode: business.bookingMode || "booking",
     bookingTemplate: normalizeBookingTemplate(business.bookingTemplate),
-    demoStartedAt: business.demoStartedAt || null,
-    demoExpiresAt: business.demoExpiresAt || null,
     contact: business.phone || "",
     facebookPage: business.messengerLink || "",
     address: business.address || "",
@@ -3518,7 +2543,6 @@ function businessToAdminClient(business) {
     primaryColor: business.primaryColor || "#bd5d6d",
     accentColor: business.accentColor || "#f6dfe3",
     services: serviceText,
-    serviceEntries,
     openDays: business.availability?.days || defaultAvailability.days,
     openHours: business.availability?.hours || defaultAvailability.hours,
     slotsText: (business.availability?.slots || slots).join(", "),
@@ -3650,43 +2674,8 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
       const next = { ...current, [name]: type === "checkbox" ? checked : value };
       if (name === "businessName" && !editingSlug) next.slug = makeSlug(value);
       if (name === "slug") next.slug = makeSlug(value);
-      if (name === "bookingTemplate") {
-        const nextTemplate = normalizeBookingTemplate(value);
-        next.serviceEntries = normalizeStructuredServices(current.serviceEntries).map((service) => nextTemplate === "TOURS_TRAVEL" ? service : nextTemplate === "STAYCATION_ACCOMMODATION" ? {
-          ...service,
-          pricingType: "PER_NIGHT",
-          pricingUnit: "PER_NIGHT",
-          durationMinutes: "",
-          pricingTiers: [],
-        } : {
-          ...service,
-          pricingType: "FIXED",
-          pricingUnit: "FLAT",
-          pricingTiers: [],
-        });
-        next.services = structuredServicesToLegacyText(next.serviceEntries, value);
-      }
       return next;
     });
-  };
-
-  const updateAdminServices = (serviceEntries) => {
-    const nextEntries = normalizeStructuredServices(serviceEntries);
-    setForm((current) => ({
-      ...current,
-      serviceEntries: nextEntries,
-      services: structuredServicesToLegacyText(nextEntries, current.bookingTemplate),
-    }));
-  };
-
-  const deleteAdminService = async (service) => {
-    if (!editingSlug || !service.id) return;
-    await supabaseRequest("business_services", {
-      method: "DELETE",
-      query: `?id=eq.${encodeURIComponent(service.id)}&business_slug=eq.${encodeURIComponent(editingSlug)}`,
-      accessToken: adminSession?.access_token,
-    });
-    setStatusMessage("Service deleted.");
   };
 
   const submitClient = async (event) => {
@@ -3712,26 +2701,6 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     if (highImpact && !window.confirm(`Change ${business.business} from ${business.status} to ${nextStatus}?`)) return;
     await onUpdateStatus(business.slug, nextStatus, adminSession?.access_token);
     setStatusMessage(`${business.business} is now ${nextStatus}.`);
-  };
-
-  const restartDemo = async () => {
-    const targetSlug = editingSlug || form.slug;
-    if (!targetSlug || form.status !== "DEMO") return;
-    if (!window.confirm("Restart this client's 24-hour demo period?")) return;
-    const demoWindow = createDemoWindow();
-    await supabaseRequest("businesses", {
-      method: "PATCH",
-      query: `?slug=eq.${encodeURIComponent(targetSlug)}`,
-      body: demoWindow,
-      accessToken: adminSession?.access_token,
-    });
-    setForm((current) => ({
-      ...current,
-      demoStartedAt: demoWindow.demo_started_at,
-      demoExpiresAt: demoWindow.demo_expires_at,
-    }));
-    await onRefresh();
-    setStatusMessage("24-hour demo restarted.");
   };
 
   const copyLink = async (slug) => {
@@ -3829,41 +2798,24 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
   const dashboardLink = `${window.location.origin}/client-dashboard`;
   const packageDisplay = packageOptions.find((item) => item.value === normalizePackage(form.package));
   const packageText = packageDisplay ? `${packageDisplay.label} - ${packageDisplay.price}` : "Starter - PHP 499 lifetime";
-  const demoExpiryState = getDemoExpiryState(form);
-  const demoExpiryText = form.demoExpiresAt ? formatFriendlyDateTime(form.demoExpiresAt) : "Demo expiry not set";
-  const demoHandoffMessage = demoExpiryState.state === "expired"
-    ? `Demo has expired.
-
-This client's demo expired on ${demoExpiryText}.
-
-Use "Restart 24-Hour Demo" before sending a new demo link.`
-    : `Hi! Your personalized Booking & Inquiry System preview is ready.
+  const demoHandoffMessage = `Hi! Your customized booking system preview is ready.
 
 Business:
 ${form.businessName || "Your business"}
 
-Package Preview:
+Package:
 ${packageText}
 
-Demo Link:
+Preview your system here:
 ${publicLink}
 
-Demo Duration:
-24 Hours
+You may test the booking flow before activation.
 
-Demo Expires:
-${demoExpiryText}
+Please note that this is currently in Demo Mode, so test bookings are not saved as live bookings yet.
 
-You may explore and test the booking/inquiry system before deciding.
+Once payment is confirmed, we can activate the same system and link immediately.
 
-Please note:
-This is a demo preview only. Test submissions are not treated as actual customer bookings or reservations.
-
-If you decide to proceed, we can activate the same customized system for lifetime use based on your selected package.
-
-SYSTEM MUNA BAGO BAYAD
-
-SMM Solutions by Pabs Rivera`;
+- SMM Solutions by Pabs Rivera`;
   const activeHandoffMessage = form.status === "SUSPENDED"
     ? `Hi! Your Slotwise booking system for ${form.businessName || "your business"} is currently suspended.
 
@@ -3926,7 +2878,7 @@ After login, you will only see the bookings and features assigned to your busine
   ];
   const readinessItems = [
     ["Business Details", Boolean(form.businessName && form.slug)],
-    ["Services", getSavableStructuredServices(form.serviceEntries, form.bookingTemplate).length > 0],
+    ["Services", Boolean(form.services?.trim())],
     ["Schedule", Boolean(form.openDays && form.openHours && form.slotsText)],
     ["Package", Boolean(form.package)],
     ["Public Page", Boolean(form.slug)],
@@ -4048,16 +3000,6 @@ After login, you will only see the bookings and features assigned to your busine
               {packageOptions.map((item) => <option value={item.value} key={item.value}>{item.label} - {item.price}</option>)}
             </select>
           </section>
-          {form.status === "DEMO" && (
-            <section className={`smmPackageControl demoExpiryControl ${demoExpiryState.state}`}>
-              <div>
-                <p className="eyebrow">Demo status</p>
-                <h3>{demoExpiryState.label}</h3>
-                <span>{demoExpiryState.dateLabel ? `${demoExpiryState.state === "expired" ? "Expired" : "Expires"}: ${demoExpiryState.dateLabel}` : "Demo expiry not set"}</span>
-              </div>
-              <button type="button" onClick={restartDemo}>Restart 24-Hour Demo</button>
-            </section>
-          )}
           <section className="smmOpsGrid">
             <div className="smmOpsPanel">
               <p className="eyebrow">Client access</p>
@@ -4140,7 +3082,7 @@ After login, you will only see the bookings and features assigned to your busine
             </div>
           </section>
           <label>Description<textarea name="rules" value={form.rules} onChange={updateForm} rows="3" /></label>
-          <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} bookingTemplate={form.bookingTemplate} />
+          <label>Services<textarea name="services" value={form.services} onChange={updateForm} rows="6" /></label>
           <div className="smmFlagGrid">
             {Object.keys(defaultFeatureFlags).map((flag) => (
               <label key={flag}>
@@ -4163,7 +3105,6 @@ After login, you will only see the bookings and features assigned to your busine
                   <h2>{business.business}</h2>
                   <p>{business.slug}</p>
                   <small>{business.businessType} / {business.bookingMode} / {normalizePackage(business.package)} / {business.services.length} services / {bookingCount} bookings</small>
-                  {business.status === "DEMO" && <small>{getDemoExpiryState(business).dateLabel ? `${getDemoExpiryState(business).label}: ${getDemoExpiryState(business).dateLabel}` : getDemoExpiryState(business).label}</small>}
                   <small>Client login: {assignedAccess.length ? `Assigned (${assignedAccess.map((item) => item.role).join(", ")})` : "Not assigned"}</small>
                 </div>
                 <div className="smmClientLink">/{business.slug}</div>
@@ -4189,14 +3130,9 @@ function ClientDashboard({
   onBack,
   onUpdateBookingStatus,
   onSaveService,
-  onDeleteService,
   onSaveAvailability,
   onSaveBlockedDate,
   onSetBlockedDateActive,
-  onSavePaymentSettings,
-  onSavePaymentMethod,
-  onVerifyPayment,
-  onRejectPayment,
 }) {
   const [authState, setAuthState] = useState("checking");
   const [clientSession, setClientSession] = useState(null);
@@ -4208,22 +3144,13 @@ function ClientDashboard({
   const [clientServices, setClientServices] = useState([]);
   const [clientAvailability, setClientAvailability] = useState({ ...defaultAvailability });
   const [blockedDates, setBlockedDates] = useState([]);
-  const [paymentSettings, setPaymentSettings] = useState({ enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
-  const [paymentMethods, setPaymentMethods] = useState([]);
-  const [bookingPayments, setBookingPayments] = useState([]);
   const [activeTab, setActiveTab] = useState(initialView === "login" ? "dashboard" : "dashboard");
   const [filter, setFilter] = useState("All");
-  const [calendarFilter, setCalendarFilter] = useState("All");
-  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState(getTodayDateValue());
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const emptyServiceForm = { id: "", name: "", description: "", price: "", durationMinutes: 60, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [] };
-  const [serviceForm, setServiceForm] = useState(emptyServiceForm);
-  const [clientServiceEntries, setClientServiceEntries] = useState(emptyStructuredServices());
+  const [serviceForm, setServiceForm] = useState({ id: "", name: "", description: "", price: "", durationMinutes: 60, status: "Active" });
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
   const [blockedDateForm, setBlockedDateForm] = useState({ blockedDate: "", reason: "" });
-  const [paymentMethodForm, setPaymentMethodForm] = useState({ method_type: "GCASH", method_name: "GCash", account_name: "", account_number: "", instructions: "", active: true });
 
   const loadClientData = async (session) => {
     const mappings = await supabaseRequest("business_users", {
@@ -4256,22 +3183,6 @@ function ClientDashboard({
       query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=created_at.desc`,
       accessToken: session.access_token,
     });
-    const bookingItemRows = await supabaseRequest("booking_items", {
-      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=created_at.asc`,
-      accessToken: session.access_token,
-    }).catch(() => []);
-    const [paymentSettingsRow] = await supabaseRequest("business_payment_settings", {
-      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}`,
-      accessToken: session.access_token,
-    }).catch(() => []);
-    const paymentMethodRows = await supabaseRequest("business_payment_methods", {
-      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=created_at.desc`,
-      accessToken: session.access_token,
-    }).catch(() => []);
-    const paymentRows = await supabaseRequest("booking_payments", {
-      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=submitted_at.desc`,
-      accessToken: session.access_token,
-    }).catch(() => []);
     const normalizedAvailability = {
       days: availabilityRow?.open_days || defaultAvailability.days,
       hours: availabilityRow?.open_hours || defaultAvailability.hours,
@@ -4284,11 +3195,9 @@ function ClientDashboard({
     setClientBusiness(normalizeBusinessConfig(normalizeDatabaseBusiness(businessRow, serviceRows, {
       ...(availabilityRow || {}),
       blocked_dates: blockedDateRows || [],
-    }, paymentSettingsRow || null, paymentMethodRows || [])));
-    const visibleServiceRows = filterLegacyToursSeedRows(serviceRows || [], businessRow?.booking_template);
-    setClientBookings(attachBookingItems(bookingRows || [], bookingItemRows || []));
-    setClientServices(visibleServiceRows);
-    setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
+    })));
+    setClientBookings(bookingRows || []);
+    setClientServices(serviceRows || []);
     setClientAvailability(normalizedAvailability);
     setAvailabilityForm({
       days: normalizedAvailability.days,
@@ -4296,9 +3205,6 @@ function ClientDashboard({
       slotsText: normalizedAvailability.slots.join(", "),
     });
     setBlockedDates(blockedDateRows || []);
-    setPaymentSettings(paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
-    setPaymentMethods(paymentMethodRows || []);
-    setBookingPayments(paymentRows || []);
     setAuthState("authorized");
     return true;
   };
@@ -4379,22 +3285,6 @@ function ClientDashboard({
         query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=created_at.desc`,
         accessToken: clientSession.access_token,
       });
-      const bookingItemRows = await supabaseRequest("booking_items", {
-        query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=created_at.asc`,
-        accessToken: clientSession.access_token,
-      }).catch(() => []);
-      const [paymentSettingsRow] = await supabaseRequest("business_payment_settings", {
-        query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}`,
-        accessToken: clientSession.access_token,
-      }).catch(() => []);
-      const paymentMethodRows = await supabaseRequest("business_payment_methods", {
-        query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=created_at.desc`,
-        accessToken: clientSession.access_token,
-      }).catch(() => []);
-      const paymentRows = await supabaseRequest("booking_payments", {
-        query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=submitted_at.desc`,
-        accessToken: clientSession.access_token,
-      }).catch(() => []);
       const normalizedAvailability = {
         days: availabilityRow?.open_days || defaultAvailability.days,
         hours: availabilityRow?.open_hours || defaultAvailability.hours,
@@ -4404,11 +3294,9 @@ function ClientDashboard({
       setClientBusiness(normalizeBusinessConfig(normalizeDatabaseBusiness(businessRow, serviceRows, {
         ...(availabilityRow || {}),
         blocked_dates: blockedDateRows || [],
-      }, paymentSettingsRow || null, paymentMethodRows || [])));
-      const visibleServiceRows = filterLegacyToursSeedRows(serviceRows || [], businessRow?.booking_template);
-      setClientBookings(attachBookingItems(bookingRows || [], bookingItemRows || []));
-      setClientServices(visibleServiceRows);
-      setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
+      })));
+      setClientBookings(bookingRows || []);
+      setClientServices(serviceRows || []);
       setClientAvailability(normalizedAvailability);
       setAvailabilityForm({
         days: normalizedAvailability.days,
@@ -4416,9 +3304,6 @@ function ClientDashboard({
         slotsText: normalizedAvailability.slots.join(", "),
       });
       setBlockedDates(blockedDateRows || []);
-      setPaymentSettings(paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
-      setPaymentMethods(paymentMethodRows || []);
-      setBookingPayments(paymentRows || []);
       setSelectedBooking(null);
     }
   };
@@ -4446,45 +3331,22 @@ function ClientDashboard({
       description: service.description || "",
       price: service.price ?? "",
       durationMinutes: service.duration_minutes || 60,
-      pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
-      pricingUnit: normalizePricingUnit(service.pricing_unit),
-      pricingTiers: normalizePricingTiers(service.pricing_tiers),
-      maxGuests: service.max_guests ?? "",
-      includedGuests: service.included_guests ?? "",
-      extraGuestFee: service.extra_guest_fee ?? "",
-      imageUrl: service.image_url || "",
-      unitQuantity: service.unit_quantity ?? 1,
       status: service.status || "Active",
-    } : emptyServiceForm);
+    } : { id: "", name: "", description: "", price: "", durationMinutes: 60, status: "Active" });
   };
 
   const submitService = async (event) => {
     event.preventDefault();
     setStatusMessage("");
     try {
-      const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
-      const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
-      const tierValidation = validatePricingTiers(serviceForm.pricingTiers);
-      if (isClientToursTravel && serviceForm.pricingType === "GROUP_TIER" && (!tierValidation.ok || tierValidation.tiers.length === 0)) {
-        setStatusMessage(tierValidation.message || "Add at least one valid pricing tier.");
-        return;
-      }
       const payload = {
         service_id: serviceForm.id || `svc-${Date.now()}`,
         target_slug: selectedBusinessSlug,
         service_name: serviceForm.name,
         service_description: serviceForm.description,
         service_price: serviceForm.price === "" ? null : Number(serviceForm.price),
-        service_duration: isClientAccommodation ? null : Number(serviceForm.durationMinutes) || 60,
+        service_duration: Number(serviceForm.durationMinutes) || 60,
         service_status: serviceForm.status,
-        service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingType(serviceForm.pricingType) : "FIXED",
-        service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingUnit(serviceForm.pricingUnit, serviceForm.pricingType) : "FLAT",
-        service_pricing_tiers: isClientToursTravel ? tierValidation.tiers : [],
-        service_max_guests: serviceForm.maxGuests === "" ? null : Number(serviceForm.maxGuests),
-        service_included_guests: serviceForm.includedGuests === "" ? null : Number(serviceForm.includedGuests),
-        service_extra_guest_fee: serviceForm.extraGuestFee === "" ? null : Number(serviceForm.extraGuestFee),
-        service_image_url: serviceForm.imageUrl || "",
-        service_unit_quantity: serviceForm.unitQuantity === "" ? 1 : Number(serviceForm.unitQuantity || 1),
       };
       await onSaveService(payload, clientSession?.access_token);
       const nextServices = serviceForm.id
@@ -4494,9 +3356,6 @@ function ClientDashboard({
           description: payload.service_description,
           price: payload.service_price,
           duration_minutes: payload.service_duration,
-          pricing_type: payload.service_pricing_type,
-          pricing_unit: payload.service_pricing_unit,
-          pricing_tiers: payload.service_pricing_tiers,
           status: payload.service_status,
         } : service)
         : [...clientServices, {
@@ -4506,9 +3365,6 @@ function ClientDashboard({
           description: payload.service_description,
           price: payload.service_price,
           duration_minutes: payload.service_duration,
-          pricing_type: payload.service_pricing_type,
-          pricing_unit: payload.service_pricing_unit,
-          pricing_tiers: payload.service_pricing_tiers,
           status: payload.service_status,
         }];
       setClientServices(nextServices);
@@ -4518,9 +3374,6 @@ function ClientDashboard({
           name: service.name,
           durationMinutes: service.duration_minutes,
           price: service.price,
-          pricingType: service.pricing_type,
-          pricingUnit: service.pricing_unit,
-          pricingTiers: service.pricing_tiers,
           description: service.description || "",
         })),
         services: nextServices.filter((service) => service.status !== "Inactive").map((service) => service.name),
@@ -4531,109 +3384,6 @@ function ClientDashboard({
       console.error("Client blocked date update failed", error);
       setStatusMessage("Unable to save changes. Please try again.");
     }
-  };
-
-  const submitStructuredServices = async (event) => {
-    event.preventDefault();
-    setStatusMessage("");
-    try {
-      const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
-      const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
-      const savableServices = getSavableStructuredServices(clientServiceEntries, clientBusiness?.bookingTemplate);
-      for (const service of savableServices) {
-        if (isClientToursTravel && service.pricingType === "GROUP_TIER" && !validatePricingTiers(service.pricingTiers).ok) {
-          setStatusMessage(`Fix pricing tiers for ${service.name}.`);
-          return;
-        }
-      }
-      const currentIds = new Set(clientServices.map((service) => service.id));
-      const nextIds = new Set(savableServices.filter((service) => service.id).map((service) => service.id));
-      for (const service of savableServices) {
-        await onSaveService({
-          service_id: service.id || `svc-${Date.now()}-${service.displayOrder}`,
-          target_slug: selectedBusinessSlug,
-          service_name: service.name,
-          service_description: service.description,
-          service_price: service.price,
-          service_duration: service.durationMinutes,
-          service_status: service.status,
-          service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingType(service.pricingType) : "FIXED",
-          service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
-          service_pricing_tiers: isClientToursTravel ? service.pricingTiers : [],
-          service_max_guests: service.maxGuests,
-          service_included_guests: service.includedGuests,
-          service_extra_guest_fee: service.extraGuestFee,
-          service_image_url: service.imageUrl,
-          service_unit_quantity: service.unitQuantity,
-        }, clientSession?.access_token);
-      }
-      for (const oldService of clientServices) {
-        if (currentIds.has(oldService.id) && !nextIds.has(oldService.id)) {
-          await onSaveService({
-            service_id: oldService.id,
-            target_slug: selectedBusinessSlug,
-            service_name: oldService.name,
-            service_description: oldService.description || "",
-            service_price: oldService.price,
-            service_duration: oldService.duration_minutes,
-            service_status: "Inactive",
-            service_pricing_type: oldService.pricing_type || "FIXED",
-            service_pricing_unit: oldService.pricing_unit || "FLAT",
-            service_pricing_tiers: oldService.pricing_tiers || [],
-          }, clientSession?.access_token);
-        }
-      }
-      const serviceRows = await supabaseRequest("business_services", {
-        query: `?select=*&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
-        accessToken: clientSession?.access_token,
-      });
-      const refreshedServiceRows = serviceRows;
-      const visibleServiceRows = filterLegacyToursSeedRows(refreshedServiceRows || [], clientBusiness?.bookingTemplate);
-      setClientServices(visibleServiceRows);
-      setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
-      setClientBusiness((current) => normalizeBusinessConfig(normalizeDatabaseBusiness({
-        slug: current.slug,
-        business: current.business,
-        industry: current.name,
-        booking_link: current.link,
-        logo_url: current.logo,
-        primary_color: current.primaryColor,
-        accent_color: current.accentColor,
-        phone: current.phone,
-        messenger_link: current.messengerLink,
-        address: current.address,
-        description: current.description,
-        business_type: current.businessType,
-        booking_mode: current.bookingMode,
-        booking_template: current.bookingTemplate,
-        business_package: current.package,
-        feature_flags: current.featureFlags,
-        status: current.status,
-        cover_url: current.cover,
-      }, refreshedServiceRows || [], {
-        open_days: clientAvailability.days,
-        open_hours: clientAvailability.hours,
-        slots: clientAvailability.slots,
-        blocked_dates: blockedDates,
-      }, paymentSettings || null, paymentMethods || [])));
-      setStatusMessage("Services saved.");
-    } catch (error) {
-      console.error("Client service save failed", error);
-      setStatusMessage("Unable to save services. Please try again.");
-    }
-  };
-
-  const deleteStructuredService = async (service) => {
-    if (!service?.id) return;
-    await onDeleteService(service.id, clientSession?.access_token);
-    setClientServices((current) => current.filter((item) => item.id !== service.id));
-    setClientServiceEntries((current) => current.filter((item) => item.id !== service.id).map((item, index) => ({ ...item, displayOrder: index })));
-    setClientBusiness((current) => normalizeBusinessConfig({
-      ...current,
-      serviceDetails: (current.serviceDetails || []).filter((item) => item.id !== service.id && item.name !== service.name),
-      services: (current.services || []).filter((item) => item !== service.name),
-    }));
-    setStatusMessage("Service deleted.");
   };
 
   const submitAvailability = async (event) => {
@@ -4696,71 +3446,6 @@ function ClientDashboard({
     }
   };
 
-  const submitPaymentSettings = async (event) => {
-    event.preventDefault();
-    setStatusMessage("");
-    try {
-      const payload = {
-        target_slug: selectedBusinessSlug,
-        enabled_value: Boolean(paymentSettings.enabled),
-        requirement_type_value: normalizePaymentRequirement(paymentSettings.requirement_type),
-        deposit_type_value: paymentSettings.deposit_type || "FIXED_AMOUNT",
-        deposit_value_value: Number(paymentSettings.deposit_value || 0),
-      };
-      await onSavePaymentSettings(payload, clientSession?.access_token);
-      setStatusMessage("Payment settings saved.");
-    } catch (error) {
-      setStatusMessage(error.message);
-    }
-  };
-
-  const submitPaymentMethod = async (event) => {
-    event.preventDefault();
-    setStatusMessage("");
-    try {
-      const payload = {
-        method_id_value: paymentMethodForm.id || `paymethod-${Date.now()}`,
-        target_slug: selectedBusinessSlug,
-        method_type_value: paymentMethodForm.method_type,
-        method_name_value: paymentMethodForm.method_name,
-        account_name_value: paymentMethodForm.account_name,
-        account_number_value: paymentMethodForm.account_number,
-        instructions_value: paymentMethodForm.instructions,
-        active_value: Boolean(paymentMethodForm.active),
-      };
-      await onSavePaymentMethod(payload, clientSession?.access_token);
-      const nextMethods = paymentMethodForm.id
-        ? paymentMethods.map((method) => method.id === paymentMethodForm.id ? { ...method, ...payload, id: payload.method_id_value, business_slug: selectedBusinessSlug, method_type: payload.method_type_value, method_name: payload.method_name_value, account_name: payload.account_name_value, account_number: payload.account_number_value, instructions: payload.instructions_value, active: payload.active_value } : method)
-        : [{ id: payload.method_id_value, business_slug: selectedBusinessSlug, method_type: payload.method_type_value, method_name: payload.method_name_value, account_name: payload.account_name_value, account_number: payload.account_number_value, instructions: payload.instructions_value, active: payload.active_value }, ...paymentMethods];
-      setPaymentMethods(nextMethods);
-      setPaymentMethodForm({ method_type: "GCASH", method_name: "GCash", account_name: "", account_number: "", instructions: "", active: true });
-      setStatusMessage("Payment method saved.");
-    } catch (error) {
-      setStatusMessage(error.message);
-    }
-  };
-
-  const updatePaymentVerification = async (payment, action) => {
-    const confirmedAction = action === "verify"
-      ? window.confirm("Have you confirmed this payment in your actual GCash, Maya, bank, or payment account?")
-      : window.confirm("Reject this submitted payment detail?");
-    if (!confirmedAction) return;
-    const rejectionNote = action === "reject" ? window.prompt("Optional rejection note", "Reference number could not be found.") || "" : "";
-    setStatusMessage("");
-    try {
-      if (action === "verify") {
-        await onVerifyPayment(payment.id, clientSession?.access_token);
-      } else {
-        await onRejectPayment(payment.id, rejectionNote, clientSession?.access_token);
-      }
-      const nextStatus = action === "verify" ? "VERIFIED" : "REJECTED";
-      setBookingPayments((current) => current.map((item) => item.id === payment.id ? { ...item, payment_status: nextStatus, rejection_note: rejectionNote } : item));
-      setStatusMessage(action === "verify" ? "Payment verified." : "Payment rejected.");
-    } catch (error) {
-      setStatusMessage(error.message);
-    }
-  };
-
   const filteredBookings = clientBookings.filter((booking) => (
     filter === "All" || (booking.status || "").toUpperCase() === filter.toUpperCase()
   ));
@@ -4771,23 +3456,6 @@ function ClientDashboard({
   const todayCount = clientBookings.filter((booking) => (booking.booking_date || "").startsWith("2026-05-21")).length;
   const currentRole = businessUsers.find((item) => item.business_slug === selectedBusinessSlug)?.role || "OWNER";
   const capabilities = getPackageCapabilities(clientBusiness?.package, clientBusiness?.featureFlags);
-  const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
-  const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
-  const paymentsByBooking = bookingPayments.reduce((grouped, payment) => {
-    grouped[payment.booking_id] = grouped[payment.booking_id] || [];
-    grouped[payment.booking_id].push(payment);
-    return grouped;
-  }, {});
-  const selectedBookingPayments = selectedBooking ? paymentsByBooking[selectedBooking.id] || [] : [];
-  const latestSelectedPayment = selectedBookingPayments[0];
-  const selectedBookingItems = selectedBooking ? getBookingLineItems(selectedBooking) : [];
-  const selectedBookingTotal = selectedBooking?.estimated_total ?? selectedBooking?.metadata?.estimated_total ?? (
-    selectedBookingItems.every((item) => item.lineTotal !== null && item.lineTotal !== undefined)
-      ? selectedBookingItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0)
-      : null
-  );
-  const pendingPaymentCount = bookingPayments.filter((payment) => payment.payment_status === "PENDING_VERIFICATION").length;
-  const verifiedPaymentCount = bookingPayments.filter((payment) => payment.payment_status === "VERIFIED").length;
   const customers = Object.values(clientBookings.reduce((grouped, booking) => {
     const key = `${booking.customer || "Customer"}-${booking.contact || ""}`;
     const previous = grouped[key];
@@ -4811,13 +3479,11 @@ function ClientDashboard({
       customers: capabilities.customers,
       services: capabilities.services,
       schedule: capabilities.schedule,
-      reservationCalendar: capabilities.reservationCalendar,
       blockedDates: capabilities.blockedDates,
-      paymentSettings: capabilities.paymentVerification,
       account: true,
     };
     if (!tabAllowed[activeTab]) setActiveTab("dashboard");
-  }, [activeTab, capabilities.customers, capabilities.services, capabilities.schedule, capabilities.reservationCalendar, capabilities.blockedDates, capabilities.paymentVerification]);
+  }, [activeTab, capabilities.customers, capabilities.services, capabilities.schedule, capabilities.blockedDates]);
 
   if (authState === "checking") {
     return (
@@ -4878,13 +3544,11 @@ function ClientDashboard({
             </select>
           )}
           <button className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}>Dashboard</button>
-          <button className={activeTab === "bookings" ? "active" : ""} onClick={() => setActiveTab("bookings")}>{isClientToursTravel ? "Reservations" : "Bookings / Requests"}</button>
-          {capabilities.customers && <button className={activeTab === "customers" ? "active" : ""} onClick={() => setActiveTab("customers")}>{isClientToursTravel ? "Guests / Customers" : "Customers"}</button>}
-          {capabilities.services && <button className={activeTab === "services" ? "active" : ""} onClick={() => setActiveTab("services")}>{isClientToursTravel ? "Tour Packages" : "Services"}</button>}
-          {capabilities.schedule && <button className={activeTab === "schedule" ? "active" : ""} onClick={() => setActiveTab("schedule")}>{isClientToursTravel ? "Availability" : "Schedule"}</button>}
-          {capabilities.reservationCalendar && <button className={activeTab === "reservationCalendar" ? "active" : ""} onClick={() => setActiveTab("reservationCalendar")}><CalendarDays size={16} /> Reservation Calendar</button>}
+          <button className={activeTab === "bookings" ? "active" : ""} onClick={() => setActiveTab("bookings")}>Bookings / Requests</button>
+          {capabilities.customers && <button className={activeTab === "customers" ? "active" : ""} onClick={() => setActiveTab("customers")}>Customers</button>}
+          {capabilities.services && <button className={activeTab === "services" ? "active" : ""} onClick={() => setActiveTab("services")}>Services</button>}
+          {capabilities.schedule && <button className={activeTab === "schedule" ? "active" : ""} onClick={() => setActiveTab("schedule")}>Schedule</button>}
           {capabilities.blockedDates && <button className={activeTab === "blockedDates" ? "active" : ""} onClick={() => setActiveTab("blockedDates")}>Blocked Dates</button>}
-          {capabilities.paymentVerification && <button className={activeTab === "paymentSettings" ? "active" : ""} onClick={() => setActiveTab("paymentSettings")}>Payment Settings</button>}
           <button className={activeTab === "account" ? "active" : ""} onClick={() => setActiveTab("account")}>Account</button>
           <button onClick={logoutClient}>Logout</button>
         </aside>
@@ -4907,8 +3571,6 @@ function ClientDashboard({
                 <article><span>Total</span><strong>{clientBookings.length}</strong></article>
                 {capabilities.enhancedStats && <article><span>Completed</span><strong>{completedCount}</strong></article>}
                 {capabilities.enhancedStats && <article><span>Cancelled</span><strong>{cancelledCount}</strong></article>}
-                {capabilities.paymentVerification && <article><span>Pending Payment Verification</span><strong>{pendingPaymentCount}</strong></article>}
-                {capabilities.paymentVerification && <article><span>Verified Payments</span><strong>{verifiedPaymentCount}</strong></article>}
               </div>
               <BookingList bookings={clientBookings.slice(0, 6)} onSelect={setSelectedBooking} onStatusChange={updateStatus} />
             </>
@@ -4960,12 +3622,35 @@ function ClientDashboard({
             <section>
               <div className="clientDashboardHeader">
                 <p className="eyebrow">Services</p>
-                <h2>{isClientToursTravel ? "Manage tour packages" : "Manage services"}</h2>
+                <h2>Manage services</h2>
               </div>
-              <form onSubmit={submitStructuredServices}>
-                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} bookingTemplate={clientBusiness?.bookingTemplate} compact />
-                <button className="clientPrimaryButton" type="submit">Save Services</button>
+              <form className="clientManagementForm" onSubmit={submitService}>
+                <input value={serviceForm.name} onChange={(event) => setServiceForm((current) => ({ ...current, name: event.target.value }))} placeholder="Service name" required />
+                <input value={serviceForm.description} onChange={(event) => setServiceForm((current) => ({ ...current, description: event.target.value }))} placeholder="Description" />
+                <input type="number" value={serviceForm.price} onChange={(event) => setServiceForm((current) => ({ ...current, price: event.target.value }))} placeholder="Price" />
+                <input type="number" value={serviceForm.durationMinutes} onChange={(event) => setServiceForm((current) => ({ ...current, durationMinutes: event.target.value }))} placeholder="Minutes" />
+                <select value={serviceForm.status} onChange={(event) => setServiceForm((current) => ({ ...current, status: event.target.value }))}>
+                  <option>Active</option>
+                  <option>Inactive</option>
+                </select>
+                <button type="submit">{serviceForm.id ? "Save service" : "Add service"}</button>
+                {serviceForm.id && <button type="button" onClick={() => editService()}>Clear</button>}
               </form>
+              <div className="clientBookingList">
+                {clientServices.map((service) => (
+                  <article className="clientBookingCard" key={service.id}>
+                    <div>
+                      <strong>{service.name}</strong>
+                      <span>{service.duration_minutes || 60} min / PHP {service.price ?? 0}</span>
+                      <small>{service.status || "Active"}</small>
+                    </div>
+                    <p>{service.description || "No description"}</p>
+                    <div className="clientBookingActions">
+                      <button onClick={() => editService(service)}>Edit</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </section>
           )}
 
@@ -4982,22 +3667,6 @@ function ClientDashboard({
                 <button type="submit">Save schedule</button>
               </form>
             </section>
-          )}
-
-          {activeTab === "reservationCalendar" && capabilities.reservationCalendar && (
-            <ReservationCalendar
-              bookings={clientBookings}
-              blockedDates={blockedDates}
-              business={clientBusiness}
-              monthDate={calendarMonth}
-              selectedDate={selectedCalendarDate}
-              statusFilter={calendarFilter}
-              onMonthChange={setCalendarMonth}
-              onDateSelect={setSelectedCalendarDate}
-              onFilterChange={setCalendarFilter}
-              onSelectBooking={setSelectedBooking}
-              onStatusChange={updateStatus}
-            />
           )}
 
           {activeTab === "blockedDates" && capabilities.blockedDates && (
@@ -5028,62 +3697,6 @@ function ClientDashboard({
             </section>
           )}
 
-          {activeTab === "paymentSettings" && capabilities.paymentVerification && (
-            <section>
-              <div className="clientDashboardHeader">
-                <p className="eyebrow">Payment Settings</p>
-                <h2>Manual payment verification</h2>
-                <p>Customers submit payment details only. You still verify money manually in your actual payment account.</p>
-              </div>
-              <form className="clientManagementForm paymentSettingsForm" onSubmit={submitPaymentSettings}>
-                <label><input type="checkbox" checked={Boolean(paymentSettings.enabled)} onChange={(event) => setPaymentSettings((current) => ({ ...current, enabled: event.target.checked }))} /> Enable Manual Payment Verification</label>
-                <select value={normalizePaymentRequirement(paymentSettings.requirement_type)} onChange={(event) => setPaymentSettings((current) => ({ ...current, requirement_type: event.target.value }))}>
-                  <option value="NO_PAYMENT_REQUIRED">No Payment Required</option>
-                  <option value="DEPOSIT_REQUIRED">Reservation Deposit Required</option>
-                  <option value="FULL_PAYMENT_REQUIRED">Full Payment Required</option>
-                </select>
-                <select value={paymentSettings.deposit_type || "FIXED_AMOUNT"} onChange={(event) => setPaymentSettings((current) => ({ ...current, deposit_type: event.target.value }))}>
-                  <option value="FIXED_AMOUNT">Fixed Amount</option>
-                  <option value="PERCENTAGE">Percentage</option>
-                </select>
-                <input type="number" min="0" value={paymentSettings.deposit_value || 0} onChange={(event) => setPaymentSettings((current) => ({ ...current, deposit_value: event.target.value }))} placeholder="Deposit value" />
-                <button type="submit">Save Payment Settings</button>
-              </form>
-              <form className="clientManagementForm" onSubmit={submitPaymentMethod}>
-                <select value={paymentMethodForm.method_type} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, method_type: event.target.value, method_name: event.target.options[event.target.selectedIndex].text }))}>
-                  <option value="GCASH">GCash</option>
-                  <option value="MAYA">Maya</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="OTHER">Other</option>
-                </select>
-                <input value={paymentMethodForm.method_name} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, method_name: event.target.value }))} placeholder="Method name" required />
-                <input value={paymentMethodForm.account_name} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, account_name: event.target.value }))} placeholder="Account name" required />
-                <input value={paymentMethodForm.account_number} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, account_number: event.target.value }))} placeholder="Account number" required />
-                <input value={paymentMethodForm.instructions} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, instructions: event.target.value }))} placeholder="Optional instructions" />
-                <select value={paymentMethodForm.active ? "Active" : "Inactive"} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, active: event.target.value === "Active" }))}>
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
-                <button type="submit">{paymentMethodForm.id ? "Save Method" : "Add Method"}</button>
-              </form>
-              <div className="clientBookingList">
-                {paymentMethods.length ? paymentMethods.map((method) => (
-                  <article className="clientBookingCard" key={method.id}>
-                    <div>
-                      <strong>{method.method_name || method.method_type}</strong>
-                      <span>{method.account_name} / {maskAccountNumber(method.account_number)}</span>
-                      <small>{method.active ? "Active" : "Inactive"}</small>
-                    </div>
-                    <p>{method.instructions || "No special instructions"}</p>
-                    <div className="clientBookingActions">
-                      <button onClick={() => setPaymentMethodForm(method)}>Edit</button>
-                    </div>
-                  </article>
-                )) : <div className="clientEmptyState">No payment methods yet.</div>}
-              </div>
-            </section>
-          )}
-
           {activeTab === "account" && (
             <section className="clientAccountPanel">
               <p className="eyebrow">Account</p>
@@ -5103,50 +3716,10 @@ function ClientDashboard({
                 <h2>{selectedBooking.customer}</h2>
               </div>
               <p><strong>Phone:</strong> {selectedBooking.contact}</p>
-              <div className="bookingItemsPanel">
-                <strong>Services</strong>
-                {selectedBookingItems.map((item) => (
-                  <p key={item.serviceName}>
-                    <span>{item.serviceName}{item.lineLabel ? ` - ${item.lineLabel}` : ""}</span>
-                    <em>{item.lineTotal === null || item.lineTotal === undefined ? "Rate on request" : formatPeso(item.lineTotal)}</em>
-                  </p>
-                ))}
-                {selectedBookingTotal !== null && <p className="bookingItemsTotal"><span>Estimated Total</span><em>{formatPeso(selectedBookingTotal)}</em></p>}
-              </div>
-              <p><strong>{isClientAccommodation ? "Check-in" : isClientToursTravel ? "Travel Date" : "Date"}:</strong> {isClientAccommodation ? formatBookingDate(selectedBooking.metadata?.check_in || selectedBooking.booking_date) : selectedBooking.booking_date || "Not required"}</p>
-              {isClientAccommodation && <p><strong>Check-out:</strong> {formatBookingDate(selectedBooking.metadata?.check_out)}</p>}
-              {isClientAccommodation && <p><strong>Nights:</strong> {selectedBooking.metadata?.number_of_nights || "Not saved"}</p>}
-              <p><strong>{isClientAccommodation ? "Stay" : isClientToursTravel ? "Preferred Time" : "Time"}:</strong> {selectedBooking.slot || "Inquiry only"}</p>
-              {(isClientToursTravel || isClientAccommodation) && <p><strong>Guests:</strong> {selectedBooking.metadata?.guest_count || "Not provided"}</p>}
-              {isClientToursTravel && <p><strong>Pricing Type:</strong> {selectedBooking.metadata?.pricing_type || "Not saved"}</p>}
-              {isClientToursTravel && selectedBooking.metadata?.unit_price !== undefined && <p><strong>Rate:</strong> {formatPeso(selectedBooking.metadata.unit_price)}</p>}
-              {isClientToursTravel && selectedBooking.metadata?.selected_tier && <p><strong>Selected Group Rate:</strong> {selectedBooking.metadata.selected_tier.minGuests}-{selectedBooking.metadata.selected_tier.maxGuests} pax - {formatPeso(selectedBooking.metadata.selected_tier.price)}</p>}
-              {isClientToursTravel && <p><strong>Estimated Total:</strong> {selectedBookingTotal !== null ? formatPeso(selectedBookingTotal) : "Rate only"}</p>}
-              {isClientToursTravel && selectedBooking.metadata?.pickup_location && <p><strong>Pickup Location:</strong> {selectedBooking.metadata.pickup_location}</p>}
-              <p><strong>{isClientToursTravel ? "Special Requests" : "Notes"}:</strong> {selectedBooking.note || "No notes"}</p>
-              {capabilities.paymentVerification && (
-                <div className="paymentDashboardPanel">
-                  <p className="eyebrow">Payment</p>
-                  {latestSelectedPayment ? (
-                    <>
-                      <p><strong>Status:</strong> {latestSelectedPayment.payment_status}</p>
-                      <p><strong>Method:</strong> {latestSelectedPayment.payment_method}</p>
-                      <p><strong>Amount Sent:</strong> {formatPeso(latestSelectedPayment.amount_submitted)}</p>
-                      <p><strong>Reference:</strong> {latestSelectedPayment.reference_number}</p>
-                      <p><strong>Note:</strong> {latestSelectedPayment.customer_note || "No note"}</p>
-                      {latestSelectedPayment.rejection_note && <p><strong>Rejection Note:</strong> {latestSelectedPayment.rejection_note}</p>}
-                      {latestSelectedPayment.payment_status === "PENDING_VERIFICATION" && (
-                        <div className="clientBookingActions">
-                          <button onClick={() => updatePaymentVerification(latestSelectedPayment, "verify")}>Verify Payment</button>
-                          <button onClick={() => updatePaymentVerification(latestSelectedPayment, "reject")}>Reject Payment</button>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <p>No payment details submitted yet.</p>
-                  )}
-                </div>
-              )}
+              <p><strong>Service:</strong> {selectedBooking.service}</p>
+              <p><strong>Date:</strong> {selectedBooking.booking_date || "Not required"}</p>
+              <p><strong>Time:</strong> {selectedBooking.slot || "Inquiry only"}</p>
+              <p><strong>Notes:</strong> {selectedBooking.note || "No notes"}</p>
               <label>Status
                 <select value={(selectedBooking.status || "PENDING").toUpperCase()} onChange={(event) => updateStatus(selectedBooking, event.target.value)}>
                   {["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map((item) => <option key={item}>{item}</option>)}
@@ -5161,152 +3734,6 @@ function ClientDashboard({
   );
 }
 
-function ReservationCalendar({
-  bookings,
-  blockedDates,
-  business,
-  monthDate,
-  selectedDate,
-  statusFilter,
-  onMonthChange,
-  onDateSelect,
-  onFilterChange,
-  onSelectBooking,
-  onStatusChange,
-}) {
-  const isToursTravel = normalizeBookingTemplate(business?.bookingTemplate) === "TOURS_TRAVEL";
-  const isAccommodation = normalizeBookingTemplate(business?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
-  const monthKey = getMonthKey(monthDate);
-  const monthDays = buildMonthDays(monthDate);
-  const serviceOptions = [...new Set((bookings || []).flatMap((booking) => getBookingLineItems(booking).map((item) => item.serviceName)).filter(Boolean))];
-  const statusOptions = ["All", "Pending", "Confirmed", "Completed", "Cancelled", ...serviceOptions];
-  const visibleBookings = (bookings || []).filter((booking) => {
-    if (!(booking.booking_date || "").startsWith(monthKey)) return false;
-    const statusMatch = ["All", "Pending", "Confirmed", "Completed", "Cancelled"].includes(statusFilter)
-      ? statusFilter === "All" || (booking.status || "").toUpperCase() === statusFilter.toUpperCase()
-      : getBookingLineItems(booking).some((item) => item.serviceName === statusFilter);
-    return statusMatch;
-  });
-  const bookingsByDate = visibleBookings.reduce((grouped, booking) => {
-    const key = booking.booking_date;
-    if (!key) return grouped;
-    grouped[key] = grouped[key] || [];
-    grouped[key].push(booking);
-    return grouped;
-  }, {});
-  const blockedByDate = (blockedDates || []).reduce((grouped, blockedDate) => {
-    if (!blockedDate.blocked_date) return grouped;
-    grouped[blockedDate.blocked_date] = blockedDate;
-    return grouped;
-  }, {});
-  const selectedBookings = bookingsByDate[selectedDate] || [];
-  const selectedBlocked = blockedByDate[selectedDate];
-  const monthCounts = {
-    total: visibleBookings.length,
-    pending: visibleBookings.filter((booking) => ["PENDING", "NEW"].includes((booking.status || "").toUpperCase())).length,
-    confirmed: visibleBookings.filter((booking) => (booking.status || "").toUpperCase() === "CONFIRMED").length,
-    completed: visibleBookings.filter((booking) => (booking.status || "").toUpperCase() === "COMPLETED").length,
-    cancelled: visibleBookings.filter((booking) => (booking.status || "").toUpperCase() === "CANCELLED").length,
-  };
-  const monthTitle = monthDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  const moveMonth = (amount) => {
-    const next = new Date(monthDate);
-    next.setMonth(next.getMonth() + amount);
-    onMonthChange(next);
-    onDateSelect(getDateKey(new Date(next.getFullYear(), next.getMonth(), 1)));
-  };
-  const today = () => {
-    const now = new Date();
-    onMonthChange(now);
-    onDateSelect(getTodayDateValue());
-  };
-  const reservationLabel = isToursTravel || isAccommodation ? "Reservations" : "Bookings";
-  const guestText = (booking) => {
-    const guests = booking.metadata?.guest_count;
-    return guests ? `${guests} Guest${Number(guests) > 1 ? "s" : ""}` : "";
-  };
-  const stayText = (booking) => {
-    if (!isAccommodation) return "";
-    const nights = booking.metadata?.number_of_nights;
-    return nights ? `${nights} Night${Number(nights) > 1 ? "s" : ""}` : "";
-  };
-
-  return (
-    <section className="reservationCalendarPanel">
-      <div className="clientDashboardHeader calendarHeader">
-        <div>
-          <p className="eyebrow">Reservation Calendar</p>
-          <h2>{monthTitle}</h2>
-          <p>{isAccommodation ? "View stays by check-in date." : isToursTravel ? "View tour reservations by travel date." : "View bookings by selected date."}</p>
-        </div>
-        <div className="calendarControls">
-          <button type="button" onClick={() => moveMonth(-1)}><ChevronLeft size={16} /> Previous</button>
-          <button type="button" onClick={today}>Today</button>
-          <button type="button" onClick={() => moveMonth(1)}>Next <ChevronRight size={16} /></button>
-        </div>
-      </div>
-      <div className="clientMetricGrid calendarMetricGrid">
-        <article><span>This Month</span><strong>{monthCounts.total}</strong></article>
-        <article><span>Pending</span><strong>{monthCounts.pending}</strong></article>
-        <article><span>Confirmed</span><strong>{monthCounts.confirmed}</strong></article>
-        <article><span>Completed</span><strong>{monthCounts.completed}</strong></article>
-        <article><span>Cancelled</span><strong>{monthCounts.cancelled}</strong></article>
-      </div>
-      <div className="clientFilterRow">
-        {statusOptions.map((item) => (
-          <button className={statusFilter === item ? "active" : ""} onClick={() => onFilterChange(item)} key={item}>{item}</button>
-        ))}
-      </div>
-      <div className="reservationCalendarGrid">
-        {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => <strong className="calendarDayName" key={day}>{day}</strong>)}
-        {monthDays.map((day) => {
-          const dayBookings = bookingsByDate[day.key] || [];
-          const blocked = blockedByDate[day.key];
-          return (
-            <button type="button" className={`calendarDateCell ${day.inMonth ? "" : "muted"} ${selectedDate === day.key ? "active" : ""}`} key={day.key} onClick={() => onDateSelect(day.key)}>
-              <span>{day.day}</span>
-              {blocked && <em className="calendarBlocked">Blocked</em>}
-              {dayBookings.slice(0, 2).map((booking) => (
-                <i className={`calendarBookingDot ${getStatusClass(booking.status)}`} key={booking.id} onClick={(event) => { event.stopPropagation(); onSelectBooking(booking); }}>
-                  <b>{getBookingServiceSummary(booking)}</b>
-                  <small>{getInitialsName(booking.customer)}{stayText(booking) ? ` • ${stayText(booking)}` : guestText(booking) ? ` • ${guestText(booking)}` : ""}</small>
-                  <small>{(booking.status || "PENDING").toUpperCase()}</small>
-                </i>
-              ))}
-              {dayBookings.length > 2 && <small className="calendarMore">+{dayBookings.length - 2} more</small>}
-            </button>
-          );
-        })}
-      </div>
-      <div className="reservationAgenda">
-        <div className="clientDashboardHeader">
-          <p className="eyebrow">{reservationLabel} for {formatBookingDate(selectedDate)}</p>
-          <h2>{selectedBookings.length} {reservationLabel}</h2>
-          {selectedBlocked && <p><strong>Blocked:</strong> {selectedBlocked.reason || "Unavailable"}</p>}
-        </div>
-        <div className="clientBookingList">
-          {selectedBookings.length ? selectedBookings.map((booking) => (
-            <article className="clientBookingCard" key={booking.id}>
-              <div>
-                <strong>{getBookingServiceSummary(booking)}</strong>
-                <span>{booking.customer}{stayText(booking) ? ` • ${stayText(booking)}` : guestText(booking) ? ` • ${guestText(booking)}` : ""}</span>
-                <small>{booking.slot || "No preferred time"} / {(booking.status || "PENDING").toUpperCase()}</small>
-              </div>
-              <p>{booking.note || "No notes provided"}</p>
-              <div className="clientBookingActions">
-                <select value={(booking.status || "PENDING").toUpperCase()} onChange={(event) => onStatusChange(booking, event.target.value)}>
-                  {["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map((item) => <option key={item}>{item}</option>)}
-                </select>
-                <button onClick={() => onSelectBooking(booking)}>View Details</button>
-              </div>
-            </article>
-          )) : <div className="clientEmptyState"><strong>No reservations on this date.</strong><span>New bookings will appear here automatically.</span></div>}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function BookingList({ bookings, onSelect, onStatusChange }) {
   if (!bookings.length) return <div className="clientEmptyState"><strong>No bookings yet.</strong><span>New bookings will appear here when customers submit through your booking page.</span></div>;
   return (
@@ -5315,7 +3742,7 @@ function BookingList({ bookings, onSelect, onStatusChange }) {
         <article className="clientBookingCard" key={booking.id}>
           <div>
             <strong>{booking.customer}</strong>
-            <span>{getBookingServiceSummary(booking)}</span>
+            <span>{booking.service}</span>
             <small>{booking.booking_date || "No date required"} / {booking.slot || "Inquiry only"}</small>
             <em>{booking.contact}</em>
           </div>

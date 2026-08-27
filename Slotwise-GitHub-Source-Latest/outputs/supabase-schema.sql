@@ -29,25 +29,6 @@ on bookings (business_slug);
 
 alter table bookings add column if not exists booking_date text;
 alter table bookings add column if not exists metadata jsonb not null default '{}'::jsonb;
-alter table bookings add column if not exists estimated_total numeric;
-
-create or replace function public.clear_untrusted_booking_totals()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  new.estimated_total := null;
-  new.metadata := coalesce(new.metadata, '{}'::jsonb) - 'estimated_total' - 'line_items';
-  return new;
-end;
-$$;
-
-drop trigger if exists clear_untrusted_booking_totals_trigger on bookings;
-create trigger clear_untrusted_booking_totals_trigger
-before insert on bookings
-for each row execute function public.clear_untrusted_booking_totals();
 
 create table if not exists businesses (
   slug text primary key,
@@ -83,7 +64,7 @@ begin
   end if;
 
   alter table businesses add constraint businesses_booking_template_allowed
-  check (booking_template in ('GENERAL', 'BEAUTY', 'CLINIC', 'HOME_SERVICE', 'AUTO', 'TOURS_TRAVEL', 'STAYCATION_ACCOMMODATION')) not valid;
+  check (booking_template in ('GENERAL', 'BEAUTY', 'CLINIC', 'HOME_SERVICE', 'AUTO', 'TOURS_TRAVEL')) not valid;
 end $$;
 alter table businesses add column if not exists business_package text not null default 'STARTER';
 do $$
@@ -106,37 +87,8 @@ alter table businesses add column if not exists feature_flags jsonb not null def
   "clientAdminEnabled": false,
   "customerListEnabled": false,
   "analyticsEnabled": false,
-  "staffSelectionEnabled": false,
-  "allowMultipleServices": false
+  "staffSelectionEnabled": false
 }'::jsonb;
-
-create table if not exists booking_items (
-  id text primary key,
-  booking_id text not null references bookings(id) on delete cascade,
-  business_slug text not null references businesses(slug) on delete cascade,
-  service_id text,
-  service_name_snapshot text not null,
-  pricing_type_snapshot text not null default 'FIXED',
-  unit_price_snapshot numeric,
-  quantity numeric not null default 1,
-  selected_tier_snapshot jsonb,
-  line_total numeric,
-  created_at timestamptz not null default now()
-);
-
-alter table booking_items add column if not exists service_id text;
-alter table booking_items add column if not exists service_name_snapshot text not null default 'Service';
-alter table booking_items add column if not exists pricing_type_snapshot text not null default 'FIXED';
-alter table booking_items add column if not exists unit_price_snapshot numeric;
-alter table booking_items add column if not exists quantity numeric not null default 1;
-alter table booking_items add column if not exists selected_tier_snapshot jsonb;
-alter table booking_items add column if not exists line_total numeric;
-
-create index if not exists booking_items_booking_id_idx
-on booking_items (booking_id);
-
-create index if not exists booking_items_business_slug_idx
-on booking_items (business_slug);
 
 create table if not exists business_services (
   id text primary key,
@@ -147,11 +99,6 @@ create table if not exists business_services (
   pricing_type text not null default 'FIXED',
   pricing_unit text not null default 'FLAT',
   pricing_tiers jsonb not null default '[]'::jsonb,
-  max_guests integer,
-  included_guests integer,
-  extra_guest_fee numeric,
-  image_url text,
-  unit_quantity integer not null default 1,
   description text,
   display_order integer not null default 0,
   status text not null default 'Active',
@@ -161,11 +108,6 @@ create table if not exists business_services (
 alter table business_services add column if not exists pricing_type text not null default 'FIXED';
 alter table business_services add column if not exists pricing_unit text not null default 'FLAT';
 alter table business_services add column if not exists pricing_tiers jsonb not null default '[]'::jsonb;
-alter table business_services add column if not exists max_guests integer;
-alter table business_services add column if not exists included_guests integer;
-alter table business_services add column if not exists extra_guest_fee numeric;
-alter table business_services add column if not exists image_url text;
-alter table business_services add column if not exists unit_quantity integer not null default 1;
 do $$
 begin
   if exists (
@@ -176,7 +118,7 @@ begin
   end if;
 
   alter table business_services add constraint business_services_pricing_type_allowed
-  check (pricing_type in ('PER_PAX', 'GROUP_TIER', 'PER_TRIP', 'PER_DAY', 'PER_NIGHT', 'FIXED')) not valid;
+  check (pricing_type in ('PER_PAX', 'GROUP_TIER', 'PER_TRIP', 'PER_DAY', 'FIXED')) not valid;
 end $$;
 do $$
 begin
@@ -188,226 +130,11 @@ begin
   end if;
 
   alter table business_services add constraint business_services_pricing_unit_allowed
-  check (pricing_unit in ('FLAT', 'PER_PAX', 'PER_PERSON', 'PER_GROUP', 'PER_TRIP', 'PER_DAY', 'PER_NIGHT', 'FIXED')) not valid;
+  check (pricing_unit in ('FLAT', 'PER_PAX', 'PER_PERSON', 'PER_GROUP', 'PER_TRIP', 'PER_DAY', 'FIXED')) not valid;
 end $$;
 
 create index if not exists business_services_business_slug_idx
 on business_services (business_slug);
-
-create or replace function public.prevent_accommodation_double_booking()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  template_value text;
-  check_in_value date;
-  check_out_value date;
-  requested_guests integer;
-  matching_unit business_services%rowtype;
-  overlap_count integer;
-begin
-  template_value := coalesce(new.metadata->>'booking_template', '');
-  if template_value <> 'STAYCATION_ACCOMMODATION' then
-    return new;
-  end if;
-
-  check_in_value := nullif(new.metadata->>'check_in', '')::date;
-  check_out_value := nullif(new.metadata->>'check_out', '')::date;
-  requested_guests := greatest(coalesce((new.metadata->>'guest_count')::integer, 1), 1);
-
-  if check_in_value is null or check_out_value is null or check_out_value <= check_in_value then
-    raise exception 'Check-out date must be after check-in date.';
-  end if;
-
-  select *
-  into matching_unit
-  from business_services
-  where business_slug = new.business_slug
-    and name = new.service
-    and status <> 'Inactive'
-  order by display_order asc
-  limit 1;
-
-  if matching_unit.id is null then
-    raise exception 'Selected unit is not available.';
-  end if;
-
-  if matching_unit.max_guests is not null and requested_guests > matching_unit.max_guests then
-    raise exception 'This unit cannot accommodate the selected number of guests.';
-  end if;
-
-  select count(*)
-  into overlap_count
-  from bookings
-  where business_slug = new.business_slug
-    and service = new.service
-    and upper(status) in ('PENDING', 'CONFIRMED')
-    and coalesce(metadata->>'booking_template', '') = 'STAYCATION_ACCOMMODATION'
-    and nullif(metadata->>'check_in', '')::date < check_out_value
-    and nullif(metadata->>'check_out', '')::date > check_in_value;
-
-  if overlap_count >= greatest(coalesce(matching_unit.unit_quantity, 1), 1) then
-    raise exception 'This unit is unavailable for the selected dates.';
-  end if;
-
-  return new;
-end;
-$$;
-
-drop trigger if exists prevent_accommodation_double_booking_trigger on bookings;
-create trigger prevent_accommodation_double_booking_trigger
-before insert on bookings
-for each row execute function public.prevent_accommodation_double_booking();
-
-create or replace function public.normalize_booking_item_snapshot()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  service_row business_services%rowtype;
-  pax numeric;
-  tier jsonb;
-  included_guest_count numeric;
-  extra_guest_count numeric;
-  nightly_extra_fee numeric;
-begin
-  if not exists (
-    select 1
-    from businesses
-    where businesses.slug = new.business_slug
-      and upper(businesses.status) = 'ACTIVE'
-  ) then
-    raise exception 'Booking items can only be saved for active businesses.';
-  end if;
-
-  if not exists (
-    select 1
-    from bookings
-    where bookings.id = new.booking_id
-      and bookings.business_slug = new.business_slug
-  ) then
-    raise exception 'Booking item does not match an existing booking.';
-  end if;
-
-  select *
-  into service_row
-  from business_services
-  where business_slug = new.business_slug
-    and status <> 'Inactive'
-    and (
-      (new.service_id is not null and id = new.service_id)
-      or (new.service_id is null and name = new.service_name_snapshot)
-    )
-  order by display_order asc
-  limit 1;
-
-  if service_row.id is null then
-    raise exception 'Selected service is not available.';
-  end if;
-
-  pax := greatest(coalesce(new.quantity, 1), 1);
-
-  new.service_id := service_row.id;
-  new.service_name_snapshot := service_row.name;
-  new.pricing_type_snapshot := coalesce(service_row.pricing_type, 'FIXED');
-  new.quantity := case
-    when new.pricing_type_snapshot in ('PER_PAX', 'PER_DAY') then pax
-    else 1
-  end;
-
-  if service_row.price is null and new.pricing_type_snapshot <> 'GROUP_TIER' then
-    raise exception 'Selected service has incomplete pricing.';
-  end if;
-
-  if new.pricing_type_snapshot = 'GROUP_TIER' then
-    select item
-    into tier
-    from jsonb_array_elements(coalesce(service_row.pricing_tiers, '[]'::jsonb)) item
-    where pax >= (item->>'minGuests')::numeric
-      and pax <= (item->>'maxGuests')::numeric
-    order by (item->>'minGuests')::numeric asc
-    limit 1;
-
-    if tier is null then
-      raise exception 'No group pricing tier matches this guest count.';
-    end if;
-
-    new.unit_price_snapshot := (tier->>'price')::numeric;
-    new.selected_tier_snapshot := tier;
-    new.line_total := (tier->>'price')::numeric;
-    new.quantity := pax;
-  elsif new.pricing_type_snapshot = 'PER_NIGHT' then
-    included_guest_count := greatest(coalesce(service_row.included_guests, service_row.max_guests, 1), 1);
-    extra_guest_count := greatest(coalesce((new.selected_tier_snapshot->>'totalGuests')::numeric, included_guest_count) - included_guest_count, 0);
-    nightly_extra_fee := coalesce(service_row.extra_guest_fee, 0);
-    new.unit_price_snapshot := service_row.price;
-    new.line_total := (service_row.price * pax) + (nightly_extra_fee * extra_guest_count * pax);
-    new.selected_tier_snapshot := jsonb_build_object(
-      'nights', pax,
-      'totalGuests', coalesce((new.selected_tier_snapshot->>'totalGuests')::numeric, included_guest_count),
-      'includedGuests', included_guest_count,
-      'extraGuests', extra_guest_count,
-      'extraGuestFee', nightly_extra_fee
-    );
-  elsif new.pricing_type_snapshot in ('PER_PAX', 'PER_DAY') then
-    new.unit_price_snapshot := service_row.price;
-    new.line_total := service_row.price * pax;
-  else
-    new.unit_price_snapshot := service_row.price;
-    new.line_total := service_row.price;
-    new.quantity := 1;
-  end if;
-
-  return new;
-end;
-$$;
-
-create or replace function public.sync_booking_estimated_total()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  target_booking_id text;
-begin
-  target_booking_id := coalesce(new.booking_id, old.booking_id);
-
-  update bookings
-  set estimated_total = (
-    select coalesce(sum(line_total), 0)
-    from booking_items
-    where booking_items.booking_id = target_booking_id
-  ),
-  metadata = jsonb_set(
-    coalesce(metadata, '{}'::jsonb),
-    '{estimated_total}',
-    to_jsonb((
-      select coalesce(sum(line_total), 0)
-      from booking_items
-      where booking_items.booking_id = target_booking_id
-    )),
-    true
-  )
-  where bookings.id = target_booking_id;
-
-  return coalesce(new, old);
-end;
-$$;
-
-drop trigger if exists normalize_booking_item_snapshot_trigger on booking_items;
-create trigger normalize_booking_item_snapshot_trigger
-before insert or update on booking_items
-for each row execute function public.normalize_booking_item_snapshot();
-
-drop trigger if exists sync_booking_estimated_total_trigger on booking_items;
-create trigger sync_booking_estimated_total_trigger
-after insert or update or delete on booking_items
-for each row execute function public.sync_booking_estimated_total();
 
 create table if not exists business_availability (
   id text primary key,
@@ -693,12 +420,7 @@ create or replace function public.upsert_client_service(
   service_pricing_type text default 'FIXED',
   service_pricing_unit text default 'FLAT',
   service_pricing_tiers jsonb default '[]'::jsonb,
-  service_display_order integer default 0,
-  service_max_guests integer default null,
-  service_included_guests integer default null,
-  service_extra_guest_fee numeric default null,
-  service_image_url text default '',
-  service_unit_quantity integer default 1
+  service_display_order integer default 0
 )
 returns void
 language plpgsql
@@ -719,11 +441,6 @@ begin
     pricing_type,
     pricing_unit,
     pricing_tiers,
-    max_guests,
-    included_guests,
-    extra_guest_fee,
-    image_url,
-    unit_quantity,
     duration_minutes,
     display_order,
     status
@@ -737,11 +454,6 @@ begin
     coalesce(service_pricing_type, 'FIXED'),
     coalesce(service_pricing_unit, 'FLAT'),
     coalesce(service_pricing_tiers, '[]'::jsonb),
-    service_max_guests,
-    service_included_guests,
-    service_extra_guest_fee,
-    coalesce(service_image_url, ''),
-    greatest(coalesce(service_unit_quantity, 1), 1),
     service_duration,
     coalesce(service_display_order, 0),
     service_status
@@ -754,11 +466,6 @@ begin
     pricing_type = excluded.pricing_type,
     pricing_unit = excluded.pricing_unit,
     pricing_tiers = excluded.pricing_tiers,
-    max_guests = excluded.max_guests,
-    included_guests = excluded.included_guests,
-    extra_guest_fee = excluded.extra_guest_fee,
-    image_url = excluded.image_url,
-    unit_quantity = excluded.unit_quantity,
     duration_minutes = excluded.duration_minutes,
     display_order = excluded.display_order,
     status = excluded.status
@@ -1128,7 +835,7 @@ end;
 $$;
 
 grant execute on function public.business_has_package_capability(text, text) to authenticated;
-grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb, integer, integer, integer, numeric, text, integer) to authenticated;
+grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb, integer) to authenticated;
 grant execute on function public.delete_client_service(text) to authenticated;
 grant execute on function public.update_client_availability(text, text, text, jsonb) to authenticated;
 grant execute on function public.upsert_client_blocked_date(text, text, date, text) to authenticated;
