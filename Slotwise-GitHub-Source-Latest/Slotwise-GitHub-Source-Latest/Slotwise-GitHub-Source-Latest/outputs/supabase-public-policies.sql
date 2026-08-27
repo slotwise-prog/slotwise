@@ -1,6 +1,5 @@
 alter table leads enable row level security;
 alter table bookings enable row level security;
-alter table booking_items enable row level security;
 alter table businesses enable row level security;
 alter table business_services enable row level security;
 alter table business_availability enable row level security;
@@ -76,17 +75,6 @@ create policy "Allow authenticated booking reads"
 on bookings for select
 to authenticated
 using (public.can_manage_business(bookings.business_slug));
-
-drop policy if exists "Allow public booking item inserts" on booking_items;
-create policy "Allow public booking item inserts"
-on booking_items for insert
-with check (public.is_active_business(booking_items.business_slug));
-
-drop policy if exists "Allow authenticated booking item reads" on booking_items;
-create policy "Allow authenticated booking item reads"
-on booking_items for select
-to authenticated
-using (public.can_manage_business(booking_items.business_slug));
 
 drop policy if exists "Allow public business reads" on businesses;
 create policy "Allow public business reads"

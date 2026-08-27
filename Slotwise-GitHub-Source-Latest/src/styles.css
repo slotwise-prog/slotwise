@@ -2104,15 +2104,32 @@ h2 {
 }
 
 .brandMark {
-  width: 72px;
-  height: 72px;
-  border: 1px solid rgba(255, 218, 195, 0.9);
-  border-radius: 999px;
+  width: 92px;
+  height: 92px;
+  border: 1px solid rgba(255, 218, 195, 0.85);
+  border-radius: 18px;
+  padding: 10px;
   display: grid;
   place-items: center;
   color: #ffe0c5;
   font-family: Georgia, "Times New Roman", serif;
   font-size: 36px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.brandMark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.brandMark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .brandStory span,
@@ -3393,6 +3410,98 @@ h2 {
   box-shadow: 0 14px 34px rgba(31, 52, 122, 0.08);
 }
 
+.brandingEditor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.brandingCard {
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #dce3f3;
+  background: #f9fbff;
+  display: grid;
+  gap: 12px;
+}
+
+.brandingCardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.brandingCardHeader h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.brandingPreview {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px dashed #c9d4ee;
+  background: linear-gradient(135deg, #eef4ff, #fff5f8);
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+}
+
+.brandingLogoPreview {
+  min-height: 120px;
+}
+
+.brandingLogoPreview img {
+  width: 100%;
+  height: 100%;
+  padding: 18px;
+  object-fit: contain;
+}
+
+.brandingLogoPreview span {
+  font-size: 40px;
+  font-weight: 900;
+  color: #245bff;
+}
+
+.brandingCoverPreview {
+  background-size: cover;
+  background-position: center;
+}
+
+.brandingCoverPreview span {
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: #234;
+  background: rgba(255, 255, 255, 0.82);
+  font-weight: 700;
+}
+
+.brandingActions {
+  display: grid;
+  gap: 10px;
+}
+
+.brandingActions input {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid #dce3f3;
+  padding: 10px 12px;
+  color: #14182f;
+  background: #ffffff;
+  font: inherit;
+}
+
+.brandingActions button {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 0;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0877ff, #6d3cff);
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .smmClientCard {
   padding: 18px;
   margin-bottom: 12px;
@@ -3459,6 +3568,98 @@ h2 {
   padding: 22px;
   display: grid;
   gap: 14px;
+}
+
+.brandingEditor {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.brandingCard {
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #dce3f3;
+  background: #f9fbff;
+  display: grid;
+  gap: 12px;
+}
+
+.brandingCardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.brandingCardHeader h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.brandingPreview {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px dashed #c9d4ee;
+  background: linear-gradient(135deg, #eef4ff, #fff5f8);
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+}
+
+.brandingLogoPreview {
+  min-height: 120px;
+}
+
+.brandingLogoPreview img {
+  width: 100%;
+  height: 100%;
+  padding: 18px;
+  object-fit: contain;
+}
+
+.brandingLogoPreview span {
+  font-size: 40px;
+  font-weight: 900;
+  color: #245bff;
+}
+
+.brandingCoverPreview {
+  background-size: cover;
+  background-position: center;
+}
+
+.brandingCoverPreview span {
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: #234;
+  background: rgba(255, 255, 255, 0.82);
+  font-weight: 700;
+}
+
+.brandingActions {
+  display: grid;
+  gap: 10px;
+}
+
+.brandingActions input {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid #dce3f3;
+  padding: 10px 12px;
+  color: #14182f;
+  background: #ffffff;
+  font: inherit;
+}
+
+.brandingActions button {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 0;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0877ff, #6d3cff);
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .smmFormTop {
@@ -4045,6 +4246,10 @@ h2 {
     grid-template-columns: 1fr;
   }
 
+  .brandingEditor {
+    grid-template-columns: 1fr;
+  }
+
   .smmPackageControl {
     grid-template-columns: 1fr;
   }
@@ -4574,6 +4779,30 @@ button,
 
 .clientDashboardNav h1 {
   font-size: clamp(22px, 2.2vw, 26px);
+}
+
+.clientBrandMark {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  border: 1px solid #dce3f3;
+  background: #f8faff;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.clientBrandMark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.clientBrandMark span {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: #245bff;
 }
 
 .clientDashboardHeader h2 {

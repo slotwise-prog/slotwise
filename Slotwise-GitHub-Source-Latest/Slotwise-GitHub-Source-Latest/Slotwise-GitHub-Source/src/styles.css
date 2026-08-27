@@ -14,7 +14,6 @@
 
 html {
   scroll-behavior: smooth;
-  overflow-x: hidden;
 }
 
 body {
@@ -23,14 +22,6 @@ body {
   font-size: 15px;
   font-weight: 400;
   line-height: 1.55;
-  overflow-x: hidden;
-}
-
-img,
-svg,
-video,
-canvas {
-  max-width: 100%;
 }
 
 a {
@@ -253,8 +244,8 @@ h2 {
 }
 
 .carouselControls button {
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   border: 0;
   border-radius: 8px;
   display: grid;
@@ -276,30 +267,15 @@ h2 {
 }
 
 .carouselDots button {
-  position: relative;
-  width: 44px;
-  height: 44px;
+  width: 9px;
+  height: 9px;
   border: 0;
   border-radius: 999px;
-  background: transparent;
+  background: #cfd8f0;
   cursor: pointer;
 }
 
 .carouselDots button.active {
-  width: 44px;
-}
-
-.carouselDots button::after {
-  content: "";
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  background: #cfd8f0;
-  display: block;
-  margin: 17px auto 0;
-}
-
-.carouselDots button.active::after {
   width: 28px;
   background: linear-gradient(135deg, #0877ff, #6d3cff);
 }
@@ -2293,21 +2269,6 @@ h2 {
   text-align: center;
   cursor: pointer;
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
-  min-width: 0;
-}
-
-.premiumService strong,
-.premiumService small,
-.premiumService p,
-.bookingFormHeader,
-.bookingFormHeader > div,
-.premiumInput span,
-.reservationSummary,
-.selectedDateCard,
-.paymentInstructions,
-.formSuccess {
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .premiumService:hover {
@@ -2340,13 +2301,6 @@ h2 {
   height: 58px;
   display: grid;
   place-items: center;
-}
-
-.serviceIcon img {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  object-fit: cover;
 }
 
 .premiumBookingPage.clinic .serviceIcon {
@@ -2551,12 +2505,6 @@ h2 {
   outline: 0;
 }
 
-.accommodationGuestGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
 .reservationSummary {
   border: 1px solid rgba(15, 118, 110, 0.16);
   border-radius: 14px;
@@ -2587,266 +2535,6 @@ h2 {
   color: #8d5b13;
   font-style: normal;
   font-weight: 800;
-}
-
-.multiServiceCount {
-  margin: 2px 0 0;
-  color: #0f766e;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.bookingLineItems,
-.bookingItemsPanel {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-
-.bookingLineItems div,
-.bookingItemsPanel p {
-  margin: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-}
-
-.bookingLineItems div {
-  padding-top: 8px;
-  border-top: 1px solid rgba(15, 118, 110, 0.12);
-}
-
-.bookingLineItems span,
-.bookingItemsPanel span {
-  color: #334155;
-  font-size: 14px;
-  font-weight: 700;
-  text-transform: none;
-  min-width: 0;
-}
-
-.bookingLineItems small {
-  display: block;
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: none;
-}
-
-.bookingLineItems strong,
-.bookingItemsPanel em {
-  color: #14182f;
-  font-size: 14px;
-  font-style: normal;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.bookingItemsPanel {
-  border: 1px solid rgba(80, 94, 143, 0.14);
-  border-radius: 12px;
-  padding: 14px;
-  background: #f8fbff;
-}
-
-.bookingItemsPanel > strong {
-  color: #14182f;
-}
-
-.bookingItemsTotal {
-  padding-top: 8px;
-  border-top: 1px solid rgba(80, 94, 143, 0.14);
-}
-
-.pricingTierEditor {
-  grid-column: 1 / -1;
-  border: 1px solid rgba(15, 118, 110, 0.16);
-  border-radius: 12px;
-  padding: 12px;
-  background: #f8fffd;
-  display: grid;
-  gap: 10px;
-}
-
-.pricingTierEditor > span {
-  color: #0f766e;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.pricingTierEditor div {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(90px, 1fr)) auto;
-  gap: 8px;
-}
-
-.pricingTierEditor button {
-  min-height: 42px;
-  border: 0;
-  border-radius: 8px;
-  padding: 0 12px;
-  color: #ffffff;
-  background: #0f766e;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.reservationCalendarPanel {
-  display: grid;
-  gap: 18px;
-}
-
-.calendarHeader {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-  align-items: center;
-}
-
-.calendarControls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.calendarControls button {
-  min-height: 40px;
-  border: 1px solid #dfe5f3;
-  border-radius: 8px;
-  padding: 0 12px;
-  color: #17213f;
-  background: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.calendarMetricGrid {
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-}
-
-.reservationCalendarGrid {
-  border: 1px solid rgba(80, 94, 143, 0.14);
-  border-radius: 12px;
-  overflow: hidden;
-  background: #ffffff;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-}
-
-.calendarDayName {
-  min-height: 38px;
-  padding: 10px;
-  color: #66708d;
-  background: #f6f8fe;
-  border-bottom: 1px solid rgba(80, 94, 143, 0.14);
-  font-size: 12px;
-  font-weight: 800;
-  text-align: left;
-}
-
-.calendarDateCell {
-  min-height: 138px;
-  border: 0;
-  border-right: 1px solid rgba(80, 94, 143, 0.12);
-  border-bottom: 1px solid rgba(80, 94, 143, 0.12);
-  padding: 9px;
-  color: #17213f;
-  background: #ffffff;
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.calendarDateCell:nth-child(7n + 7) {
-  border-right: 0;
-}
-
-.calendarDateCell.muted {
-  color: #9aa3b8;
-  background: #fbfcff;
-}
-
-.calendarDateCell.active {
-  box-shadow: inset 0 0 0 2px #245bff;
-}
-
-.calendarDateCell > span {
-  font-family: var(--font-display);
-  font-weight: 700;
-}
-
-.calendarBookingDot {
-  border-left: 3px solid #f59e0b;
-  border-radius: 8px;
-  padding: 6px 7px;
-  background: #fff8e8;
-  display: grid;
-  gap: 2px;
-  font-style: normal;
-}
-
-.calendarBookingDot.confirmed {
-  border-color: #0c8a70;
-  background: #ecfff9;
-}
-
-.calendarBookingDot.completed {
-  border-color: #64748b;
-  background: #f1f5f9;
-}
-
-.calendarBookingDot.cancelled {
-  border-color: #dc2626;
-  background: #fff1f2;
-}
-
-.calendarBookingDot b,
-.calendarBookingDot small {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.calendarBookingDot b {
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.calendarBookingDot small,
-.calendarMore {
-  color: #66708d;
-  font-size: 11px;
-}
-
-.calendarBlocked {
-  width: fit-content;
-  border-radius: 999px;
-  padding: 4px 7px;
-  color: #7c2d12;
-  background: #ffedd5;
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.reservationAgenda {
-  border: 1px solid rgba(80, 94, 143, 0.14);
-  border-radius: 12px;
-  padding: 18px;
-  background: #ffffff;
-  display: grid;
-  gap: 12px;
 }
 
 .premiumConfirmButton {
@@ -4070,18 +3758,6 @@ h2 {
     width: 100%;
   }
 
-  .calendarHeader {
-    grid-template-columns: 1fr;
-  }
-
-  .reservationCalendarGrid {
-    display: none;
-  }
-
-  .reservationAgenda {
-    padding: 14px;
-  }
-
   .ownerActions {
     justify-content: flex-start;
   }
@@ -4143,281 +3819,6 @@ h2 {
 
   .premiumSlotGrid {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 430px) {
-  .bookingPage,
-  .setupPage,
-  .clientDashboardPage,
-  .adminPage {
-    width: 100%;
-    padding-inline: 12px;
-    overflow-x: hidden;
-  }
-
-  .premiumPublicBooking,
-  .premiumBookingPage.home-service .premiumPublicBooking,
-  .premiumBookingPage.tours-travel .premiumPublicBooking {
-    width: 100%;
-    max-width: 100%;
-    grid-template-columns: minmax(0, 1fr);
-    border-radius: 16px;
-  }
-
-  .premiumBrandPanel,
-  .premiumBookingPage.home-service .premiumBrandPanel,
-  .premiumBookingPage.tours-travel .premiumBrandPanel {
-    min-height: auto;
-    padding: 22px;
-  }
-
-  .brandMark {
-    width: 54px;
-    height: 54px;
-    font-size: 26px;
-  }
-
-  .brandStory h1,
-  .premiumBookingPage.home-service .brandStory h1 {
-    max-width: 100%;
-    font-size: clamp(28px, 10vw, 36px);
-    line-height: 1.04;
-  }
-
-  .brandStory p {
-    font-size: 15px;
-    line-height: 1.5;
-  }
-
-  .bookingTrustCard {
-    display: none;
-  }
-
-  .premiumPublicForm {
-    width: 100%;
-    padding: 18px;
-    gap: 22px;
-  }
-
-  .bookingFormHeader {
-    gap: 12px;
-  }
-
-  .bookingFormHeader h2 {
-    font-size: clamp(25px, 8vw, 30px);
-  }
-
-  .bookingFormHeader p {
-    font-size: 14px;
-    line-height: 1.45;
-  }
-
-  .bookingFormHeader > span {
-    width: 42px;
-    height: 42px;
-  }
-
-  .bookingStep {
-    gap: 12px;
-  }
-
-  .bookingStepTitle {
-    gap: 9px;
-  }
-
-  .bookingStepTitle span {
-    width: 28px;
-    height: 28px;
-    flex: 0 0 auto;
-  }
-
-  .bookingStepTitle strong {
-    font-size: 13px;
-    letter-spacing: 0.04em;
-  }
-
-  .premiumServiceGrid,
-  .premiumBookingPage.tours-travel .premiumServiceGrid,
-  .premiumBookingPage.home-service .premiumServiceGrid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-  }
-
-  .premiumService,
-  .premiumBookingPage.tours-travel .premiumService,
-  .premiumBookingPage.home-service .premiumService {
-    min-height: 76px;
-    grid-template-columns: 44px minmax(0, 1fr) auto;
-    place-items: center start;
-    align-content: center;
-    text-align: left;
-    padding: 12px;
-    gap: 9px 11px;
-  }
-
-  .serviceIcon,
-  .premiumBookingPage.home-service .serviceIcon {
-    width: 42px;
-    height: 42px;
-    grid-row: 1 / span 2;
-  }
-
-  .premiumService strong {
-    width: 100%;
-    font-size: 16px;
-    line-height: 1.25;
-  }
-
-  .premiumService small,
-  .premiumBookingPage.tours-travel .premiumService small {
-    grid-column: 2 / -1;
-    font-size: 13px;
-    line-height: 1.3;
-  }
-
-  .premiumService .serviceDescription {
-    display: none;
-  }
-
-  .premiumService em {
-    position: static;
-    width: 28px;
-    height: 28px;
-    grid-column: 3;
-    grid-row: 1;
-  }
-
-  .timeAndDate {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
-  }
-
-  .premiumSlotGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .premiumSlot {
-    min-height: 48px;
-    padding: 11px 10px;
-    font-size: 15px;
-  }
-
-  .selectedDateCard {
-    min-height: 132px;
-    padding: 16px;
-  }
-
-  .selectedDateCard strong {
-    font-size: 20px;
-  }
-
-  .selectedDateCard input {
-    min-height: 48px;
-  }
-
-  .premiumInput {
-    min-height: 58px;
-    padding: 10px 12px;
-    align-items: flex-start;
-  }
-
-  .premiumInput input,
-  .premiumInput textarea,
-  .paymentDetailForm input,
-  .paymentDetailForm select,
-  .paymentDetailForm textarea {
-    font-size: 16px;
-  }
-
-  .guestStepper {
-    padding: 14px;
-  }
-
-  .accommodationGuestGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .guestStepper > span {
-    font-size: 13px;
-  }
-
-  .guestStepper div {
-    width: 100%;
-    grid-template-columns: 54px minmax(0, 1fr) 54px;
-    gap: 10px;
-  }
-
-  .guestStepper button {
-    min-width: 54px;
-    min-height: 50px;
-    font-size: 22px;
-  }
-
-  .guestStepper input {
-    min-height: 50px;
-    font-size: 18px;
-  }
-
-  .reservationSummary {
-    padding: 14px;
-  }
-
-  .reservationSummary strong {
-    font-size: 17px;
-  }
-
-  .reservationSummary p,
-  .reservationSummary em {
-    font-size: 14px;
-    line-height: 1.45;
-  }
-
-  .premiumConfirmButton {
-    min-height: 52px;
-    padding: 13px 16px;
-    font-size: 15px;
-  }
-
-  .premiumSuccess,
-  .paymentInstructions {
-    padding: 14px;
-  }
-
-  .premiumSuccess dl,
-  .paymentMethodList {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .bookingSuccessActions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .bookingSuccessActions button,
-  .bookingSuccessActions a,
-  .paymentInstructions > button,
-  .paymentDetailForm button {
-    min-height: 48px;
-    width: 100%;
-  }
-}
-
-@media (max-width: 340px) {
-  .premiumSlotGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .premiumService,
-  .premiumBookingPage.tours-travel .premiumService,
-  .premiumBookingPage.home-service .premiumService {
-    grid-template-columns: 40px minmax(0, 1fr);
-  }
-
-  .premiumService em {
-    grid-column: 1;
-    grid-row: 2;
   }
 }
 
@@ -4626,223 +4027,6 @@ button,
   line-height: 1.35;
 }
 
-.paymentInstructions,
-.paymentDashboardPanel {
-  margin-top: 18px;
-  padding: 18px;
-  border: 1px solid rgba(109, 40, 62, 0.14);
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(255, 246, 248, 0.96), rgba(255, 255, 255, 0.96));
-  box-shadow: 0 14px 32px rgba(91, 35, 52, 0.08);
-}
-
-.paymentInstructions > span {
-  display: inline-flex;
-  margin-bottom: 8px;
-  color: var(--booking-primary, #6d283e);
-  font-weight: 700;
-}
-
-.paymentInstructions p,
-.paymentDashboardPanel p {
-  margin: 6px 0;
-  line-height: 1.45;
-}
-
-.paymentMethodList {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
-  margin: 14px 0;
-}
-
-.paymentMethodList article,
-.paymentMethodCards article {
-  padding: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.78);
-}
-
-.paymentMethodList strong,
-.paymentMethodCards strong {
-  display: block;
-  color: #151934;
-}
-
-.paymentMethodList small,
-.paymentMethodCards small {
-  display: block;
-  margin-top: 3px;
-  color: #59627c;
-}
-
-.paymentInstructions > button,
-.paymentDetailForm button {
-  border: 0;
-  border-radius: 12px;
-  padding: 12px 16px;
-  color: #fff;
-  background: var(--booking-primary, #6d283e);
-}
-
-.paymentDetailForm {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.paymentDetailForm input,
-.paymentDetailForm select,
-.paymentDetailForm textarea {
-  width: 100%;
-  border: 1px solid rgba(109, 40, 62, 0.16);
-  border-radius: 12px;
-  padding: 11px 12px;
-  background: #fff;
-}
-
-.paymentDetailForm p {
-  color: #80515e;
-  font-size: 13px;
-}
-
-.paymentSettingsForm label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 12px;
-  background: #fff;
-}
-
-.paymentMethodCards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-  margin-top: 14px;
-}
-
-.paymentMethodCards p {
-  margin: 8px 0 0;
-  color: #4d5874;
-  font-size: 13px;
-}
-
-.paymentDashboardPanel {
-  background: #fff8fb;
-}
-
-.paymentDashboardPanel .clientBookingActions {
-  margin-top: 12px;
-}
-
-.structuredServiceManager {
-  display: grid;
-  gap: 14px;
-  margin: 16px 0;
-}
-
-.structuredServiceTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.structuredServiceTop h3 {
-  margin: 2px 0 0;
-}
-
-.structuredServiceTop button,
-.structuredServiceActions button {
-  border: 1px solid rgba(37, 99, 235, 0.16);
-  border-radius: 12px;
-  padding: 10px 13px;
-  color: #1f3fb7;
-  background: #eef4ff;
-}
-
-.structuredServiceList {
-  display: grid;
-  gap: 10px;
-  max-height: min(72vh, 780px);
-  overflow: auto;
-  padding-right: 4px;
-}
-
-.structuredServiceCard {
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 12px 24px rgba(35, 42, 68, 0.06);
-}
-
-.structuredServiceSummary {
-  width: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 10px;
-  border: 0;
-  padding: 14px;
-  text-align: left;
-  color: #151934;
-  background: transparent;
-}
-
-.structuredServiceSummary strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.structuredServiceSummary span,
-.structuredServiceSummary em {
-  color: #59627c;
-  font-size: 12px;
-  font-style: normal;
-}
-
-.structuredServiceCard.expanded .structuredServiceSummary {
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-.structuredServiceFields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  padding: 14px;
-}
-
-.structuredServiceFields input,
-.structuredServiceFields select {
-  width: 100%;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 12px;
-  padding: 11px 12px;
-  background: #fff;
-}
-
-.structuredServiceActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  grid-column: 1 / -1;
-}
-
-.serviceTierEditor {
-  grid-column: 1 / -1;
-}
-
-.serviceTierEditor > div {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
-  gap: 8px;
-}
-
 @media (max-width: 520px) {
   h1 {
     font-size: clamp(30px, 9vw, 42px);
@@ -4857,19 +4041,5 @@ button,
 
   body {
     font-size: 14px;
-  }
-
-  .structuredServiceTop,
-  .structuredServiceSummary {
-    grid-template-columns: 1fr;
-  }
-
-  .structuredServiceTop {
-    align-items: stretch;
-  }
-
-  .structuredServiceFields,
-  .serviceTierEditor > div {
-    grid-template-columns: 1fr;
   }
 }
