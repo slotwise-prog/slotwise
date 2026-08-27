@@ -108,6 +108,8 @@ const packageCapabilityMap = {
     customers: false,
     basicStats: false,
     blockedDates: false,
+    reservationCalendar: false,
+    paymentVerification: false,
     customerHistory: false,
     enhancedStats: false,
   },
@@ -117,6 +119,8 @@ const packageCapabilityMap = {
     customers: true,
     basicStats: true,
     blockedDates: false,
+    reservationCalendar: false,
+    paymentVerification: false,
     customerHistory: false,
     enhancedStats: false,
   },
@@ -126,6 +130,8 @@ const packageCapabilityMap = {
     customers: true,
     basicStats: true,
     blockedDates: true,
+    reservationCalendar: true,
+    paymentVerification: true,
     customerHistory: true,
     enhancedStats: true,
   },
@@ -145,6 +151,38 @@ function formatBookingWeekday(dateValue) {
   if (!dateValue) return "";
   const date = new Date(`${dateValue}T00:00:00`);
   return date.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+function getMonthKey(date) {
+  return date.toISOString().slice(0, 7);
+}
+
+function getDateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getInitialsName(name = "") {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return name || "Customer";
+  return `${parts[0]} ${parts[1].charAt(0)}.`;
+}
+
+function buildMonthDays(monthDate) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const first = new Date(year, month, 1);
+  const start = new Date(first);
+  start.setDate(first.getDate() - first.getDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return {
+      date,
+      key: getDateKey(date),
+      inMonth: date.getMonth() === month,
+      day: date.getDate(),
+    };
+  });
 }
 
 function hasKeyword(text, keywords) {
@@ -326,12 +364,98 @@ function normalizeBookingTemplate(value) {
 
 function normalizePricingUnit(value, fallback = "FLAT") {
   const nextUnit = (value || fallback || "FLAT").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-  return ["FLAT", "PER_PAX", "PER_PERSON", "PER_GROUP"].includes(nextUnit) ? nextUnit : "FLAT";
+  return ["FLAT", "PER_PAX", "PER_PERSON", "PER_GROUP", "PER_TRIP", "PER_DAY", "FIXED"].includes(nextUnit) ? nextUnit : "FLAT";
+}
+
+function normalizePricingType(value, fallback = "FIXED") {
+  const nextType = (value || fallback || "FIXED").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+  return ["PER_PAX", "GROUP_TIER", "PER_TRIP", "PER_DAY", "FIXED"].includes(nextType) ? nextType : "FIXED";
+}
+
+function normalizePricingTiers(value) {
+  const tiers = Array.isArray(value) ? value : [];
+  return tiers
+    .map((tier) => ({
+      minGuests: Number(tier.minGuests ?? tier.min_guests),
+      maxGuests: Number(tier.maxGuests ?? tier.max_guests),
+      price: Number(tier.price),
+    }))
+    .filter((tier) => tier.minGuests > 0 && tier.maxGuests >= tier.minGuests && tier.price >= 0)
+    .sort((a, b) => a.minGuests - b.minGuests);
+}
+
+function validatePricingTiers(tiers) {
+  const normalized = normalizePricingTiers(tiers);
+  for (let index = 1; index < normalized.length; index += 1) {
+    if (normalized[index].minGuests <= normalized[index - 1].maxGuests) {
+      return { ok: false, message: "Pricing tiers cannot overlap." };
+    }
+  }
+  return { ok: true, tiers: normalized };
+}
+
+function getPricingForGuests(serviceDetail, guestCount) {
+  const pricingType = normalizePricingType(serviceDetail.pricingType, serviceDetail.pricingUnit);
+  const price = serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
+  if (pricingType === "GROUP_TIER") {
+    const selectedTier = normalizePricingTiers(serviceDetail.pricingTiers).find((tier) => (
+      guestCount >= tier.minGuests && guestCount <= tier.maxGuests
+    ));
+    return selectedTier
+      ? { pricingType, unitPrice: selectedTier.price, selectedTier, estimatedTotal: selectedTier.price, totalAvailable: true }
+      : { pricingType, unitPrice: null, selectedTier: null, estimatedTotal: null, totalAvailable: false };
+  }
+  if (pricingType === "PER_PAX") {
+    return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price === null ? null : price * guestCount, totalAvailable: price !== null };
+  }
+  if (pricingType === "PER_DAY") {
+    return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: null, totalAvailable: false };
+  }
+  return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price, totalAvailable: price !== null };
+}
+
+function normalizePaymentRequirement(value) {
+  const next = (value || "NO_PAYMENT_REQUIRED").toUpperCase();
+  return ["NO_PAYMENT_REQUIRED", "DEPOSIT_REQUIRED", "FULL_PAYMENT_REQUIRED"].includes(next) ? next : "NO_PAYMENT_REQUIRED";
+}
+
+function getRequiredPaymentAmount(settings = {}, estimatedTotal = null) {
+  const requirement = normalizePaymentRequirement(settings.requirement_type);
+  if (!settings.enabled || requirement === "NO_PAYMENT_REQUIRED") return null;
+  if (requirement === "FULL_PAYMENT_REQUIRED") return estimatedTotal;
+  if ((settings.deposit_type || "FIXED_AMOUNT") === "PERCENTAGE" && estimatedTotal !== null) {
+    return Math.round(estimatedTotal * (Number(settings.deposit_value || 0) / 100));
+  }
+  return Number(settings.deposit_value || 0);
+}
+
+function maskAccountNumber(value = "") {
+  const clean = String(value);
+  if (clean.length <= 6) return clean;
+  return `${clean.slice(0, 4)}***${clean.slice(-4)}`;
 }
 
 function formatPeso(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return "Rate on request";
   return `PHP ${Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+function formatServicePriceLabel(detail = {}, fallbackPricingType = "FIXED") {
+  const pricingType = normalizePricingType(detail.pricingType ?? detail.pricing_type, detail.pricingUnit ?? detail.pricing_unit ?? fallbackPricingType);
+  const price = detail.price;
+  const base = formatPeso(price);
+  const tiers = normalizePricingTiers(detail.pricingTiers ?? detail.pricing_tiers);
+  if (pricingType === "GROUP_TIER" && tiers.length) {
+    const prices = tiers.map((tier) => tier.price);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    return minPrice === maxPrice ? `${formatPeso(minPrice)} / group` : `${formatPeso(minPrice)} - ${formatPeso(maxPrice)}`;
+  }
+  if (base === "Rate on request") return base;
+  if (pricingType === "PER_PAX") return `${base} / pax`;
+  if (pricingType === "PER_TRIP") return `${base} / trip`;
+  if (pricingType === "PER_DAY") return `${base} / day`;
+  return base;
 }
 
 function getPackageCapabilities(value, featureFlags = {}) {
@@ -477,7 +601,7 @@ function setupRequestToDatabase(setup) {
   };
 }
 
-function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null) {
+function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null, paymentSettingsRow = null, paymentMethodRows = []) {
   const bookingTemplate = normalizeBookingTemplate(row.booking_template);
   const tone = resolveBusinessTone({
     business: row.business,
@@ -496,6 +620,8 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
       durationMinutes: service.duration_minutes,
       price: service.price,
       pricingUnit: normalizePricingUnit(service.pricing_unit),
+      pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
+      pricingTiers: normalizePricingTiers(service.pricing_tiers),
       description: service.description || "",
       displayOrder: service.display_order || 0,
       status: service.status,
@@ -530,6 +656,8 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     serviceDetails: normalizedServices.serviceDetails,
     services: normalizedServices.services,
     forms: tone === "home-service" ? ["Service concern"] : ["Notes before the appointment"],
+    paymentSettings: paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 },
+    paymentMethods: paymentMethodRows || [],
   };
 }
 
@@ -626,6 +754,8 @@ function normalizeBusinessConfig(business) {
     services: normalizedServices.services,
     serviceDetails: normalizedServices.serviceDetails,
     forms: business.forms?.length ? business.forms : [tone === "home-service" ? "Service concern" : "Notes before the appointment"],
+    paymentSettings: business.paymentSettings || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 },
+    paymentMethods: business.paymentMethods || [],
   };
 }
 
@@ -645,6 +775,8 @@ function parseServiceDetails(value) {
         displayOrder: index,
         status: "Active",
         pricingUnit: "FLAT",
+        pricingType: "FIXED",
+        pricingTiers: [],
       };
 
       details.forEach((detail) => {
@@ -653,7 +785,27 @@ function parseServiceDetails(value) {
         if (priceMatch) service.price = Number(priceMatch[1].replace(/,/g, ""));
         if (durationMatch) service.durationMinutes = Number(durationMatch[1]);
         if (/(per\s*pax|\/\s*pax|per\s*person|\/\s*person)/i.test(detail)) service.pricingUnit = "PER_PAX";
+        if (/(per\s*pax|\/\s*pax|per\s*person|\/\s*person)/i.test(detail)) service.pricingType = "PER_PAX";
         if (/(per\s*group|\/\s*group)/i.test(detail)) service.pricingUnit = "PER_GROUP";
+        if (/(per\s*trip|\/\s*trip)/i.test(detail)) service.pricingType = "PER_TRIP";
+        if (/(per\s*day|\/\s*day)/i.test(detail)) service.pricingType = "PER_DAY";
+        if (/(fixed|package price)/i.test(detail)) service.pricingType = "FIXED";
+        if (/group\s*tier|tier/i.test(detail)) {
+          service.pricingType = "GROUP_TIER";
+          service.pricingUnit = "PER_GROUP";
+          service.pricingTiers = detail
+            .replace(/group\s*tier\s*:/i, "")
+            .split(",")
+            .map((tierText) => {
+              const tierMatch = tierText.match(/(\d+)\s*-\s*(\d+)\s*=\s*(?:php|p)?\s*([\d,.]+)/i);
+              return tierMatch ? {
+                minGuests: Number(tierMatch[1]),
+                maxGuests: Number(tierMatch[2]),
+                price: Number(tierMatch[3].replace(/,/g, "")),
+              } : null;
+            })
+            .filter(Boolean);
+        }
         if (!priceMatch && !durationMatch) {
           service.description = service.description ? `${service.description}. ${detail}` : detail;
         }
@@ -663,7 +815,7 @@ function parseServiceDetails(value) {
     });
 
   return parsed.length > 0 ? parsed : [
-    { name: "Consultation", description: "", price: null, durationMinutes: 30, displayOrder: 0, status: "Active", pricingUnit: "FLAT" },
+    { name: "Consultation", description: "", price: null, durationMinutes: 30, displayOrder: 0, status: "Active", pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [] },
   ];
 }
 
@@ -699,6 +851,8 @@ function setupToServiceRows(setup, slug, requestId) {
     duration_minutes: service.durationMinutes,
     price: service.price,
     pricing_unit: normalizePricingUnit(service.pricingUnit),
+    pricing_type: normalizePricingType(service.pricingType, service.pricingUnit),
+    pricing_tiers: normalizePricingTiers(service.pricingTiers),
     description: service.description,
     display_order: service.displayOrder,
     status: service.status,
@@ -836,9 +990,9 @@ const templates = [
     stat: "Sample travel page",
     services: ["Cebu City Tour", "Island Hopping Package", "Airport Transfer"],
     serviceDetails: [
-      { name: "Cebu City Tour", description: "Private city tour with pickup", price: 999, pricingUnit: "PER_PAX", durationMinutes: 480, displayOrder: 0, status: "Active" },
-      { name: "Island Hopping Package", description: "Boat day tour with guide coordination", price: 1500, pricingUnit: "PER_PAX", durationMinutes: 540, displayOrder: 1, status: "Active" },
-      { name: "Airport Transfer", description: "Point-to-point pickup or drop-off", price: 1200, pricingUnit: "PER_GROUP", durationMinutes: 90, displayOrder: 2, status: "Active" },
+      { name: "Cebu City Tour", description: "Private city tour with pickup", price: 999, pricingUnit: "PER_PAX", pricingType: "PER_PAX", pricingTiers: [], durationMinutes: 480, displayOrder: 0, status: "Active" },
+      { name: "Island Hopping Package", description: "Boat day tour with guide coordination", price: 1500, pricingUnit: "PER_GROUP", pricingType: "GROUP_TIER", pricingTiers: [{ minGuests: 1, maxGuests: 2, price: 3500 }, { minGuests: 3, maxGuests: 4, price: 4500 }, { minGuests: 5, maxGuests: 6, price: 5500 }, { minGuests: 7, maxGuests: 10, price: 7500 }], durationMinutes: 540, displayOrder: 1, status: "Active" },
+      { name: "Airport Transfer", description: "Point-to-point pickup or drop-off", price: 1200, pricingUnit: "PER_TRIP", pricingType: "PER_TRIP", pricingTiers: [], durationMinutes: 90, displayOrder: 2, status: "Active" },
     ],
     forms: ["Pickup location", "Guest count", "Special requests"],
   },
@@ -961,11 +1115,19 @@ function App() {
     const blockedDatesQuery = scopeSlug
       ? `?select=id,business_slug,blocked_date,active&business_slug=eq.${encodeURIComponent(scopeSlug)}&active=eq.true&order=blocked_date.asc`
       : "?select=id,business_slug,blocked_date,active&active=eq.true&order=blocked_date.asc";
-    const [onlineBusinesses, onlineServices, onlineAvailability, onlineBlockedDates] = await Promise.all([
+    const paymentSettingsQuery = scopeSlug
+      ? `?select=*&business_slug=eq.${encodeURIComponent(scopeSlug)}`
+      : "?select=*";
+    const paymentMethodsQuery = scopeSlug
+      ? `?select=*&business_slug=eq.${encodeURIComponent(scopeSlug)}&active=eq.true`
+      : "?select=*&active=eq.true";
+    const [onlineBusinesses, onlineServices, onlineAvailability, onlineBlockedDates, onlinePaymentSettings, onlinePaymentMethods] = await Promise.all([
       supabaseRequest("businesses", { query: businessQuery }),
       supabaseRequest("business_services", { query: serviceQuery }),
       supabaseRequest("business_availability", { query: availabilityQuery }),
       supabaseRequest("business_blocked_dates", { query: blockedDatesQuery }).catch(() => []),
+      supabaseRequest("business_payment_settings", { query: paymentSettingsQuery }).catch(() => []),
+      supabaseRequest("business_payment_methods", { query: paymentMethodsQuery }).catch(() => []),
     ]);
     const servicesByBusiness = (onlineServices || []).reduce((grouped, service) => {
       grouped[service.business_slug] = grouped[service.business_slug] || [];
@@ -981,6 +1143,15 @@ function App() {
       grouped[blockedDate.business_slug].push(blockedDate);
       return grouped;
     }, {});
+    const paymentSettingsByBusiness = (onlinePaymentSettings || []).reduce((grouped, item) => {
+      grouped[item.business_slug] = item;
+      return grouped;
+    }, {});
+    const paymentMethodsByBusiness = (onlinePaymentMethods || []).reduce((grouped, item) => {
+      grouped[item.business_slug] = grouped[item.business_slug] || [];
+      grouped[item.business_slug].push(item);
+      return grouped;
+    }, {});
     const normalized = (onlineBusinesses || []).map((business) => (
       normalizeBusinessConfig(normalizeDatabaseBusiness(
         business,
@@ -988,7 +1159,9 @@ function App() {
         {
           ...(availabilityByBusiness[business.slug] || {}),
           blocked_dates: blockedDatesByBusiness[business.slug] || [],
-        }
+        },
+        paymentSettingsByBusiness[business.slug] || null,
+        paymentMethodsByBusiness[business.slug] || [],
       ))
     ));
 
@@ -1231,6 +1404,26 @@ function App() {
     }, accessToken);
   };
 
+  const submitPublicPayment = async (payment) => {
+    return supabaseRpcRequest("submit_public_booking_payment", payment);
+  };
+
+  const saveClientPaymentSettings = async (settingsData, accessToken = "") => {
+    return supabaseRpcRequest("upsert_client_payment_settings", settingsData, accessToken);
+  };
+
+  const saveClientPaymentMethod = async (methodData, accessToken = "") => {
+    return supabaseRpcRequest("upsert_client_payment_method", methodData, accessToken);
+  };
+
+  const verifyClientPayment = async (paymentId, accessToken = "") => {
+    return supabaseRpcRequest("verify_booking_payment", { payment_id_value: paymentId }, accessToken);
+  };
+
+  const rejectClientPayment = async (paymentId, rejectionNote, accessToken = "") => {
+    return supabaseRpcRequest("reject_booking_payment", { payment_id_value: paymentId, rejection_note_value: rejectionNote }, accessToken);
+  };
+
   const saveBooking = async (booking) => {
     let nextBooking = { ...booking, id: `SW-${Date.now().toString().slice(-5)}`, status: booking.status || "Confirmed" };
     try {
@@ -1259,7 +1452,7 @@ function App() {
   };
 
   if (page === "booking") {
-    return <BookingPrototype business={selectedBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} />;
+    return <BookingPrototype business={selectedBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} />;
   }
 
   if (page === "owner") {
@@ -1294,7 +1487,7 @@ function App() {
     }
 
     return publicBusiness ? (
-      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} />
+      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} />
     ) : (
       <BusinessNotFoundPage slug={publicBusinessSlug} onBack={() => setPage("home")} onSetup={() => setPage("setup")} />
     );
@@ -1328,6 +1521,10 @@ function App() {
         onSaveAvailability={saveClientAvailability}
         onSaveBlockedDate={saveClientBlockedDate}
         onSetBlockedDateActive={setClientBlockedDateActive}
+        onSavePaymentSettings={saveClientPaymentSettings}
+        onSavePaymentMethod={saveClientPaymentMethod}
+        onVerifyPayment={verifyClientPayment}
+        onRejectPayment={rejectClientPayment}
       />
     );
   }
@@ -1751,7 +1948,7 @@ function Feature({ icon, title, text }) {
   );
 }
 
-function BookingPrototype({ business, onBack, onSaveBooking }) {
+function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment }) {
   const [pickedService, setPickedService] = useState(business.services[0]);
   const availableSlots = business.availability?.slots?.length ? business.availability.slots : slots;
   const [pickedSlot, setPickedSlot] = useState(availableSlots[1] || availableSlots[0] || "10:15 AM");
@@ -1760,6 +1957,8 @@ function BookingPrototype({ business, onBack, onSaveBooking }) {
   const [confirmed, setConfirmed] = useState(null);
   const [bookingError, setBookingError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState("");
   const flags = { ...defaultFeatureFlags, ...(business.featureFlags || {}) };
   const clientStatus = (business.status || "ACTIVE").toUpperCase();
   const isProductionActive = clientStatus === "ACTIVE";
@@ -1798,29 +1997,28 @@ function BookingPrototype({ business, onBack, onSaveBooking }) {
   const noteLabel = isToursTravel ? "Special Requests / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
   const notePlaceholder = isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
   const submitLabel = isToursTravel ? "Submit Reservation Request" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
+  const paymentSettings = business.paymentSettings || {};
+  const paymentMethods = (business.paymentMethods || []).filter((method) => method.active !== false);
   const getServiceDetail = (serviceName) => {
     const detail = business.serviceDetails?.find((item) => item.name === serviceName);
     return {
       durationMinutes: detail?.durationMinutes || 60,
       price: detail?.price ?? 350,
       pricingUnit: normalizePricingUnit(detail?.pricingUnit, isToursTravel ? "PER_PAX" : "FLAT"),
+      pricingType: normalizePricingType(detail?.pricingType, isToursTravel ? detail?.pricingUnit || "PER_PAX" : "FIXED"),
+      pricingTiers: normalizePricingTiers(detail?.pricingTiers),
       description: detail?.description || "",
     };
   };
   const pickedServiceDetail = getServiceDetail(pickedService);
+  const pickedPricing = getPricingForGuests(pickedServiceDetail, guestCount);
   const pickedPricingUnit = normalizePricingUnit(pickedServiceDetail.pricingUnit, isToursTravel ? "PER_PAX" : "FLAT");
-  const pricedPerGuest = ["PER_PAX", "PER_PERSON"].includes(pickedPricingUnit);
-  const estimatedTotal = isToursTravel && pickedServiceDetail.price !== null
-    ? pickedServiceDetail.price * (pricedPerGuest ? guestCount : 1)
-    : null;
+  const estimatedTotal = isToursTravel ? pickedPricing.estimatedTotal : Number(pickedServiceDetail.price || 0);
   const servicePriceLabel = (detail) => {
-    const unit = normalizePricingUnit(detail.pricingUnit, isToursTravel ? "PER_PAX" : "FLAT");
-    const base = formatPeso(detail.price);
-    if (base === "Rate on request") return base;
-    if (unit === "PER_PAX" || unit === "PER_PERSON") return `${base} / pax`;
-    if (unit === "PER_GROUP") return `${base} / group`;
-    return base;
+    return formatServicePriceLabel(detail, isToursTravel ? "PER_PAX" : "FIXED");
   };
+  const requiredPaymentAmount = getRequiredPaymentAmount(paymentSettings, estimatedTotal);
+  const paymentRequired = isProductionActive && paymentSettings.enabled && requiredPaymentAmount !== null && paymentMethods.length > 0;
 
   useEffect(() => {
     setPickedService(business.services[0]);
@@ -1829,6 +2027,8 @@ function BookingPrototype({ business, onBack, onSaveBooking }) {
     setGuestCount(2);
     setConfirmed(null);
     setBookingError("");
+    setPaymentOpen(false);
+    setPaymentStatus("");
   }, [business.slug]);
 
   const submitBooking = async (event) => {
@@ -1854,7 +2054,10 @@ function BookingPrototype({ business, onBack, onSaveBooking }) {
         booking_template: "TOURS_TRAVEL",
         guest_count: currentGuestCount,
         pricing_unit: pickedPricingUnit,
-        estimated_total: estimatedTotal,
+        pricing_type: pickedPricing.pricingType,
+        unit_price: pickedPricing.unitPrice,
+        selected_tier: pickedPricing.selectedTier,
+        estimated_total: pickedPricing.estimatedTotal,
         pickup_location: pickupLocation,
       } : undefined,
     };
@@ -1868,11 +2071,24 @@ function BookingPrototype({ business, onBack, onSaveBooking }) {
       setSubmitting(false);
       return;
     }
-    try {
-      if (isProductionActive) {
-        await onSaveBooking(booking);
+    if (isToursTravel) {
+      const submittedPricing = getPricingForGuests(pickedServiceDetail, currentGuestCount);
+      if (submittedPricing.pricingType === "GROUP_TIER" && !submittedPricing.totalAvailable) {
+        setBookingError("Please contact the business for availability and pricing for this group size.");
+        setSubmitting(false);
+        return;
       }
-      setConfirmed(booking);
+      booking.metadata = {
+        ...booking.metadata,
+        pricing_type: submittedPricing.pricingType,
+        unit_price: submittedPricing.unitPrice,
+        selected_tier: submittedPricing.selectedTier,
+        estimated_total: submittedPricing.estimatedTotal,
+      };
+    }
+    try {
+      const savedBooking = isProductionActive ? await onSaveBooking(booking) : booking;
+      setConfirmed(savedBooking);
       bookingForm.reset();
       setGuestCount(2);
     } catch (error) {
@@ -1880,6 +2096,28 @@ function BookingPrototype({ business, onBack, onSaveBooking }) {
       setBookingError("Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const submitPaymentDetails = async (event) => {
+    event.preventDefault();
+    if (!confirmed?.id) return;
+    const data = new FormData(event.currentTarget);
+    setPaymentStatus("");
+    try {
+      await onSubmitPayment({
+        booking_id_value: confirmed.id,
+        business_slug_value: business.slug,
+        payment_method_value: data.get("paymentMethod"),
+        amount_submitted_value: Number(data.get("amountSubmitted") || 0),
+        reference_number_value: data.get("referenceNumber"),
+        customer_note_value: data.get("paymentNote") || "",
+      });
+      setPaymentStatus("Payment details submitted. Payment is pending business verification.");
+      setPaymentOpen(false);
+    } catch (error) {
+      console.error("Payment detail submission failed", error);
+      setPaymentStatus("Payment details could not be submitted. Please contact the business.");
     }
   };
 
@@ -2010,7 +2248,9 @@ function BookingPrototype({ business, onBack, onSaveBooking }) {
               <span>Reservation Summary</span>
               <strong>{pickedService}</strong>
               <p>{selectedDateLabel} {flags.requireTime ? `at ${pickedSlot}` : ""} • {guestCount} guest{guestCount > 1 ? "s" : ""}</p>
-              {flags.showPrices && <em>Estimated total: {estimatedTotal === null ? "Rate on request" : formatPeso(estimatedTotal)}</em>}
+              {pickedPricing.pricingType === "GROUP_TIER" && !pickedPricing.totalAvailable && <em>Please contact the business for this group size.</em>}
+              {flags.showPrices && pickedPricing.pricingType !== "PER_DAY" && pickedPricing.totalAvailable && <em>Estimated total: {formatPeso(estimatedTotal)}</em>}
+              {flags.showPrices && pickedPricing.pricingType === "PER_DAY" && <em>Rate: {servicePriceLabel(pickedServiceDetail)}</em>}
             </div>
           )}
 
@@ -2034,7 +2274,9 @@ function BookingPrototype({ business, onBack, onSaveBooking }) {
                 <div><dt>{isToursTravel ? "Travel Date" : "Date"}</dt><dd>{confirmed.booking_date ? formatBookingDate(confirmed.booking_date) : "Not required"}</dd></div>
                 <div><dt>{isToursTravel ? "Preferred Time" : "Time"}</dt><dd>{confirmed.slot}</dd></div>
                 {isToursTravel && <div><dt>Guests</dt><dd>{confirmed.metadata?.guest_count || guestCount}</dd></div>}
-                {isToursTravel && flags.showPrices && <div><dt>Estimated Total</dt><dd>{confirmed.metadata?.estimated_total ? formatPeso(confirmed.metadata.estimated_total) : "Rate on request"}</dd></div>}
+                {isToursTravel && <div><dt>Pricing Type</dt><dd>{confirmed.metadata?.pricing_type || "FIXED"}</dd></div>}
+                {isToursTravel && confirmed.metadata?.selected_tier && <div><dt>Selected Group Rate</dt><dd>{confirmed.metadata.selected_tier.minGuests}-{confirmed.metadata.selected_tier.maxGuests} pax - {formatPeso(confirmed.metadata.selected_tier.price)}</dd></div>}
+                {isToursTravel && flags.showPrices && <div><dt>Estimated Total</dt><dd>{confirmed.metadata?.estimated_total ? formatPeso(confirmed.metadata.estimated_total) : servicePriceLabel(pickedServiceDetail)}</dd></div>}
                 <div><dt>Name</dt><dd>{confirmed.customer}</dd></div>
                 <div><dt>Reference</dt><dd>{confirmed.id || "Request received"}</dd></div>
               </dl>
@@ -2042,6 +2284,37 @@ function BookingPrototype({ business, onBack, onSaveBooking }) {
                 <button type="button" onClick={() => setConfirmed(null)}>Book Another</button>
                 {business.messengerLink && <a href={business.messengerLink} target="_blank" rel="noreferrer">Contact Business</a>}
               </div>
+              {paymentRequired && (
+                <div className="paymentInstructions">
+                  <span>{isToursTravel ? "Reservation Deposit" : "Payment Required"}</span>
+                  <p><strong>Estimated Total:</strong> {estimatedTotal === null ? "Rate on request" : formatPeso(estimatedTotal)}</p>
+                  <p><strong>Required {normalizePaymentRequirement(paymentSettings.requirement_type) === "DEPOSIT_REQUIRED" ? "Deposit" : "Payment"}:</strong> {formatPeso(requiredPaymentAmount)}</p>
+                  <div className="paymentMethodList">
+                    {paymentMethods.map((method) => (
+                      <article key={method.id}>
+                        <strong>{method.method_name || method.method_type}</strong>
+                        <small>{method.account_name}</small>
+                        <small>{method.account_number}</small>
+                        {method.instructions && <p>{method.instructions}</p>}
+                      </article>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => setPaymentOpen((current) => !current)}>I've Made My Payment</button>
+                  {paymentOpen && (
+                    <form className="paymentDetailForm" onSubmit={submitPaymentDetails}>
+                      <select name="paymentMethod" required>
+                        {paymentMethods.map((method) => <option value={method.method_type} key={method.id}>{method.method_name || method.method_type}</option>)}
+                      </select>
+                      <input name="amountSubmitted" type="number" min="0" step="0.01" placeholder="Amount sent" required />
+                      <input name="referenceNumber" placeholder="Payment reference number" required />
+                      <textarea name="paymentNote" placeholder="Optional note" rows="2" />
+                      <p>Submitting payment details does not automatically confirm your reservation. Payment will be verified by the business.</p>
+                      <button type="submit">Submit Payment Details</button>
+                    </form>
+                  )}
+                </div>
+              )}
+              {paymentStatus && <span>{paymentStatus}</span>}
             </div>
           )}
         </form>
@@ -2517,13 +2790,23 @@ function emptyAdminClient() {
 function businessToAdminClient(business) {
   const serviceText = business.serviceDetails?.length
     ? business.serviceDetails.map((service) => {
+      const pricingType = normalizePricingType(service.pricingType, service.pricingUnit);
       const pricingUnit = normalizePricingUnit(service.pricingUnit);
-      const unitText = pricingUnit === "PER_PAX" || pricingUnit === "PER_PERSON"
+      const tierText = pricingType === "GROUP_TIER" && normalizePricingTiers(service.pricingTiers).length
+        ? ` - group tier: ${normalizePricingTiers(service.pricingTiers).map((tier) => `${tier.minGuests}-${tier.maxGuests}=${tier.price}`).join(", ")}`
+        : "";
+      const unitText = pricingType === "GROUP_TIER"
+        ? ""
+        : pricingUnit === "PER_PAX" || pricingUnit === "PER_PERSON"
         ? " - per pax"
-        : pricingUnit === "PER_GROUP"
-          ? " - per group"
+        : pricingType === "PER_TRIP"
+          ? " - per trip"
+          : pricingType === "PER_DAY"
+            ? " - per day"
+            : pricingUnit === "PER_GROUP"
+              ? " - per group"
           : "";
-      return `${service.name} - PHP ${service.price ?? 0}${unitText} - ${service.durationMinutes || 60} minutes`;
+      return `${service.name} - PHP ${service.price ?? 0}${unitText}${tierText} - ${service.durationMinutes || 60} minutes`;
     }).join("\n")
     : (business.services || []).map((service) => `${service} - PHP 350 - 60 minutes`).join("\n");
 
@@ -3133,6 +3416,10 @@ function ClientDashboard({
   onSaveAvailability,
   onSaveBlockedDate,
   onSetBlockedDateActive,
+  onSavePaymentSettings,
+  onSavePaymentMethod,
+  onVerifyPayment,
+  onRejectPayment,
 }) {
   const [authState, setAuthState] = useState("checking");
   const [clientSession, setClientSession] = useState(null);
@@ -3144,13 +3431,21 @@ function ClientDashboard({
   const [clientServices, setClientServices] = useState([]);
   const [clientAvailability, setClientAvailability] = useState({ ...defaultAvailability });
   const [blockedDates, setBlockedDates] = useState([]);
+  const [paymentSettings, setPaymentSettings] = useState({ enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [bookingPayments, setBookingPayments] = useState([]);
   const [activeTab, setActiveTab] = useState(initialView === "login" ? "dashboard" : "dashboard");
   const [filter, setFilter] = useState("All");
+  const [calendarFilter, setCalendarFilter] = useState("All");
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(getTodayDateValue());
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const [serviceForm, setServiceForm] = useState({ id: "", name: "", description: "", price: "", durationMinutes: 60, status: "Active" });
+  const emptyServiceForm = { id: "", name: "", description: "", price: "", durationMinutes: 60, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [] };
+  const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
   const [blockedDateForm, setBlockedDateForm] = useState({ blockedDate: "", reason: "" });
+  const [paymentMethodForm, setPaymentMethodForm] = useState({ method_type: "GCASH", method_name: "GCash", account_name: "", account_number: "", instructions: "", active: true });
 
   const loadClientData = async (session) => {
     const mappings = await supabaseRequest("business_users", {
@@ -3183,6 +3478,18 @@ function ClientDashboard({
       query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=created_at.desc`,
       accessToken: session.access_token,
     });
+    const [paymentSettingsRow] = await supabaseRequest("business_payment_settings", {
+      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}`,
+      accessToken: session.access_token,
+    }).catch(() => []);
+    const paymentMethodRows = await supabaseRequest("business_payment_methods", {
+      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=created_at.desc`,
+      accessToken: session.access_token,
+    }).catch(() => []);
+    const paymentRows = await supabaseRequest("booking_payments", {
+      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=submitted_at.desc`,
+      accessToken: session.access_token,
+    }).catch(() => []);
     const normalizedAvailability = {
       days: availabilityRow?.open_days || defaultAvailability.days,
       hours: availabilityRow?.open_hours || defaultAvailability.hours,
@@ -3195,7 +3502,7 @@ function ClientDashboard({
     setClientBusiness(normalizeBusinessConfig(normalizeDatabaseBusiness(businessRow, serviceRows, {
       ...(availabilityRow || {}),
       blocked_dates: blockedDateRows || [],
-    })));
+    }, paymentSettingsRow || null, paymentMethodRows || [])));
     setClientBookings(bookingRows || []);
     setClientServices(serviceRows || []);
     setClientAvailability(normalizedAvailability);
@@ -3205,6 +3512,9 @@ function ClientDashboard({
       slotsText: normalizedAvailability.slots.join(", "),
     });
     setBlockedDates(blockedDateRows || []);
+    setPaymentSettings(paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
+    setPaymentMethods(paymentMethodRows || []);
+    setBookingPayments(paymentRows || []);
     setAuthState("authorized");
     return true;
   };
@@ -3285,6 +3595,18 @@ function ClientDashboard({
         query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=created_at.desc`,
         accessToken: clientSession.access_token,
       });
+      const [paymentSettingsRow] = await supabaseRequest("business_payment_settings", {
+        query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}`,
+        accessToken: clientSession.access_token,
+      }).catch(() => []);
+      const paymentMethodRows = await supabaseRequest("business_payment_methods", {
+        query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=created_at.desc`,
+        accessToken: clientSession.access_token,
+      }).catch(() => []);
+      const paymentRows = await supabaseRequest("booking_payments", {
+        query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=submitted_at.desc`,
+        accessToken: clientSession.access_token,
+      }).catch(() => []);
       const normalizedAvailability = {
         days: availabilityRow?.open_days || defaultAvailability.days,
         hours: availabilityRow?.open_hours || defaultAvailability.hours,
@@ -3294,7 +3616,7 @@ function ClientDashboard({
       setClientBusiness(normalizeBusinessConfig(normalizeDatabaseBusiness(businessRow, serviceRows, {
         ...(availabilityRow || {}),
         blocked_dates: blockedDateRows || [],
-      })));
+      }, paymentSettingsRow || null, paymentMethodRows || [])));
       setClientBookings(bookingRows || []);
       setClientServices(serviceRows || []);
       setClientAvailability(normalizedAvailability);
@@ -3304,6 +3626,9 @@ function ClientDashboard({
         slotsText: normalizedAvailability.slots.join(", "),
       });
       setBlockedDates(blockedDateRows || []);
+      setPaymentSettings(paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
+      setPaymentMethods(paymentMethodRows || []);
+      setBookingPayments(paymentRows || []);
       setSelectedBooking(null);
     }
   };
@@ -3331,14 +3656,23 @@ function ClientDashboard({
       description: service.description || "",
       price: service.price ?? "",
       durationMinutes: service.duration_minutes || 60,
+      pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
+      pricingUnit: normalizePricingUnit(service.pricing_unit),
+      pricingTiers: normalizePricingTiers(service.pricing_tiers),
       status: service.status || "Active",
-    } : { id: "", name: "", description: "", price: "", durationMinutes: 60, status: "Active" });
+    } : emptyServiceForm);
   };
 
   const submitService = async (event) => {
     event.preventDefault();
     setStatusMessage("");
     try {
+      const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
+      const tierValidation = validatePricingTiers(serviceForm.pricingTiers);
+      if (isClientToursTravel && serviceForm.pricingType === "GROUP_TIER" && (!tierValidation.ok || tierValidation.tiers.length === 0)) {
+        setStatusMessage(tierValidation.message || "Add at least one valid pricing tier.");
+        return;
+      }
       const payload = {
         service_id: serviceForm.id || `svc-${Date.now()}`,
         target_slug: selectedBusinessSlug,
@@ -3347,6 +3681,9 @@ function ClientDashboard({
         service_price: serviceForm.price === "" ? null : Number(serviceForm.price),
         service_duration: Number(serviceForm.durationMinutes) || 60,
         service_status: serviceForm.status,
+        service_pricing_type: isClientToursTravel ? normalizePricingType(serviceForm.pricingType) : "FIXED",
+        service_pricing_unit: isClientToursTravel ? normalizePricingUnit(serviceForm.pricingUnit, serviceForm.pricingType) : "FLAT",
+        service_pricing_tiers: isClientToursTravel ? tierValidation.tiers : [],
       };
       await onSaveService(payload, clientSession?.access_token);
       const nextServices = serviceForm.id
@@ -3356,6 +3693,9 @@ function ClientDashboard({
           description: payload.service_description,
           price: payload.service_price,
           duration_minutes: payload.service_duration,
+          pricing_type: payload.service_pricing_type,
+          pricing_unit: payload.service_pricing_unit,
+          pricing_tiers: payload.service_pricing_tiers,
           status: payload.service_status,
         } : service)
         : [...clientServices, {
@@ -3365,6 +3705,9 @@ function ClientDashboard({
           description: payload.service_description,
           price: payload.service_price,
           duration_minutes: payload.service_duration,
+          pricing_type: payload.service_pricing_type,
+          pricing_unit: payload.service_pricing_unit,
+          pricing_tiers: payload.service_pricing_tiers,
           status: payload.service_status,
         }];
       setClientServices(nextServices);
@@ -3374,6 +3717,9 @@ function ClientDashboard({
           name: service.name,
           durationMinutes: service.duration_minutes,
           price: service.price,
+          pricingType: service.pricing_type,
+          pricingUnit: service.pricing_unit,
+          pricingTiers: service.pricing_tiers,
           description: service.description || "",
         })),
         services: nextServices.filter((service) => service.status !== "Inactive").map((service) => service.name),
@@ -3446,6 +3792,71 @@ function ClientDashboard({
     }
   };
 
+  const submitPaymentSettings = async (event) => {
+    event.preventDefault();
+    setStatusMessage("");
+    try {
+      const payload = {
+        target_slug: selectedBusinessSlug,
+        enabled_value: Boolean(paymentSettings.enabled),
+        requirement_type_value: normalizePaymentRequirement(paymentSettings.requirement_type),
+        deposit_type_value: paymentSettings.deposit_type || "FIXED_AMOUNT",
+        deposit_value_value: Number(paymentSettings.deposit_value || 0),
+      };
+      await onSavePaymentSettings(payload, clientSession?.access_token);
+      setStatusMessage("Payment settings saved.");
+    } catch (error) {
+      setStatusMessage(error.message);
+    }
+  };
+
+  const submitPaymentMethod = async (event) => {
+    event.preventDefault();
+    setStatusMessage("");
+    try {
+      const payload = {
+        method_id_value: paymentMethodForm.id || `paymethod-${Date.now()}`,
+        target_slug: selectedBusinessSlug,
+        method_type_value: paymentMethodForm.method_type,
+        method_name_value: paymentMethodForm.method_name,
+        account_name_value: paymentMethodForm.account_name,
+        account_number_value: paymentMethodForm.account_number,
+        instructions_value: paymentMethodForm.instructions,
+        active_value: Boolean(paymentMethodForm.active),
+      };
+      await onSavePaymentMethod(payload, clientSession?.access_token);
+      const nextMethods = paymentMethodForm.id
+        ? paymentMethods.map((method) => method.id === paymentMethodForm.id ? { ...method, ...payload, id: payload.method_id_value, business_slug: selectedBusinessSlug, method_type: payload.method_type_value, method_name: payload.method_name_value, account_name: payload.account_name_value, account_number: payload.account_number_value, instructions: payload.instructions_value, active: payload.active_value } : method)
+        : [{ id: payload.method_id_value, business_slug: selectedBusinessSlug, method_type: payload.method_type_value, method_name: payload.method_name_value, account_name: payload.account_name_value, account_number: payload.account_number_value, instructions: payload.instructions_value, active: payload.active_value }, ...paymentMethods];
+      setPaymentMethods(nextMethods);
+      setPaymentMethodForm({ method_type: "GCASH", method_name: "GCash", account_name: "", account_number: "", instructions: "", active: true });
+      setStatusMessage("Payment method saved.");
+    } catch (error) {
+      setStatusMessage(error.message);
+    }
+  };
+
+  const updatePaymentVerification = async (payment, action) => {
+    const confirmedAction = action === "verify"
+      ? window.confirm("Have you confirmed this payment in your actual GCash, Maya, bank, or payment account?")
+      : window.confirm("Reject this submitted payment detail?");
+    if (!confirmedAction) return;
+    const rejectionNote = action === "reject" ? window.prompt("Optional rejection note", "Reference number could not be found.") || "" : "";
+    setStatusMessage("");
+    try {
+      if (action === "verify") {
+        await onVerifyPayment(payment.id, clientSession?.access_token);
+      } else {
+        await onRejectPayment(payment.id, rejectionNote, clientSession?.access_token);
+      }
+      const nextStatus = action === "verify" ? "VERIFIED" : "REJECTED";
+      setBookingPayments((current) => current.map((item) => item.id === payment.id ? { ...item, payment_status: nextStatus, rejection_note: rejectionNote } : item));
+      setStatusMessage(action === "verify" ? "Payment verified." : "Payment rejected.");
+    } catch (error) {
+      setStatusMessage(error.message);
+    }
+  };
+
   const filteredBookings = clientBookings.filter((booking) => (
     filter === "All" || (booking.status || "").toUpperCase() === filter.toUpperCase()
   ));
@@ -3456,6 +3867,16 @@ function ClientDashboard({
   const todayCount = clientBookings.filter((booking) => (booking.booking_date || "").startsWith("2026-05-21")).length;
   const currentRole = businessUsers.find((item) => item.business_slug === selectedBusinessSlug)?.role || "OWNER";
   const capabilities = getPackageCapabilities(clientBusiness?.package, clientBusiness?.featureFlags);
+  const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
+  const paymentsByBooking = bookingPayments.reduce((grouped, payment) => {
+    grouped[payment.booking_id] = grouped[payment.booking_id] || [];
+    grouped[payment.booking_id].push(payment);
+    return grouped;
+  }, {});
+  const selectedBookingPayments = selectedBooking ? paymentsByBooking[selectedBooking.id] || [] : [];
+  const latestSelectedPayment = selectedBookingPayments[0];
+  const pendingPaymentCount = bookingPayments.filter((payment) => payment.payment_status === "PENDING_VERIFICATION").length;
+  const verifiedPaymentCount = bookingPayments.filter((payment) => payment.payment_status === "VERIFIED").length;
   const customers = Object.values(clientBookings.reduce((grouped, booking) => {
     const key = `${booking.customer || "Customer"}-${booking.contact || ""}`;
     const previous = grouped[key];
@@ -3479,11 +3900,13 @@ function ClientDashboard({
       customers: capabilities.customers,
       services: capabilities.services,
       schedule: capabilities.schedule,
+      reservationCalendar: capabilities.reservationCalendar,
       blockedDates: capabilities.blockedDates,
+      paymentSettings: capabilities.paymentVerification,
       account: true,
     };
     if (!tabAllowed[activeTab]) setActiveTab("dashboard");
-  }, [activeTab, capabilities.customers, capabilities.services, capabilities.schedule, capabilities.blockedDates]);
+  }, [activeTab, capabilities.customers, capabilities.services, capabilities.schedule, capabilities.reservationCalendar, capabilities.blockedDates, capabilities.paymentVerification]);
 
   if (authState === "checking") {
     return (
@@ -3544,11 +3967,13 @@ function ClientDashboard({
             </select>
           )}
           <button className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}>Dashboard</button>
-          <button className={activeTab === "bookings" ? "active" : ""} onClick={() => setActiveTab("bookings")}>Bookings / Requests</button>
-          {capabilities.customers && <button className={activeTab === "customers" ? "active" : ""} onClick={() => setActiveTab("customers")}>Customers</button>}
-          {capabilities.services && <button className={activeTab === "services" ? "active" : ""} onClick={() => setActiveTab("services")}>Services</button>}
-          {capabilities.schedule && <button className={activeTab === "schedule" ? "active" : ""} onClick={() => setActiveTab("schedule")}>Schedule</button>}
+          <button className={activeTab === "bookings" ? "active" : ""} onClick={() => setActiveTab("bookings")}>{isClientToursTravel ? "Reservations" : "Bookings / Requests"}</button>
+          {capabilities.customers && <button className={activeTab === "customers" ? "active" : ""} onClick={() => setActiveTab("customers")}>{isClientToursTravel ? "Guests / Customers" : "Customers"}</button>}
+          {capabilities.services && <button className={activeTab === "services" ? "active" : ""} onClick={() => setActiveTab("services")}>{isClientToursTravel ? "Tour Packages" : "Services"}</button>}
+          {capabilities.schedule && <button className={activeTab === "schedule" ? "active" : ""} onClick={() => setActiveTab("schedule")}>{isClientToursTravel ? "Availability" : "Schedule"}</button>}
+          {capabilities.reservationCalendar && <button className={activeTab === "reservationCalendar" ? "active" : ""} onClick={() => setActiveTab("reservationCalendar")}><CalendarDays size={16} /> Reservation Calendar</button>}
           {capabilities.blockedDates && <button className={activeTab === "blockedDates" ? "active" : ""} onClick={() => setActiveTab("blockedDates")}>Blocked Dates</button>}
+          {capabilities.paymentVerification && <button className={activeTab === "paymentSettings" ? "active" : ""} onClick={() => setActiveTab("paymentSettings")}>Payment Settings</button>}
           <button className={activeTab === "account" ? "active" : ""} onClick={() => setActiveTab("account")}>Account</button>
           <button onClick={logoutClient}>Logout</button>
         </aside>
@@ -3571,6 +3996,8 @@ function ClientDashboard({
                 <article><span>Total</span><strong>{clientBookings.length}</strong></article>
                 {capabilities.enhancedStats && <article><span>Completed</span><strong>{completedCount}</strong></article>}
                 {capabilities.enhancedStats && <article><span>Cancelled</span><strong>{cancelledCount}</strong></article>}
+                {capabilities.paymentVerification && <article><span>Pending Payment Verification</span><strong>{pendingPaymentCount}</strong></article>}
+                {capabilities.paymentVerification && <article><span>Verified Payments</span><strong>{verifiedPaymentCount}</strong></article>}
               </div>
               <BookingList bookings={clientBookings.slice(0, 6)} onSelect={setSelectedBooking} onStatusChange={updateStatus} />
             </>
@@ -3622,17 +4049,64 @@ function ClientDashboard({
             <section>
               <div className="clientDashboardHeader">
                 <p className="eyebrow">Services</p>
-                <h2>Manage services</h2>
+                <h2>{isClientToursTravel ? "Manage tour packages" : "Manage services"}</h2>
               </div>
               <form className="clientManagementForm" onSubmit={submitService}>
-                <input value={serviceForm.name} onChange={(event) => setServiceForm((current) => ({ ...current, name: event.target.value }))} placeholder="Service name" required />
+                <input value={serviceForm.name} onChange={(event) => setServiceForm((current) => ({ ...current, name: event.target.value }))} placeholder={isClientToursTravel ? "Package name" : "Service name"} required />
                 <input value={serviceForm.description} onChange={(event) => setServiceForm((current) => ({ ...current, description: event.target.value }))} placeholder="Description" />
                 <input type="number" value={serviceForm.price} onChange={(event) => setServiceForm((current) => ({ ...current, price: event.target.value }))} placeholder="Price" />
                 <input type="number" value={serviceForm.durationMinutes} onChange={(event) => setServiceForm((current) => ({ ...current, durationMinutes: event.target.value }))} placeholder="Minutes" />
+                {isClientToursTravel && (
+                  <>
+                    <select value={serviceForm.pricingType} onChange={(event) => setServiceForm((current) => ({ ...current, pricingType: event.target.value }))}>
+                      <option value="PER_PAX">Per pax</option>
+                      <option value="GROUP_TIER">Group tier</option>
+                      <option value="PER_TRIP">Per trip</option>
+                      <option value="PER_DAY">Per day</option>
+                      <option value="FIXED">Fixed</option>
+                    </select>
+                    <select value={serviceForm.pricingUnit} onChange={(event) => setServiceForm((current) => ({ ...current, pricingUnit: event.target.value }))}>
+                      <option value="PER_PAX">/ pax</option>
+                      <option value="PER_GROUP">/ group</option>
+                      <option value="PER_TRIP">/ trip</option>
+                      <option value="PER_DAY">/ day</option>
+                      <option value="FIXED">fixed</option>
+                    </select>
+                  </>
+                )}
                 <select value={serviceForm.status} onChange={(event) => setServiceForm((current) => ({ ...current, status: event.target.value }))}>
                   <option>Active</option>
                   <option>Inactive</option>
                 </select>
+                {isClientToursTravel && serviceForm.pricingType === "GROUP_TIER" && (
+                  <div className="pricingTierEditor">
+                    <span>Group pricing tiers</span>
+                    {serviceForm.pricingTiers.map((tier, index) => (
+                      <div key={`${tier.minGuests}-${tier.maxGuests}-${index}`}>
+                        <input type="number" min="1" value={tier.minGuests} onChange={(event) => setServiceForm((current) => ({
+                          ...current,
+                          pricingTiers: current.pricingTiers.map((item, itemIndex) => itemIndex === index ? { ...item, minGuests: Number(event.target.value) } : item),
+                        }))} placeholder="Min guests" />
+                        <input type="number" min="1" value={tier.maxGuests} onChange={(event) => setServiceForm((current) => ({
+                          ...current,
+                          pricingTiers: current.pricingTiers.map((item, itemIndex) => itemIndex === index ? { ...item, maxGuests: Number(event.target.value) } : item),
+                        }))} placeholder="Max guests" />
+                        <input type="number" min="0" value={tier.price} onChange={(event) => setServiceForm((current) => ({
+                          ...current,
+                          pricingTiers: current.pricingTiers.map((item, itemIndex) => itemIndex === index ? { ...item, price: Number(event.target.value) } : item),
+                        }))} placeholder="Price" />
+                        <button type="button" onClick={() => setServiceForm((current) => ({
+                          ...current,
+                          pricingTiers: current.pricingTiers.filter((_, itemIndex) => itemIndex !== index),
+                        }))}>Remove</button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setServiceForm((current) => ({
+                      ...current,
+                      pricingTiers: [...current.pricingTiers, { minGuests: 1, maxGuests: 2, price: 0 }],
+                    }))}>Add Pricing Tier</button>
+                  </div>
+                )}
                 <button type="submit">{serviceForm.id ? "Save service" : "Add service"}</button>
                 {serviceForm.id && <button type="button" onClick={() => editService()}>Clear</button>}
               </form>
@@ -3641,7 +4115,12 @@ function ClientDashboard({
                   <article className="clientBookingCard" key={service.id}>
                     <div>
                       <strong>{service.name}</strong>
-                      <span>{service.duration_minutes || 60} min / PHP {service.price ?? 0}</span>
+                      <span>{service.duration_minutes || 60} min / {formatServicePriceLabel({
+                        price: service.price,
+                        pricingType: service.pricing_type,
+                        pricingUnit: service.pricing_unit,
+                        pricingTiers: service.pricing_tiers,
+                      }, isClientToursTravel ? "PER_PAX" : "FIXED")}</span>
                       <small>{service.status || "Active"}</small>
                     </div>
                     <p>{service.description || "No description"}</p>
@@ -3667,6 +4146,22 @@ function ClientDashboard({
                 <button type="submit">Save schedule</button>
               </form>
             </section>
+          )}
+
+          {activeTab === "reservationCalendar" && capabilities.reservationCalendar && (
+            <ReservationCalendar
+              bookings={clientBookings}
+              blockedDates={blockedDates}
+              business={clientBusiness}
+              monthDate={calendarMonth}
+              selectedDate={selectedCalendarDate}
+              statusFilter={calendarFilter}
+              onMonthChange={setCalendarMonth}
+              onDateSelect={setSelectedCalendarDate}
+              onFilterChange={setCalendarFilter}
+              onSelectBooking={setSelectedBooking}
+              onStatusChange={updateStatus}
+            />
           )}
 
           {activeTab === "blockedDates" && capabilities.blockedDates && (
@@ -3697,6 +4192,62 @@ function ClientDashboard({
             </section>
           )}
 
+          {activeTab === "paymentSettings" && capabilities.paymentVerification && (
+            <section>
+              <div className="clientDashboardHeader">
+                <p className="eyebrow">Payment Settings</p>
+                <h2>Manual payment verification</h2>
+                <p>Customers submit payment details only. You still verify money manually in your actual payment account.</p>
+              </div>
+              <form className="clientManagementForm paymentSettingsForm" onSubmit={submitPaymentSettings}>
+                <label><input type="checkbox" checked={Boolean(paymentSettings.enabled)} onChange={(event) => setPaymentSettings((current) => ({ ...current, enabled: event.target.checked }))} /> Enable Manual Payment Verification</label>
+                <select value={normalizePaymentRequirement(paymentSettings.requirement_type)} onChange={(event) => setPaymentSettings((current) => ({ ...current, requirement_type: event.target.value }))}>
+                  <option value="NO_PAYMENT_REQUIRED">No Payment Required</option>
+                  <option value="DEPOSIT_REQUIRED">Reservation Deposit Required</option>
+                  <option value="FULL_PAYMENT_REQUIRED">Full Payment Required</option>
+                </select>
+                <select value={paymentSettings.deposit_type || "FIXED_AMOUNT"} onChange={(event) => setPaymentSettings((current) => ({ ...current, deposit_type: event.target.value }))}>
+                  <option value="FIXED_AMOUNT">Fixed Amount</option>
+                  <option value="PERCENTAGE">Percentage</option>
+                </select>
+                <input type="number" min="0" value={paymentSettings.deposit_value || 0} onChange={(event) => setPaymentSettings((current) => ({ ...current, deposit_value: event.target.value }))} placeholder="Deposit value" />
+                <button type="submit">Save Payment Settings</button>
+              </form>
+              <form className="clientManagementForm" onSubmit={submitPaymentMethod}>
+                <select value={paymentMethodForm.method_type} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, method_type: event.target.value, method_name: event.target.options[event.target.selectedIndex].text }))}>
+                  <option value="GCASH">GCash</option>
+                  <option value="MAYA">Maya</option>
+                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                  <option value="OTHER">Other</option>
+                </select>
+                <input value={paymentMethodForm.method_name} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, method_name: event.target.value }))} placeholder="Method name" required />
+                <input value={paymentMethodForm.account_name} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, account_name: event.target.value }))} placeholder="Account name" required />
+                <input value={paymentMethodForm.account_number} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, account_number: event.target.value }))} placeholder="Account number" required />
+                <input value={paymentMethodForm.instructions} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, instructions: event.target.value }))} placeholder="Optional instructions" />
+                <select value={paymentMethodForm.active ? "Active" : "Inactive"} onChange={(event) => setPaymentMethodForm((current) => ({ ...current, active: event.target.value === "Active" }))}>
+                  <option>Active</option>
+                  <option>Inactive</option>
+                </select>
+                <button type="submit">{paymentMethodForm.id ? "Save Method" : "Add Method"}</button>
+              </form>
+              <div className="clientBookingList">
+                {paymentMethods.length ? paymentMethods.map((method) => (
+                  <article className="clientBookingCard" key={method.id}>
+                    <div>
+                      <strong>{method.method_name || method.method_type}</strong>
+                      <span>{method.account_name} / {maskAccountNumber(method.account_number)}</span>
+                      <small>{method.active ? "Active" : "Inactive"}</small>
+                    </div>
+                    <p>{method.instructions || "No special instructions"}</p>
+                    <div className="clientBookingActions">
+                      <button onClick={() => setPaymentMethodForm(method)}>Edit</button>
+                    </div>
+                  </article>
+                )) : <div className="clientEmptyState">No payment methods yet.</div>}
+              </div>
+            </section>
+          )}
+
           {activeTab === "account" && (
             <section className="clientAccountPanel">
               <p className="eyebrow">Account</p>
@@ -3716,10 +4267,39 @@ function ClientDashboard({
                 <h2>{selectedBooking.customer}</h2>
               </div>
               <p><strong>Phone:</strong> {selectedBooking.contact}</p>
-              <p><strong>Service:</strong> {selectedBooking.service}</p>
-              <p><strong>Date:</strong> {selectedBooking.booking_date || "Not required"}</p>
-              <p><strong>Time:</strong> {selectedBooking.slot || "Inquiry only"}</p>
-              <p><strong>Notes:</strong> {selectedBooking.note || "No notes"}</p>
+              <p><strong>{isClientToursTravel ? "Tour Package" : "Service"}:</strong> {selectedBooking.service}</p>
+              <p><strong>{isClientToursTravel ? "Travel Date" : "Date"}:</strong> {selectedBooking.booking_date || "Not required"}</p>
+              <p><strong>{isClientToursTravel ? "Preferred Time" : "Time"}:</strong> {selectedBooking.slot || "Inquiry only"}</p>
+              {isClientToursTravel && <p><strong>Guest Count:</strong> {selectedBooking.metadata?.guest_count || "Not provided"}</p>}
+              {isClientToursTravel && <p><strong>Pricing Type:</strong> {selectedBooking.metadata?.pricing_type || "Not saved"}</p>}
+              {isClientToursTravel && selectedBooking.metadata?.unit_price !== undefined && <p><strong>Rate:</strong> {formatPeso(selectedBooking.metadata.unit_price)}</p>}
+              {isClientToursTravel && selectedBooking.metadata?.selected_tier && <p><strong>Selected Group Rate:</strong> {selectedBooking.metadata.selected_tier.minGuests}-{selectedBooking.metadata.selected_tier.maxGuests} pax - {formatPeso(selectedBooking.metadata.selected_tier.price)}</p>}
+              {isClientToursTravel && <p><strong>Estimated Total:</strong> {selectedBooking.metadata?.estimated_total ? formatPeso(selectedBooking.metadata.estimated_total) : "Rate only"}</p>}
+              {isClientToursTravel && selectedBooking.metadata?.pickup_location && <p><strong>Pickup Location:</strong> {selectedBooking.metadata.pickup_location}</p>}
+              <p><strong>{isClientToursTravel ? "Special Requests" : "Notes"}:</strong> {selectedBooking.note || "No notes"}</p>
+              {capabilities.paymentVerification && (
+                <div className="paymentDashboardPanel">
+                  <p className="eyebrow">Payment</p>
+                  {latestSelectedPayment ? (
+                    <>
+                      <p><strong>Status:</strong> {latestSelectedPayment.payment_status}</p>
+                      <p><strong>Method:</strong> {latestSelectedPayment.payment_method}</p>
+                      <p><strong>Amount Sent:</strong> {formatPeso(latestSelectedPayment.amount_submitted)}</p>
+                      <p><strong>Reference:</strong> {latestSelectedPayment.reference_number}</p>
+                      <p><strong>Note:</strong> {latestSelectedPayment.customer_note || "No note"}</p>
+                      {latestSelectedPayment.rejection_note && <p><strong>Rejection Note:</strong> {latestSelectedPayment.rejection_note}</p>}
+                      {latestSelectedPayment.payment_status === "PENDING_VERIFICATION" && (
+                        <div className="clientBookingActions">
+                          <button onClick={() => updatePaymentVerification(latestSelectedPayment, "verify")}>Verify Payment</button>
+                          <button onClick={() => updatePaymentVerification(latestSelectedPayment, "reject")}>Reject Payment</button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p>No payment details submitted yet.</p>
+                  )}
+                </div>
+              )}
               <label>Status
                 <select value={(selectedBooking.status || "PENDING").toUpperCase()} onChange={(event) => updateStatus(selectedBooking, event.target.value)}>
                   {["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map((item) => <option key={item}>{item}</option>)}
@@ -3731,6 +4311,146 @@ function ClientDashboard({
         </section>
       </section>
     </main>
+  );
+}
+
+function ReservationCalendar({
+  bookings,
+  blockedDates,
+  business,
+  monthDate,
+  selectedDate,
+  statusFilter,
+  onMonthChange,
+  onDateSelect,
+  onFilterChange,
+  onSelectBooking,
+  onStatusChange,
+}) {
+  const isToursTravel = normalizeBookingTemplate(business?.bookingTemplate) === "TOURS_TRAVEL";
+  const monthKey = getMonthKey(monthDate);
+  const monthDays = buildMonthDays(monthDate);
+  const serviceOptions = [...new Set((bookings || []).map((booking) => booking.service).filter(Boolean))];
+  const statusOptions = ["All", "Pending", "Confirmed", "Completed", "Cancelled", ...serviceOptions];
+  const visibleBookings = (bookings || []).filter((booking) => {
+    if (!(booking.booking_date || "").startsWith(monthKey)) return false;
+    const statusMatch = ["All", "Pending", "Confirmed", "Completed", "Cancelled"].includes(statusFilter)
+      ? statusFilter === "All" || (booking.status || "").toUpperCase() === statusFilter.toUpperCase()
+      : booking.service === statusFilter;
+    return statusMatch;
+  });
+  const bookingsByDate = visibleBookings.reduce((grouped, booking) => {
+    const key = booking.booking_date;
+    if (!key) return grouped;
+    grouped[key] = grouped[key] || [];
+    grouped[key].push(booking);
+    return grouped;
+  }, {});
+  const blockedByDate = (blockedDates || []).reduce((grouped, blockedDate) => {
+    if (!blockedDate.blocked_date) return grouped;
+    grouped[blockedDate.blocked_date] = blockedDate;
+    return grouped;
+  }, {});
+  const selectedBookings = bookingsByDate[selectedDate] || [];
+  const selectedBlocked = blockedByDate[selectedDate];
+  const monthCounts = {
+    total: visibleBookings.length,
+    pending: visibleBookings.filter((booking) => ["PENDING", "NEW"].includes((booking.status || "").toUpperCase())).length,
+    confirmed: visibleBookings.filter((booking) => (booking.status || "").toUpperCase() === "CONFIRMED").length,
+    completed: visibleBookings.filter((booking) => (booking.status || "").toUpperCase() === "COMPLETED").length,
+    cancelled: visibleBookings.filter((booking) => (booking.status || "").toUpperCase() === "CANCELLED").length,
+  };
+  const monthTitle = monthDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const moveMonth = (amount) => {
+    const next = new Date(monthDate);
+    next.setMonth(next.getMonth() + amount);
+    onMonthChange(next);
+    onDateSelect(getDateKey(new Date(next.getFullYear(), next.getMonth(), 1)));
+  };
+  const today = () => {
+    const now = new Date();
+    onMonthChange(now);
+    onDateSelect(getTodayDateValue());
+  };
+  const reservationLabel = isToursTravel ? "Reservations" : "Bookings";
+  const guestText = (booking) => {
+    const guests = booking.metadata?.guest_count;
+    return guests ? `${guests} Guest${Number(guests) > 1 ? "s" : ""}` : "";
+  };
+
+  return (
+    <section className="reservationCalendarPanel">
+      <div className="clientDashboardHeader calendarHeader">
+        <div>
+          <p className="eyebrow">Reservation Calendar</p>
+          <h2>{monthTitle}</h2>
+          <p>{isToursTravel ? "View tour reservations by travel date." : "View bookings by selected date."}</p>
+        </div>
+        <div className="calendarControls">
+          <button type="button" onClick={() => moveMonth(-1)}><ChevronLeft size={16} /> Previous</button>
+          <button type="button" onClick={today}>Today</button>
+          <button type="button" onClick={() => moveMonth(1)}>Next <ChevronRight size={16} /></button>
+        </div>
+      </div>
+      <div className="clientMetricGrid calendarMetricGrid">
+        <article><span>This Month</span><strong>{monthCounts.total}</strong></article>
+        <article><span>Pending</span><strong>{monthCounts.pending}</strong></article>
+        <article><span>Confirmed</span><strong>{monthCounts.confirmed}</strong></article>
+        <article><span>Completed</span><strong>{monthCounts.completed}</strong></article>
+        <article><span>Cancelled</span><strong>{monthCounts.cancelled}</strong></article>
+      </div>
+      <div className="clientFilterRow">
+        {statusOptions.map((item) => (
+          <button className={statusFilter === item ? "active" : ""} onClick={() => onFilterChange(item)} key={item}>{item}</button>
+        ))}
+      </div>
+      <div className="reservationCalendarGrid">
+        {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => <strong className="calendarDayName" key={day}>{day}</strong>)}
+        {monthDays.map((day) => {
+          const dayBookings = bookingsByDate[day.key] || [];
+          const blocked = blockedByDate[day.key];
+          return (
+            <button type="button" className={`calendarDateCell ${day.inMonth ? "" : "muted"} ${selectedDate === day.key ? "active" : ""}`} key={day.key} onClick={() => onDateSelect(day.key)}>
+              <span>{day.day}</span>
+              {blocked && <em className="calendarBlocked">Blocked</em>}
+              {dayBookings.slice(0, 2).map((booking) => (
+                <i className={`calendarBookingDot ${getStatusClass(booking.status)}`} key={booking.id} onClick={(event) => { event.stopPropagation(); onSelectBooking(booking); }}>
+                  <b>{booking.service}</b>
+                  <small>{getInitialsName(booking.customer)}{guestText(booking) ? ` • ${guestText(booking)}` : ""}</small>
+                  <small>{(booking.status || "PENDING").toUpperCase()}</small>
+                </i>
+              ))}
+              {dayBookings.length > 2 && <small className="calendarMore">+{dayBookings.length - 2} more</small>}
+            </button>
+          );
+        })}
+      </div>
+      <div className="reservationAgenda">
+        <div className="clientDashboardHeader">
+          <p className="eyebrow">{reservationLabel} for {formatBookingDate(selectedDate)}</p>
+          <h2>{selectedBookings.length} {reservationLabel}</h2>
+          {selectedBlocked && <p><strong>Blocked:</strong> {selectedBlocked.reason || "Unavailable"}</p>}
+        </div>
+        <div className="clientBookingList">
+          {selectedBookings.length ? selectedBookings.map((booking) => (
+            <article className="clientBookingCard" key={booking.id}>
+              <div>
+                <strong>{booking.service}</strong>
+                <span>{booking.customer}{guestText(booking) ? ` • ${guestText(booking)}` : ""}</span>
+                <small>{booking.slot || "No preferred time"} / {(booking.status || "PENDING").toUpperCase()}</small>
+              </div>
+              <p>{booking.note || "No notes provided"}</p>
+              <div className="clientBookingActions">
+                <select value={(booking.status || "PENDING").toUpperCase()} onChange={(event) => onStatusChange(booking, event.target.value)}>
+                  {["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map((item) => <option key={item}>{item}</option>)}
+                </select>
+                <button onClick={() => onSelectBooking(booking)}>View Details</button>
+              </div>
+            </article>
+          )) : <div className="clientEmptyState"><strong>No reservations on this date.</strong><span>New bookings will appear here automatically.</span></div>}
+        </div>
+      </div>
+    </section>
   );
 }
 
