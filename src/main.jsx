@@ -2102,6 +2102,14 @@ function App() {
     const extension = getFileExtension(file);
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
     const url = await supabaseStorageUpload(path, file, session.access_token);
+    if (service?.id) {
+      await supabaseRequest("business_services", {
+        method: "PATCH",
+        query: `?id=eq.${encodeURIComponent(service.id)}&business_slug=eq.${encodeURIComponent(slug)}`,
+        body: { image_url: url },
+        accessToken: session.access_token,
+      });
+    }
     return url;
   };
 
@@ -4442,6 +4450,14 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
     const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
+    if (service?.id) {
+      await supabaseRequest("business_services", {
+        method: "PATCH",
+        query: `?id=eq.${encodeURIComponent(service.id)}&business_slug=eq.${encodeURIComponent(slug)}`,
+        body: { image_url: url },
+        accessToken: adminSession?.access_token,
+      });
+    }
     setStatusMessage("Service photo uploaded.");
     return url;
   };
@@ -5839,6 +5855,14 @@ function ClientDashboard({
     const extension = getFileExtension(file);
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
     const url = await supabaseStorageUpload(path, file, clientSession.access_token);
+    if (service?.id) {
+      await supabaseRequest("business_services", {
+        method: "PATCH",
+        query: `?id=eq.${encodeURIComponent(service.id)}&business_slug=eq.${encodeURIComponent(slug)}`,
+        body: { image_url: url },
+        accessToken: clientSession.access_token,
+      });
+    }
     return url;
   };
 
