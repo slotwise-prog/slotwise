@@ -3466,7 +3466,7 @@ function DemoExpiredPage({ business, onBack }) {
   );
 }
 
-function StructuredServiceManager({ services, onChange, onDeleteService, onUploadImage, bookingTemplate = "GENERAL", compact = false, photoManagement = false }) {
+function StructuredServiceManager({ services, onChange, onDeleteService, onUploadImage, onUploadStateChange, bookingTemplate = "GENERAL", compact = false, photoManagement = false }) {
   const copy = getServiceManagerCopy(bookingTemplate);
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
   const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
@@ -3482,12 +3482,15 @@ function StructuredServiceManager({ services, onChange, onDeleteService, onUploa
       return;
     }
     try {
+      onUploadStateChange?.(true);
       const service = services[index];
       const imageUrl = await onUploadImage(service, file);
       updateService(index, { imageUrl });
     } catch (error) {
       console.error("Service image upload failed", error);
       window.alert(error.message || "Service image upload failed.");
+    } finally {
+      onUploadStateChange?.(false);
     }
   };
   const removeService = async (index) => {
@@ -3630,6 +3633,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
   const [submitted, setSubmitted] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [slugEdited, setSlugEdited] = useState(false);
+  const [serviceImageUploading, setServiceImageUploading] = useState(false);
   const [form, setForm] = useState({
     businessName: "",
     slug: "",
@@ -3675,6 +3679,10 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
 
   const finishSetup = async (event) => {
     event.preventDefault();
+    if (serviceImageUploading) {
+      setSaveStatus({ blocked: true, message: "Please wait for the service photo upload to finish." });
+      return;
+    }
     const result = await onSaveSetup(form);
     setSaveStatus(result);
     if (result?.blocked) {
@@ -3772,7 +3780,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
               <p className="eyebrow">Step 2</p>
               <h2>Services and prices</h2>
               <p>Add each service with price and duration. Blank slots will not be saved.</p>
-                <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} onUploadImage={uploadSetupServiceImage} bookingTemplate={setupBookingTemplate} photoManagement={getPackageCapabilities(form.package, form.featureFlags).photoManagement} />
+                <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} onUploadImage={uploadSetupServiceImage} onUploadStateChange={setServiceImageUploading} bookingTemplate={setupBookingTemplate} photoManagement={getPackageCapabilities(form.package, form.featureFlags).photoManagement} />
             </div>
           )}
 
@@ -3816,7 +3824,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
             {step < setupSteps.length - 1 ? (
               <button type="button" onClick={nextStep}>Next</button>
             ) : (
-              <button type="submit">Submit setup details</button>
+              <button type="submit" disabled={serviceImageUploading}>{serviceImageUploading ? "Uploading photo..." : "Submit setup details"}</button>
             )}
           </div>
         </form>
@@ -4193,6 +4201,7 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
   });
   const [announcementToast, setAnnouncementToast] = useState("");
   const [smmOffers, setSmmOffers] = useState(emptySmmOffersForm());
+  const [serviceImageUploading, setServiceImageUploading] = useState(false);
   const [smmOffersSaveState, setSmmOffersSaveState] = useState({
     saving: false,
     status: "",
@@ -5643,7 +5652,7 @@ After login, you will only see the bookings and features assigned to your busine
             </div>
           </section>
           <label>Description<textarea name="rules" value={form.rules} onChange={updateForm} rows="3" /></label>
-           <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} onUploadImage={uploadServiceImageAsset} bookingTemplate={form.bookingTemplate} photoManagement={getPackageCapabilities(form.business_package || form.package, form.feature_flags).photoManagement} />
+           <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} onUploadImage={uploadServiceImageAsset} onUploadStateChange={setServiceImageUploading} bookingTemplate={form.bookingTemplate} photoManagement={getPackageCapabilities(form.business_package || form.package, form.feature_flags).photoManagement} />
           <div className="smmFlagGrid">
             {Object.keys(defaultFeatureFlags).map((flag) => (
               <label key={flag}>
@@ -5652,7 +5661,7 @@ After login, you will only see the bookings and features assigned to your busine
               </label>
             ))}
           </div>
-          <button className="smmSaveButton" type="submit" disabled={saving}>{saving ? "Saving..." : "Save client"}</button>
+          <button className="smmSaveButton" type="submit" disabled={saving || serviceImageUploading}>{serviceImageUploading ? "Uploading photo..." : saving ? "Saving..." : "Save client"}</button>
         </form>
       ) : (
         <section className="smmClientList">
@@ -5728,6 +5737,7 @@ function ClientDashboard({
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
   const [blockedDateForm, setBlockedDateForm] = useState({ blockedDate: "", reason: "" });
   const [paymentMethodForm, setPaymentMethodForm] = useState({ method_type: "GCASH", method_name: "GCash", account_name: "", account_number: "", instructions: "", active: true });
+  const [serviceImageUploading, setServiceImageUploading] = useState(false);
 
   const loadClientData = async (session) => {
     const mappings = await supabaseRequest("business_users", {
@@ -5983,6 +5993,10 @@ function ClientDashboard({
     event.preventDefault();
     setStatusMessage("");
     try {
+      if (serviceImageUploading) {
+        setStatusMessage("Please wait for the service photo upload to finish.");
+        return;
+      }
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
       const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
       const tierValidation = validatePricingTiers(serviceForm.pricingTiers);
@@ -6088,6 +6102,10 @@ function ClientDashboard({
     event.preventDefault();
     setStatusMessage("");
     try {
+      if (serviceImageUploading) {
+        setStatusMessage("Please wait for the service photo upload to finish.");
+        return;
+      }
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
       const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
       const savableServices = getSavableStructuredServices(clientServiceEntries, clientBusiness?.bookingTemplate);
@@ -6535,8 +6553,8 @@ function ClientDashboard({
                 <h2>{isClientToursTravel ? "Manage tour packages" : "Manage services"}</h2>
               </div>
               <form onSubmit={submitStructuredServices}>
-                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} onUploadImage={uploadClientServiceImage} bookingTemplate={clientBusiness?.bookingTemplate} compact photoManagement={capabilities.photoManagement} />
-                <button className="clientPrimaryButton" type="submit">Save Services</button>
+                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} onUploadImage={uploadClientServiceImage} onUploadStateChange={setServiceImageUploading} bookingTemplate={clientBusiness?.bookingTemplate} compact photoManagement={capabilities.photoManagement} />
+                <button className="clientPrimaryButton" type="submit" disabled={serviceImageUploading}>{serviceImageUploading ? "Uploading photo..." : "Save Services"}</button>
               </form>
             </section>
           )}
