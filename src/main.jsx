@@ -2450,9 +2450,16 @@ function App() {
     if (publicBusiness && isDemoExpired(publicBusiness)) {
       return <DemoExpiredPage business={publicBusiness} onBack={() => setPage("home")} />;
     }
+    const publicRendererBusiness = publicBusiness && normalizeBookingTemplate(publicBusiness.bookingTemplate) === "PROFESSIONAL_SERVICES"
+      ? {
+        ...publicBusiness,
+        bookingTemplate: "GENERAL",
+        businessType: publicBusiness.businessType || publicBusiness.name || "Service business",
+      }
+      : publicBusiness;
 
     return publicBusiness ? (
-      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} smmOffers={smmOffers} />
+      <BookingPrototype business={publicRendererBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} smmOffers={smmOffers} />
     ) : (
       <BusinessNotFoundPage slug={publicBusinessSlug} onBack={() => setPage("home")} onSetup={() => setPage("setup")} />
     );
