@@ -832,6 +832,8 @@ create or replace function public.upsert_client_service(
   service_included_guests integer default null,
   service_extra_guest_fee numeric default null,
   service_image_url text default '',
+  service_image_title text default '',
+  service_image_caption text default '',
   service_unit_quantity integer default 1
 )
 returns void
@@ -857,6 +859,8 @@ begin
     included_guests,
     extra_guest_fee,
     image_url,
+    image_title,
+    image_caption,
     unit_quantity,
     duration_minutes,
     display_order,
@@ -875,6 +879,8 @@ begin
     service_included_guests,
     service_extra_guest_fee,
     coalesce(service_image_url, ''),
+    coalesce(service_image_title, ''),
+    coalesce(service_image_caption, ''),
     greatest(coalesce(service_unit_quantity, 1), 1),
     service_duration,
     coalesce(service_display_order, 0),
@@ -892,6 +898,8 @@ begin
     included_guests = excluded.included_guests,
     extra_guest_fee = excluded.extra_guest_fee,
     image_url = excluded.image_url,
+    image_title = excluded.image_title,
+    image_caption = excluded.image_caption,
     unit_quantity = excluded.unit_quantity,
     duration_minutes = excluded.duration_minutes,
     display_order = excluded.display_order,
@@ -1262,7 +1270,7 @@ end;
 $$;
 
 grant execute on function public.business_has_package_capability(text, text) to authenticated;
-grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb, integer, integer, integer, numeric, text, integer) to authenticated;
+grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb, integer, integer, integer, numeric, text, text, text, integer) to authenticated;
 grant execute on function public.delete_client_service(text) to authenticated;
 grant execute on function public.update_client_availability(text, text, text, jsonb) to authenticated;
 grant execute on function public.upsert_client_blocked_date(text, text, date, text) to authenticated;

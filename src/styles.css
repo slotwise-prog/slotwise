@@ -5147,6 +5147,25 @@ button,
   margin: 2px 0 0;
 }
 
+.serviceImageUpload {
+  display: grid;
+  gap: 6px;
+  color: #4d5874;
+  font-size: 13px;
+}
+
+.serviceImageUpload span {
+  font-weight: 600;
+}
+
+.serviceImagePreview {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
 .structuredServiceTop button,
 .structuredServiceActions button {
   border: 1px solid rgba(37, 99, 235, 0.16);

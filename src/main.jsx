@@ -907,6 +907,8 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
       includedGuests: service.included_guests ?? service.includedGuests ?? "",
       extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
       imageUrl: service.image_url || service.imageUrl || "",
+      imageTitle: service.image_title || service.imageTitle || "",
+      imageCaption: service.image_caption || service.imageCaption || "",
       unitQuantity: service.unit_quantity ?? service.unitQuantity ?? 1,
       description: service.description || "",
       displayOrder: service.display_order || 0,
@@ -2076,6 +2078,17 @@ function App() {
     setSetupRequests(nextRequests);
     localStorage.setItem("slotwiseSetupRequests", JSON.stringify(nextRequests));
     return saveResult;
+  };
+
+  const uploadSetupServiceImage = async (service, file) => {
+    validateBrandMediaFile(file);
+    const session = getStoredAdminSession();
+    if (!session?.access_token) throw new Error("Please sign in again before uploading service images.");
+    const slug = makeSlug(service?.businessSlug || service?.slug || service?.business_slug || service?.name || "client-business");
+    const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
+    const extension = getFileExtension(file);
+    const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
+    return supabaseStorageUpload(path, file, session.access_token);
   };
 
   const saveAdminClient = async (client, originalSlug = "", accessToken = "") => {
@@ -3453,12 +3466,29 @@ function DemoExpiredPage({ business, onBack }) {
   );
 }
 
-function StructuredServiceManager({ services, onChange, onDeleteService, bookingTemplate = "GENERAL", compact = false, photoManagement = false }) {
+function StructuredServiceManager({ services, onChange, onDeleteService, onUploadImage, bookingTemplate = "GENERAL", compact = false, photoManagement = false }) {
   const copy = getServiceManagerCopy(bookingTemplate);
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
   const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
   const updateService = (index, updates) => {
     onChange(services.map((service, itemIndex) => itemIndex === index ? { ...service, ...updates } : service));
+  };
+  const uploadServiceImage = async (index, event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!onUploadImage) {
+      window.alert("Service image uploads are not available in this view yet.");
+      return;
+    }
+    try {
+      const service = services[index];
+      const imageUrl = await onUploadImage(service, file);
+      updateService(index, { imageUrl });
+    } catch (error) {
+      console.error("Service image upload failed", error);
+      window.alert(error.message || "Service image upload failed.");
+    }
   };
   const removeService = async (index) => {
     const service = services[index];
@@ -3518,9 +3548,13 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
                       <input type="number" min="1" value={service.includedGuests} onChange={(event) => updateService(index, { includedGuests: event.target.value })} placeholder="Included guests" />
                       <input type="number" min="0" value={service.extraGuestFee} onChange={(event) => updateService(index, { extraGuestFee: event.target.value })} placeholder="Extra guest fee / night" />
                       <input type="number" min="1" value={service.unitQuantity} onChange={(event) => updateService(index, { unitQuantity: event.target.value })} placeholder="Available quantity" />
-                      <input value={service.imageUrl} onChange={(event) => updateService(index, { imageUrl: event.target.value })} placeholder="Optional image URL" />
+                      <label className="serviceImageUpload">
+                        <span>Service photo</span>
+                        <input type="file" accept="image/*" onChange={(event) => uploadServiceImage(index, event)} />
+                      </label>
                       <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Photo title" />
                       <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Photo caption" />
+                      {service.imageUrl && <img src={service.imageUrl} alt={service.imageTitle || service.name || "Service photo"} className="serviceImagePreview" loading="lazy" />}
                     </>
                   )}
                   {isAccommodation && !photoManagement && (
@@ -3529,9 +3563,13 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
                       <input type="number" min="1" value={service.includedGuests} onChange={(event) => updateService(index, { includedGuests: event.target.value })} placeholder="Included guests" />
                       <input type="number" min="0" value={service.extraGuestFee} onChange={(event) => updateService(index, { extraGuestFee: event.target.value })} placeholder="Extra guest fee / night" />
                       <input type="number" min="1" value={service.unitQuantity} onChange={(event) => updateService(index, { unitQuantity: event.target.value })} placeholder="Available quantity" />
-                      <input value={service.imageUrl} onChange={(event) => updateService(index, { imageUrl: event.target.value })} placeholder="Optional image URL" />
+                      <label className="serviceImageUpload">
+                        <span>Service photo</span>
+                        <input type="file" accept="image/*" onChange={(event) => uploadServiceImage(index, event)} />
+                      </label>
                       <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Photo title" />
                       <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Photo caption" />
+                      {service.imageUrl && <img src={service.imageUrl} alt={service.imageTitle || service.name || "Service photo"} className="serviceImagePreview" loading="lazy" />}
                     </>
                   )}
                   {isTravel && (
@@ -3734,7 +3772,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
               <p className="eyebrow">Step 2</p>
               <h2>Services and prices</h2>
               <p>Add each service with price and duration. Blank slots will not be saved.</p>
-              <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} bookingTemplate={setupBookingTemplate} photoManagement={getPackageCapabilities(form.package, form.featureFlags).photoManagement} />
+                <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} onUploadImage={uploadSetupServiceImage} bookingTemplate={setupBookingTemplate} photoManagement={getPackageCapabilities(form.package, form.featureFlags).photoManagement} />
             </div>
           )}
 
@@ -4371,6 +4409,17 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
     setForm((current) => ({ ...current, [kind]: url }));
     setStatusMessage(`${kind === "cover" ? "Cover image" : "Logo"} uploaded.`);
+    return url;
+  };
+
+  const uploadServiceImageAsset = async (service, file) => {
+    validateBrandMediaFile(file);
+    const slug = makeSlug(editingSlug || form.slug || form.businessName || "client-business");
+    const extension = getFileExtension(file);
+    const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
+    const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
+    const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
+    setStatusMessage("Service photo uploaded.");
     return url;
   };
 
@@ -5594,7 +5643,7 @@ After login, you will only see the bookings and features assigned to your busine
             </div>
           </section>
           <label>Description<textarea name="rules" value={form.rules} onChange={updateForm} rows="3" /></label>
-          <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} bookingTemplate={form.bookingTemplate} photoManagement={getPackageCapabilities(form.business_package || form.package, form.feature_flags).photoManagement} />
+           <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} onUploadImage={uploadServiceImageAsset} bookingTemplate={form.bookingTemplate} photoManagement={getPackageCapabilities(form.business_package || form.package, form.feature_flags).photoManagement} />
           <div className="smmFlagGrid">
             {Object.keys(defaultFeatureFlags).map((flag) => (
               <label key={flag}>
@@ -5673,7 +5722,7 @@ function ClientDashboard({
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(getTodayDateValue());
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const emptyServiceForm = { id: "", name: "", description: "", price: "", durationMinutes: 60, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [] };
+  const emptyServiceForm = { id: "", name: "", description: "", price: "", durationMinutes: 60, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [], imageUrl: "", imageTitle: "", imageCaption: "" };
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [clientServiceEntries, setClientServiceEntries] = useState(emptyStructuredServices());
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
@@ -5756,6 +5805,16 @@ function ClientDashboard({
     setBookingPayments(paymentRows || []);
     setAuthState("authorized");
     return true;
+  };
+
+  const uploadClientServiceImage = async (service, file) => {
+    validateBrandMediaFile(file);
+    if (!clientSession?.access_token) throw new Error("Please sign in again before uploading service images.");
+    const slug = makeSlug(service?.businessSlug || selectedBusinessSlug || clientBusiness?.slug || service?.name || "client-business");
+    const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
+    const extension = getFileExtension(file);
+    const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
+    return supabaseStorageUpload(path, file, clientSession.access_token);
   };
 
   useEffect(() => {
@@ -5913,6 +5972,8 @@ function ClientDashboard({
       includedGuests: service.included_guests ?? "",
       extraGuestFee: service.extra_guest_fee ?? "",
       imageUrl: service.image_url || "",
+      imageTitle: service.image_title || "",
+      imageCaption: service.image_caption || "",
       unitQuantity: service.unit_quantity ?? 1,
       status: service.status || "Active",
     } : emptyServiceForm);
@@ -5953,6 +6014,8 @@ function ClientDashboard({
         service_included_guests: serviceForm.includedGuests === "" ? null : Number(serviceForm.includedGuests),
         service_extra_guest_fee: serviceForm.extraGuestFee === "" ? null : Number(serviceForm.extraGuestFee),
         service_image_url: serviceForm.imageUrl || "",
+        service_image_title: serviceForm.imageTitle || "",
+        service_image_caption: serviceForm.imageCaption || "",
         service_unit_quantity: serviceForm.unitQuantity === "" ? 1 : Number(serviceForm.unitQuantity || 1),
       };
       await onSaveService(payload, clientSession?.access_token);
@@ -5966,6 +6029,10 @@ function ClientDashboard({
           pricing_type: payload.service_pricing_type,
           pricing_unit: payload.service_pricing_unit,
           pricing_tiers: payload.service_pricing_tiers,
+          image_url: payload.service_image_url,
+          image_title: payload.service_image_title,
+          image_caption: payload.service_image_caption,
+          unit_quantity: payload.service_unit_quantity,
           status: payload.service_status,
         } : service)
         : [...clientServices, {
@@ -5978,6 +6045,10 @@ function ClientDashboard({
           pricing_type: payload.service_pricing_type,
           pricing_unit: payload.service_pricing_unit,
           pricing_tiers: payload.service_pricing_tiers,
+          image_url: payload.service_image_url,
+          image_title: payload.service_image_title,
+          image_caption: payload.service_image_caption,
+          unit_quantity: payload.service_unit_quantity,
           status: payload.service_status,
         }];
       setClientServices(nextServices);
@@ -5991,6 +6062,10 @@ function ClientDashboard({
           pricingUnit: service.pricing_unit,
           pricingTiers: service.pricing_tiers,
           description: service.description || "",
+          imageUrl: service.image_url || "",
+          imageTitle: service.image_title || "",
+          imageCaption: service.image_caption || "",
+          unitQuantity: service.unit_quantity ?? 1,
         })),
         services: nextServices.filter((service) => service.status !== "Inactive").map((service) => service.name),
       }));
@@ -6037,6 +6112,8 @@ function ClientDashboard({
           service_included_guests: service.includedGuests,
           service_extra_guest_fee: service.extraGuestFee,
           service_image_url: service.imageUrl,
+          service_image_title: service.imageTitle,
+          service_image_caption: service.imageCaption,
           service_unit_quantity: service.unitQuantity,
         }, clientSession?.access_token);
       }
@@ -6053,6 +6130,10 @@ function ClientDashboard({
             service_pricing_type: oldService.pricing_type || "FIXED",
             service_pricing_unit: oldService.pricing_unit || "FLAT",
             service_pricing_tiers: oldService.pricing_tiers || [],
+            service_image_url: oldService.image_url || "",
+            service_image_title: oldService.image_title || "",
+            service_image_caption: oldService.image_caption || "",
+            service_unit_quantity: oldService.unit_quantity ?? 1,
           }, clientSession?.access_token);
         }
       }
@@ -6440,7 +6521,7 @@ function ClientDashboard({
                 <h2>{isClientToursTravel ? "Manage tour packages" : "Manage services"}</h2>
               </div>
               <form onSubmit={submitStructuredServices}>
-                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} bookingTemplate={clientBusiness?.bookingTemplate} compact photoManagement={capabilities.photoManagement} />
+                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} onUploadImage={uploadClientServiceImage} bookingTemplate={clientBusiness?.bookingTemplate} compact photoManagement={capabilities.photoManagement} />
                 <button className="clientPrimaryButton" type="submit">Save Services</button>
               </form>
             </section>
