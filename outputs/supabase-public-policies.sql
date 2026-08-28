@@ -410,6 +410,33 @@ on business_users for delete
 to authenticated
 using (public.is_smm_admin());
 
+alter table smm_offers enable row level security;
+
+drop policy if exists "Allow public smm offers reads" on smm_offers;
+create policy "Allow public smm offers reads"
+on smm_offers for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "Allow admin smm offers inserts" on smm_offers;
+create policy "Allow admin smm offers inserts"
+on smm_offers for insert
+to authenticated
+with check (public.is_smm_admin());
+
+drop policy if exists "Allow admin smm offers updates" on smm_offers;
+create policy "Allow admin smm offers updates"
+on smm_offers for update
+to authenticated
+using (public.is_smm_admin())
+with check (public.is_smm_admin());
+
+drop policy if exists "Allow admin smm offers deletes" on smm_offers;
+create policy "Allow admin smm offers deletes"
+on smm_offers for delete
+to authenticated
+using (public.is_smm_admin());
+
 drop policy if exists "Allow public announcement reads" on announcements;
 create policy "Allow public announcement reads"
 on announcements for select
@@ -450,7 +477,7 @@ create policy "Allow public business media announcement read"
 on storage.objects for select
 using (
   bucket_id = 'business-media'
-  and (name like 'announcements/%' or name like 'logos/%' or name like 'covers/%')
+  and (name like 'announcements/%' or name like 'smm-offers/%' or name like 'logos/%' or name like 'covers/%')
 );
 
 drop policy if exists "Allow admin business media announcement inserts" on storage.objects;
@@ -459,7 +486,7 @@ on storage.objects for insert
 to authenticated
 with check (
   bucket_id = 'business-media'
-  and (name like 'announcements/%' or name like 'logos/%' or name like 'covers/%')
+  and (name like 'announcements/%' or name like 'smm-offers/%' or name like 'logos/%' or name like 'covers/%')
   and public.is_smm_admin()
 );
 
@@ -469,12 +496,12 @@ on storage.objects for update
 to authenticated
 using (
   bucket_id = 'business-media'
-  and (name like 'announcements/%' or name like 'logos/%' or name like 'covers/%')
+  and (name like 'announcements/%' or name like 'smm-offers/%' or name like 'logos/%' or name like 'covers/%')
   and public.is_smm_admin()
 )
 with check (
   bucket_id = 'business-media'
-  and (name like 'announcements/%' or name like 'logos/%' or name like 'covers/%')
+  and (name like 'announcements/%' or name like 'smm-offers/%' or name like 'logos/%' or name like 'covers/%')
   and public.is_smm_admin()
 );
 
@@ -484,7 +511,7 @@ on storage.objects for delete
 to authenticated
 using (
   bucket_id = 'business-media'
-  and (name like 'announcements/%' or name like 'logos/%' or name like 'covers/%')
+  and (name like 'announcements/%' or name like 'smm-offers/%' or name like 'logos/%' or name like 'covers/%')
   and public.is_smm_admin()
 );
 

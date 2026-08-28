@@ -86,7 +86,7 @@ begin
   end if;
 
   alter table businesses add constraint businesses_booking_template_allowed
-  check (booking_template in ('GENERAL', 'BEAUTY', 'CLINIC', 'HOME_SERVICE', 'AUTO', 'TOURS_TRAVEL', 'STAYCATION_ACCOMMODATION')) not valid;
+  check (booking_template in ('GENERAL', 'BEAUTY', 'CLINIC', 'HOME_SERVICE', 'AUTO', 'CAR_WASH', 'LAUNDRY', 'TOURS_TRAVEL', 'STAYCATION_ACCOMMODATION')) not valid;
 end $$;
 do $$
 begin
@@ -591,6 +591,22 @@ create table if not exists business_users (
   active boolean not null default true,
   created_at timestamptz not null default now(),
   unique (user_id, business_slug)
+);
+
+create table if not exists smm_offers (
+  id text primary key default 'global',
+  enabled boolean not null default true,
+  show_on_demo boolean not null default true,
+  show_on_dashboard boolean not null default true,
+  cta_label text not null default 'Message SMM Solutions',
+  offer_one_title text not null default 'Need help getting started?',
+  offer_one_message text not null default 'We can guide you through setup, branding, and the right package for your business.',
+  offer_one_image_url text,
+  offer_two_title text not null default 'Want to upgrade your page?',
+  offer_two_message text not null default 'We can unlock more controls as your business grows without changing your booking flow.',
+  offer_two_image_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists announcements (
