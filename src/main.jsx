@@ -207,6 +207,7 @@ function resolveServiceIcon(serviceName = "", business = {}) {
   const businessText = `${business.business || ""} ${business.name || ""} ${business.industry || ""} ${business.businessType || ""} ${business.description || ""}`.toLowerCase();
   const isToursTravel = normalizeBookingTemplate(business.bookingTemplate) === "TOURS_TRAVEL"
     || hasKeyword(businessText, ["tour", "travel", "island", "vacation", "trip", "airport", "transfer", "van rental"]);
+  const isStaycationAccommodation = normalizeBookingTemplate(business.bookingTemplate) === "STAYCATION_ACCOMMODATION";
   const isBeauty = hasKeyword(businessText, ["salon", "beauty", "hair", "nail", "spa", "facial", "wellness"]);
   const isClinic = hasKeyword(businessText, ["clinic", "dental", "dentist", "medical", "care"]);
   const isHomeService = hasKeyword(businessText, ["aircon", "air con", "hvac", "home", "cleaning", "repair", "maintenance", "plumbing", "electrical", "appliance"]);
@@ -267,7 +268,7 @@ function resolveServiceIcon(serviceName = "", business = {}) {
   if (hasKeyword(serviceText, ["repair"])) return Wrench;
   if (hasKeyword(serviceText, ["consultation", "consult"])) return MessageSquare;
   if (hasKeyword(serviceText, ["laundry", "wash", "fold", "dry cleaning", "pickup", "pickup and delivery", "pick up and delivery"])) return WashingMachine;
-  return businessTone === "staycation-accommodation" ? BedDouble : isToursTravel ? MapPinned : CircleDot;
+  return isStaycationAccommodation ? BedDouble : isToursTravel ? MapPinned : CircleDot;
 }
 
 function resolveBusinessTone(business = {}) {
@@ -2450,16 +2451,8 @@ function App() {
     if (publicBusiness && isDemoExpired(publicBusiness)) {
       return <DemoExpiredPage business={publicBusiness} onBack={() => setPage("home")} />;
     }
-    const publicRendererBusiness = publicBusiness && normalizeBookingTemplate(publicBusiness.bookingTemplate) === "PROFESSIONAL_SERVICES"
-      ? {
-        ...publicBusiness,
-        bookingTemplate: "GENERAL",
-        businessType: publicBusiness.businessType || publicBusiness.name || "Service business",
-      }
-      : publicBusiness;
-
     return publicBusiness ? (
-      <BookingPrototype business={publicRendererBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} smmOffers={smmOffers} />
+      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} smmOffers={smmOffers} />
     ) : (
       <BusinessNotFoundPage slug={publicBusinessSlug} onBack={() => setPage("home")} onSetup={() => setPage("setup")} />
     );
@@ -3058,6 +3051,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       includedGuests: detail?.includedGuests ?? null,
       extraGuestFee: detail?.extraGuestFee ?? null,
       imageUrl: detail?.imageUrl || "",
+      imageTitle: detail?.imageTitle || "",
+      imageCaption: detail?.imageCaption || "",
       serviceCategory: detail?.serviceCategory || detail?.category || "",
       unitQuantity: detail?.unitQuantity ?? 1,
       description: detail?.description || "",
@@ -6197,14 +6192,15 @@ function ClientDashboard({
       }
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
       const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
+      const isClientConsultant = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "PROFESSIONAL_SERVICES";
       const tierValidation = validatePricingTiers(serviceForm.pricingTiers);
-      if (isClientToursTravel && serviceForm.pricingType === "GROUP_TIER" && (!tierValidation.ok || tierValidation.tiers.length === 0)) {
+      if ((isClientToursTravel || isClientConsultant) && serviceForm.pricingType === "GROUP_TIER" && (!tierValidation.ok || tierValidation.tiers.length === 0)) {
         setStatusMessage(tierValidation.message || "Add at least one valid pricing tier.");
         return;
       }
       if (serviceForm.status !== "Inactive" && !hasValidPricingConfiguration({
-        pricingType: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? serviceForm.pricingType : "FIXED",
-        pricingUnit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? serviceForm.pricingUnit : "FLAT",
+        pricingType: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? serviceForm.pricingType : "FIXED",
+        pricingUnit: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? serviceForm.pricingUnit : "FLAT",
         price: serviceForm.price,
         pricingTiers: serviceForm.pricingTiers,
       })) {
@@ -6219,9 +6215,10 @@ function ClientDashboard({
         service_price: serviceForm.price === "" ? null : Number(serviceForm.price),
         service_duration: isClientAccommodation ? null : Number(serviceForm.durationMinutes) || 60,
         service_status: serviceForm.status,
-        service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingType(serviceForm.pricingType) : "FIXED",
-        service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingUnit(serviceForm.pricingUnit, serviceForm.pricingType) : "FLAT",
-        service_pricing_tiers: isClientToursTravel ? tierValidation.tiers : [],
+        service_pricing_type: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? normalizePricingType(serviceForm.pricingType) : "FIXED",
+        service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? normalizePricingUnit(serviceForm.pricingUnit, serviceForm.pricingType) : "FLAT",
+        service_pricing_tiers: (isClientToursTravel || isClientConsultant) && serviceForm.pricingType === "GROUP_TIER" ? tierValidation.tiers : [],
+        service_category: isClientConsultant ? (serviceForm.serviceCategory || "") : "",
         service_max_guests: serviceForm.maxGuests === "" ? null : Number(serviceForm.maxGuests),
         service_included_guests: serviceForm.includedGuests === "" ? null : Number(serviceForm.includedGuests),
         service_extra_guest_fee: serviceForm.extraGuestFee === "" ? null : Number(serviceForm.extraGuestFee),
@@ -6309,9 +6306,10 @@ function ClientDashboard({
       }
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
       const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
+      const isClientConsultant = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "PROFESSIONAL_SERVICES";
       const savableServices = getSavableStructuredServices(clientServiceEntries, clientBusiness?.bookingTemplate);
       for (const service of savableServices) {
-        if (isClientToursTravel && service.pricingType === "GROUP_TIER" && !validatePricingTiers(service.pricingTiers).ok) {
+        if ((isClientToursTravel || isClientConsultant) && service.pricingType === "GROUP_TIER" && !validatePricingTiers(service.pricingTiers).ok) {
           setStatusMessage(`Fix pricing tiers for ${service.name}.`);
           return;
         }
@@ -6331,9 +6329,10 @@ function ClientDashboard({
           service_price: service.price,
           service_duration: service.durationMinutes,
           service_status: service.status,
-          service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingType(service.pricingType) : "FIXED",
-          service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
-          service_pricing_tiers: isClientToursTravel ? service.pricingTiers : [],
+          service_pricing_type: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? normalizePricingType(service.pricingType) : "FIXED",
+          service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
+          service_pricing_tiers: (isClientToursTravel || isClientConsultant) && service.pricingType === "GROUP_TIER" ? service.pricingTiers : [],
+          service_category: isClientConsultant ? (service.serviceCategory || "") : "",
           service_max_guests: service.maxGuests,
           service_included_guests: service.includedGuests,
           service_extra_guest_fee: service.extraGuestFee,
