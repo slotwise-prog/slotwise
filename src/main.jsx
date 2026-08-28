@@ -777,7 +777,7 @@ async function supabaseRpcRequest(functionName, body, accessToken = "") {
   return data;
 }
 
-async function supabaseStorageUpload(path, file, accessToken = "") {
+async function supabaseStorageUpload(path, file, accessToken = "", options = {}) {
   if (!supabaseUrl || !supabaseAnonKey) throw new Error("Supabase is not connected.");
   const response = await fetch(`${supabaseUrl}/storage/v1/object/business-media/${path}`, {
     method: "PUT",
@@ -796,7 +796,15 @@ async function supabaseStorageUpload(path, file, accessToken = "") {
   if (!verifyResponse.ok) {
     throw new Error("Upload completed, but the saved photo could not be read back.");
   }
-  return publicUrl;
+  return options.returnStoredPath ? path : publicUrl;
+}
+
+function resolveBusinessMediaUrl(value = "") {
+  const next = String(value || "").trim();
+  if (!next) return "";
+  if (/^https?:\/\//i.test(next)) return next;
+  if (!supabaseUrl) return next;
+  return `${supabaseUrl}/storage/v1/object/public/business-media/${next.replace(/^\/+/, "")}`;
 }
 
 function validateBrandMediaFile(file) {
@@ -2093,7 +2101,7 @@ function App() {
     const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
     const extension = getFileExtension(file);
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
-    return supabaseStorageUpload(path, file, session.access_token);
+    return supabaseStorageUpload(path, file, session.access_token, { returnStoredPath: true });
   };
 
   const saveAdminClient = async (client, originalSlug = "", accessToken = "") => {
@@ -3221,7 +3229,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, sm
                 const detail = getServiceDetail(item);
                 return (
                   <button type="button" key={item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
-                    <span className="serviceIcon">{detail.imageUrl ? <img src={detail.imageUrl} alt="" /> : <ServiceIcon size={22} />}</span>
+                    <span className="serviceIcon">{resolveBusinessMediaUrl(detail.imageUrl) ? <img src={resolveBusinessMediaUrl(detail.imageUrl)} alt="" /> : <ServiceIcon size={22} />}</span>
                     <strong>{detail.imageTitle || item}</strong>
                     {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
                     {detail.description && <p className="serviceDescription">{detail.description}</p>}
@@ -3562,7 +3570,7 @@ function StructuredServiceManager({ services, onChange, onDeleteService, onUploa
                       </label>
                       <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Photo title" />
                       <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Photo caption" />
-                      {service.imageUrl && <img src={service.imageUrl} alt={service.imageTitle || service.name || "Service photo"} className="serviceImagePreview" loading="lazy" />}
+                      {service.imageUrl && <img src={resolveBusinessMediaUrl(service.imageUrl)} alt={service.imageTitle || service.name || "Service photo"} className="serviceImagePreview" loading="lazy" />}
                     </>
                   )}
                   {isAccommodation && !photoManagement && (
@@ -3577,7 +3585,7 @@ function StructuredServiceManager({ services, onChange, onDeleteService, onUploa
                       </label>
                       <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Photo title" />
                       <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Photo caption" />
-                      {service.imageUrl && <img src={service.imageUrl} alt={service.imageTitle || service.name || "Service photo"} className="serviceImagePreview" loading="lazy" />}
+                      {service.imageUrl && <img src={resolveBusinessMediaUrl(service.imageUrl)} alt={service.imageTitle || service.name || "Service photo"} className="serviceImagePreview" loading="lazy" />}
                     </>
                   )}
                   {isTravel && (
@@ -4432,7 +4440,7 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     const extension = getFileExtension(file);
     const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
-    const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
+    const url = await supabaseStorageUpload(path, file, adminSession?.access_token, { returnStoredPath: true });
     setStatusMessage("Service photo uploaded.");
     return url;
   };
@@ -5829,7 +5837,7 @@ function ClientDashboard({
     const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
     const extension = getFileExtension(file);
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
-    return supabaseStorageUpload(path, file, clientSession.access_token);
+    return supabaseStorageUpload(path, file, clientSession.access_token, { returnStoredPath: true });
   };
 
   useEffect(() => {
