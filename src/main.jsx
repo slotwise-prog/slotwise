@@ -2101,7 +2101,7 @@ function App() {
     const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
     const extension = getFileExtension(file);
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
-    return supabaseStorageUpload(path, file, session.access_token, { returnStoredPath: true });
+    return supabaseStorageUpload(path, file, session.access_token);
   };
 
   const saveAdminClient = async (client, originalSlug = "", accessToken = "") => {
@@ -4440,7 +4440,7 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     const extension = getFileExtension(file);
     const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
-    const url = await supabaseStorageUpload(path, file, adminSession?.access_token, { returnStoredPath: true });
+    const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
     setStatusMessage("Service photo uploaded.");
     return url;
   };
@@ -5837,7 +5837,7 @@ function ClientDashboard({
     const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
     const extension = getFileExtension(file);
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
-    return supabaseStorageUpload(path, file, clientSession.access_token, { returnStoredPath: true });
+    return supabaseStorageUpload(path, file, clientSession.access_token);
   };
 
   useEffect(() => {
