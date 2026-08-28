@@ -791,7 +791,12 @@ async function supabaseStorageUpload(path, file, accessToken = "") {
   });
   const responseText = await response.text();
   if (!response.ok) throw new Error(responseText || "Upload failed.");
-  return `${supabaseUrl}/storage/v1/object/public/business-media/${path}`;
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/business-media/${path}`;
+  const verifyResponse = await fetch(publicUrl, { method: "GET" });
+  if (!verifyResponse.ok) {
+    throw new Error("Upload completed, but the saved photo could not be read back.");
+  }
+  return publicUrl;
 }
 
 function validateBrandMediaFile(file) {
