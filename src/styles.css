@@ -668,6 +668,10 @@ h2 {
   background: linear-gradient(135deg, #ffb84d, #0e8d83);
 }
 
+.templateCard-professional .templateIcon {
+  background: linear-gradient(135deg, #0f172a, #64748b);
+}
+
 .templateCard-carwash .templateIcon {
   background: linear-gradient(135deg, #0f172a, #60a5fa);
 }
@@ -759,6 +763,11 @@ h2 {
 .templateCard-travel .templateHighlight {
   border-color: #ffb84d;
   background: #fff8e8;
+}
+
+.templateCard-professional .templateHighlight {
+  border-color: #0f172a;
+  background: #eff4fb;
 }
 
 .templateCard-carwash .templateHighlight {

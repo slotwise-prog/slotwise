@@ -102,6 +102,7 @@ const bookingTemplateOptions = [
   { value: "GENERAL", label: "General" },
   { value: "BEAUTY", label: "Beauty / Salon" },
   { value: "CLINIC", label: "Clinic / Dental" },
+  { value: "PROFESSIONAL_SERVICES", label: "Consultant / Professional Services" },
   { value: "HOME_SERVICE", label: "Home Service" },
   { value: "AUTO", label: "Auto / Car Wash" },
   { value: "CAR_WASH", label: "Car Wash" },
@@ -271,6 +272,7 @@ function resolveBusinessTone(business = {}) {
   const template = normalizeBookingTemplate(business.bookingTemplate);
   if (template === "STAYCATION_ACCOMMODATION") return "staycation-accommodation";
   if (template === "TOURS_TRAVEL") return "tours-travel";
+  if (template === "PROFESSIONAL_SERVICES") return "professional-services";
   if (template === "CAR_WASH") return "carwash";
   if (template === "LAUNDRY") return "laundry";
   if (template === "HOME_SERVICE") return "home-service";
@@ -289,6 +291,7 @@ function resolveBusinessTone(business = {}) {
 function getToneThemeDefaults(tone) {
   if (tone === "staycation-accommodation") return { primaryColor: "#7a4f2f", accentColor: "#f8efe6", pageBackgroundColor: "#F4EFE8" };
   if (tone === "tours-travel") return { primaryColor: "#0f766e", accentColor: "#e6f7f1", pageBackgroundColor: "#F6F2E5" };
+  if (tone === "professional-services") return { primaryColor: "#334155", accentColor: "#e8eef7", pageBackgroundColor: "#F4F7FB" };
   if (tone === "carwash") return { primaryColor: "#1f2937", accentColor: "#eef2f7", pageBackgroundColor: "#F3F6FA" };
   if (tone === "laundry") return { primaryColor: "#2d5b87", accentColor: "#e7f1fb", pageBackgroundColor: "#F2F7FB" };
   if (tone === "home-service") return { primaryColor: "#155e75", accentColor: "#eaf7fb", pageBackgroundColor: "#F1F5F9" };
@@ -331,6 +334,7 @@ function getTemplateFallbackCover(tone = "beauty") {
   const tones = {
     "staycation-accommodation": { title: "STAYCATION", subtitle: "Relax • Sleep • Stay", start: "#4b2f23", end: "#b7794b" },
     "tours-travel": { title: "TRAVEL", subtitle: "Explore • Discover • Go", start: "#0b525b", end: "#f59e0b" },
+    "professional-services": { title: "CONSULTING", subtitle: "Plan • Guide • Deliver", start: "#0f172a", end: "#64748b" },
     carwash: { title: "CAR WASH", subtitle: "Wash • Shine • Drive", start: "#111827", end: "#60a5fa" },
     laundry: { title: "LAUNDRY", subtitle: "Wash • Dry • Fold", start: "#2d5b87", end: "#7cc4ff" },
     "home-service": { title: "HOME SERVICE", subtitle: "Repair • Clean • Fix", start: "#0f3f4f", end: "#2563eb" },
@@ -462,6 +466,7 @@ function getBookingTemplateTone(bookingTemplate) {
   const nextTemplate = normalizeBookingTemplate(bookingTemplate);
   if (nextTemplate === "STAYCATION_ACCOMMODATION") return "staycation-accommodation";
   if (nextTemplate === "TOURS_TRAVEL") return "tours-travel";
+  if (nextTemplate === "PROFESSIONAL_SERVICES") return "professional-services";
   if (nextTemplate === "CAR_WASH") return "carwash";
   if (nextTemplate === "LAUNDRY") return "laundry";
   if (nextTemplate === "HOME_SERVICE") return "home-service";
@@ -1420,6 +1425,7 @@ function getServiceManagerCopy(bookingTemplate = "GENERAL") {
   const template = normalizeBookingTemplate(bookingTemplate);
   if (template === "TOURS_TRAVEL") return { title: "Tour Packages", single: "Tour package", add: "Add Another Package" };
   if (template === "STAYCATION_ACCOMMODATION") return { title: "Rooms / Units", single: "Room / unit", add: "Add Room / Unit" };
+  if (template === "PROFESSIONAL_SERVICES") return { title: "Consulting Services", single: "Consulting service", add: "Add Another Service" };
   if (template === "CAR_WASH") return { title: "Car Wash Services", single: "Car wash service", add: "Add Another Service" };
   if (template === "LAUNDRY") return { title: "Laundry Services", single: "Laundry service", add: "Add Another Service" };
   if (template === "CLINIC") return { title: "Services / Treatments", single: "Service / treatment", add: "Add Another Service" };
@@ -1457,6 +1463,7 @@ function inferBookingTemplateFromIndustry(industry = "") {
   const lower = industry.toLowerCase();
   if (/(staycation|accommodation|resort|villa|transient|apartment|condotel|hotel|guest house|cabin|beach house|room|rental)/i.test(lower)) return "STAYCATION_ACCOMMODATION";
   if (/(travel|tour)/i.test(lower)) return "TOURS_TRAVEL";
+  if (/(consultant|consulting|professional services|professional service|agency|advisory|advisor|accounting|legal|lawyer|real estate|broker|marketing|design|freelance|profession)/i.test(lower)) return "PROFESSIONAL_SERVICES";
   if (/(car wash|carwash|auto detailing|detailing|vehicle cleaning|motorcycle wash|motor wash)/i.test(lower)) return "CAR_WASH";
   if (/(laundry|wash\s*&\s*fold|wash and fold|dry cleaning|pickup.*delivery|pick up.*delivery)/i.test(lower)) return "LAUNDRY";
   if (/(clinic|dental|doctor|medical)/i.test(lower)) return "CLINIC";
@@ -1624,6 +1631,37 @@ const templates = [
     stat: "7 inquiries this week",
     services: ["Room booking", "Travel package", "Document assistance"],
     forms: ["Travel date", "Guests", "Payment method"],
+  },
+  {
+    icon: <BriefcaseBusiness />,
+    slug: "primepoint-consulting",
+    name: "Consultant / Professional Services",
+    business: "PrimePoint Consulting",
+    link: "primepoint.slotwise.app",
+    logo: "",
+    primaryColor: "#334155",
+    accentColor: "#e8eef7",
+    phone: "0917 555 4412",
+    messengerLink: "https://m.me/primepointconsulting",
+    address: "Sample consulting office address",
+    description: "Advice, strategy, and service sessions booked in one simple flow.",
+    businessType: "Consulting / Professional Services",
+    bookingMode: "booking",
+    bookingTemplate: "PROFESSIONAL_SERVICES",
+    featureFlags: { ...defaultFeatureFlags, requireAddress: false, customerListEnabled: true },
+    availability: { ...defaultAvailability, days: "Monday to Friday", hours: "9:00 AM to 6:00 PM", slots: ["9:00 AM", "11:00 AM", "1:00 PM", "3:00 PM", "5:00 PM"] },
+    cover: getTemplateFallbackCover("professional-services"),
+    accent: "professional",
+    tagline: "For consultants, advisors, agencies, and professional sessions.",
+    highlight: "Best for appointment-based consultations and service retainers",
+    stat: "Consults booked this week",
+    services: ["Strategy Session", "Business Consultation", "Project Review"],
+    serviceDetails: [
+      { name: "Strategy Session", description: "Focused planning call or meeting", price: 1500, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 60, displayOrder: 0, status: "Active" },
+      { name: "Business Consultation", description: "Professional advice and recommendations", price: 2500, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 90, displayOrder: 1, status: "Active" },
+      { name: "Project Review", description: "Document or project assessment session", price: 1800, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 75, displayOrder: 2, status: "Active" },
+    ],
+    forms: ["Company name", "Project details", "Preferred consultation notes"],
   },
   {
     icon: <WashingMachine />,

@@ -86,7 +86,7 @@ begin
   end if;
 
   alter table businesses add constraint businesses_booking_template_allowed
-  check (booking_template in ('GENERAL', 'BEAUTY', 'CLINIC', 'HOME_SERVICE', 'AUTO', 'CAR_WASH', 'LAUNDRY', 'TOURS_TRAVEL', 'STAYCATION_ACCOMMODATION')) not valid;
+  check (booking_template in ('GENERAL', 'BEAUTY', 'CLINIC', 'PROFESSIONAL_SERVICES', 'HOME_SERVICE', 'AUTO', 'CAR_WASH', 'LAUNDRY', 'TOURS_TRAVEL', 'STAYCATION_ACCOMMODATION')) not valid;
 end $$;
 do $$
 begin
