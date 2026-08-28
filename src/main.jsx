@@ -1381,7 +1381,7 @@ function serviceRowToStructured(service = {}, index = 0) {
   return {
     id: service.id || "",
     name: service.name || "",
-    serviceCategory: service.service_category || service.serviceCategory || "",
+    serviceCategory: service.service_category || service.serviceCategory || service.image_caption || "",
     description: service.description || "",
     price: service.price ?? "",
     durationMinutes: service.duration_minutes ?? service.durationMinutes ?? "",
@@ -1425,7 +1425,6 @@ function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
       return {
         ...service,
         name: service.name.trim(),
-        serviceCategory: service.serviceCategory || "",
         description: service.description.trim(),
         price: service.price === "" ? null : Number(service.price),
         durationMinutes: service.durationMinutes === "" ? null : Number(service.durationMinutes),
@@ -1441,7 +1440,6 @@ function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
         imageTitle: service.imageTitle || "",
         imageCaption: service.imageCaption || "",
         unitQuantity: service.unitQuantity === "" ? 1 : Number(service.unitQuantity || 1),
-        serviceCategory: service.serviceCategory || "",
       };
     });
 }
@@ -1562,7 +1560,6 @@ function setupToServiceRows(setup, slug, requestId) {
     id: service.id || `${requestId}-SVC-${index + 1}`,
     business_slug: slug,
     name: service.name,
-    service_category: service.serviceCategory || "",
     duration_minutes: service.durationMinutes,
     price: service.price,
     pricing_unit: normalizePricingUnit(service.pricingUnit),
@@ -6225,7 +6222,6 @@ function ClientDashboard({
         service_image_title: serviceForm.imageTitle || "",
         service_image_caption: serviceForm.imageCaption || "",
         service_unit_quantity: serviceForm.unitQuantity === "" ? 1 : Number(serviceForm.unitQuantity || 1),
-        service_category: serviceForm.serviceCategory || "",
       };
       await onSaveService(payload, clientSession?.access_token);
       const [confirmedService] = await supabaseRequest("business_services", {
@@ -6240,7 +6236,7 @@ function ClientDashboard({
           ...service,
           name: payload.service_name,
           description: payload.service_description,
-          serviceCategory: payload.service_category,
+          serviceCategory: serviceForm.serviceCategory || service.image_caption || "",
           price: payload.service_price,
           duration_minutes: payload.service_duration,
           pricing_type: payload.service_pricing_type,
@@ -6257,7 +6253,7 @@ function ClientDashboard({
           business_slug: selectedBusinessSlug,
           name: payload.service_name,
           description: payload.service_description,
-          serviceCategory: payload.service_category,
+          serviceCategory: serviceForm.serviceCategory || "",
           price: payload.service_price,
           duration_minutes: payload.service_duration,
           pricing_type: payload.service_pricing_type,
@@ -6279,7 +6275,7 @@ function ClientDashboard({
           pricingType: service.pricing_type,
           pricingUnit: service.pricing_unit,
           pricingTiers: service.pricing_tiers,
-          serviceCategory: service.service_category || "",
+          serviceCategory: service.image_caption || service.serviceCategory || "",
           description: service.description || "",
           imageUrl: service.image_url || "",
           imageTitle: service.image_title || "",
@@ -6338,7 +6334,6 @@ function ClientDashboard({
           service_image_title: service.imageTitle,
           service_image_caption: service.imageCaption,
           service_unit_quantity: service.unitQuantity,
-          service_category: service.serviceCategory || "",
         }, clientSession?.access_token);
       }
       const refreshedAfterSave = await supabaseRequest("business_services", {
@@ -6365,7 +6360,6 @@ function ClientDashboard({
           service_image_title: oldService.image_title || "",
           service_image_caption: oldService.image_caption || "",
           service_unit_quantity: oldService.unit_quantity ?? 1,
-          service_category: oldService.service_category || "",
         }, clientSession?.access_token);
         }
       }
