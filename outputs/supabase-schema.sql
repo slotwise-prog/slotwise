@@ -166,6 +166,8 @@ create table if not exists business_services (
   included_guests integer,
   extra_guest_fee numeric,
   image_url text,
+  image_title text,
+  image_caption text,
   unit_quantity integer not null default 1,
   description text,
   display_order integer not null default 0,
@@ -180,6 +182,8 @@ alter table business_services add column if not exists max_guests integer;
 alter table business_services add column if not exists included_guests integer;
 alter table business_services add column if not exists extra_guest_fee numeric;
 alter table business_services add column if not exists image_url text;
+alter table business_services add column if not exists image_title text;
+alter table business_services add column if not exists image_caption text;
 alter table business_services add column if not exists unit_quantity integer not null default 1;
 do $$
 begin

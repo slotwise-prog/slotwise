@@ -114,6 +114,7 @@ const bookingTemplateOptions = [
 const packageCapabilityMap = {
   STARTER: {
     services: false,
+    photoManagement: false,
     schedule: false,
     customers: false,
     basicStats: false,
@@ -125,6 +126,7 @@ const packageCapabilityMap = {
   },
   BUSINESS: {
     services: true,
+    photoManagement: true,
     schedule: true,
     customers: true,
     basicStats: true,
@@ -136,6 +138,7 @@ const packageCapabilityMap = {
   },
   PRO: {
     services: true,
+    photoManagement: true,
     schedule: true,
     customers: true,
     basicStats: true,
@@ -1334,6 +1337,8 @@ function emptyStructuredServices(count = 3) {
     includedGuests: "",
     extraGuestFee: "",
     imageUrl: "",
+    imageTitle: "",
+    imageCaption: "",
     unitQuantity: 1,
     expanded: true,
   }));
@@ -1355,6 +1360,8 @@ function serviceRowToStructured(service = {}, index = 0) {
     includedGuests: service.included_guests ?? service.includedGuests ?? "",
     extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
     imageUrl: service.image_url || service.imageUrl || "",
+    imageTitle: service.image_title || service.imageTitle || "",
+    imageCaption: service.image_caption || service.imageCaption || "",
     unitQuantity: service.unit_quantity ?? service.unitQuantity ?? 1,
     expanded: index < 3,
   };
@@ -1389,6 +1396,8 @@ function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
         includedGuests: service.includedGuests === "" ? null : Number(service.includedGuests),
         extraGuestFee: service.extraGuestFee === "" ? null : Number(service.extraGuestFee),
         imageUrl: service.imageUrl || "",
+        imageTitle: service.imageTitle || "",
+        imageCaption: service.imageCaption || "",
         unitQuantity: service.unitQuantity === "" ? 1 : Number(service.unitQuantity || 1),
       };
     });
@@ -1519,6 +1528,8 @@ function setupToServiceRows(setup, slug, requestId) {
     included_guests: service.includedGuests,
     extra_guest_fee: service.extraGuestFee,
     image_url: service.imageUrl,
+    image_title: service.imageTitle || "",
+    image_caption: service.imageCaption || "",
     unit_quantity: service.unitQuantity,
     description: service.description,
     display_order: service.displayOrder,
@@ -3192,8 +3203,9 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, sm
                 const detail = getServiceDetail(item);
                 return (
                   <button type="button" key={item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
-                    <span className="serviceIcon">{isAccommodation && detail.imageUrl ? <img src={detail.imageUrl} alt="" /> : <ServiceIcon size={22} />}</span>
-                    <strong>{item}</strong>
+                    <span className="serviceIcon">{detail.imageUrl ? <img src={detail.imageUrl} alt="" /> : <ServiceIcon size={22} />}</span>
+                    <strong>{detail.imageTitle || item}</strong>
+                    {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
                     {detail.description && <p className="serviceDescription">{detail.description}</p>}
                     {flags.showPrices && serviceMetaLabel(detail) && <small>{serviceMetaLabel(detail)}</small>}
                     {isSelected && <em><Check size={16} /></em>}
@@ -3441,7 +3453,7 @@ function DemoExpiredPage({ business, onBack }) {
   );
 }
 
-function StructuredServiceManager({ services, onChange, onDeleteService, bookingTemplate = "GENERAL", compact = false }) {
+function StructuredServiceManager({ services, onChange, onDeleteService, bookingTemplate = "GENERAL", compact = false, photoManagement = false }) {
   const copy = getServiceManagerCopy(bookingTemplate);
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
   const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
@@ -3500,13 +3512,26 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
                   <input value={service.description} onChange={(event) => updateService(index, { description: event.target.value })} placeholder="Description" />
                   <input type="number" min="0" value={service.price} onChange={(event) => updateService(index, { price: event.target.value })} placeholder={isAccommodation ? "Price per night" : "Price"} />
                   {!isAccommodation && <input type="number" min="0" value={service.durationMinutes} onChange={(event) => updateService(index, { durationMinutes: event.target.value })} placeholder="Duration in minutes" />}
-                  {isAccommodation && (
+                  {photoManagement && (
                     <>
                       <input type="number" min="1" value={service.maxGuests} onChange={(event) => updateService(index, { maxGuests: event.target.value })} placeholder="Maximum guests" />
                       <input type="number" min="1" value={service.includedGuests} onChange={(event) => updateService(index, { includedGuests: event.target.value })} placeholder="Included guests" />
                       <input type="number" min="0" value={service.extraGuestFee} onChange={(event) => updateService(index, { extraGuestFee: event.target.value })} placeholder="Extra guest fee / night" />
                       <input type="number" min="1" value={service.unitQuantity} onChange={(event) => updateService(index, { unitQuantity: event.target.value })} placeholder="Available quantity" />
                       <input value={service.imageUrl} onChange={(event) => updateService(index, { imageUrl: event.target.value })} placeholder="Optional image URL" />
+                      <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Photo title" />
+                      <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Photo caption" />
+                    </>
+                  )}
+                  {isAccommodation && !photoManagement && (
+                    <>
+                      <input type="number" min="1" value={service.maxGuests} onChange={(event) => updateService(index, { maxGuests: event.target.value })} placeholder="Maximum guests" />
+                      <input type="number" min="1" value={service.includedGuests} onChange={(event) => updateService(index, { includedGuests: event.target.value })} placeholder="Included guests" />
+                      <input type="number" min="0" value={service.extraGuestFee} onChange={(event) => updateService(index, { extraGuestFee: event.target.value })} placeholder="Extra guest fee / night" />
+                      <input type="number" min="1" value={service.unitQuantity} onChange={(event) => updateService(index, { unitQuantity: event.target.value })} placeholder="Available quantity" />
+                      <input value={service.imageUrl} onChange={(event) => updateService(index, { imageUrl: event.target.value })} placeholder="Optional image URL" />
+                      <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Photo title" />
+                      <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Photo caption" />
                     </>
                   )}
                   {isTravel && (
@@ -3709,7 +3734,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
               <p className="eyebrow">Step 2</p>
               <h2>Services and prices</h2>
               <p>Add each service with price and duration. Blank slots will not be saved.</p>
-              <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} bookingTemplate={setupBookingTemplate} />
+              <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} bookingTemplate={setupBookingTemplate} photoManagement={getPackageCapabilities(form.package, form.featureFlags).photoManagement} />
             </div>
           )}
 
@@ -5569,7 +5594,7 @@ After login, you will only see the bookings and features assigned to your busine
             </div>
           </section>
           <label>Description<textarea name="rules" value={form.rules} onChange={updateForm} rows="3" /></label>
-          <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} bookingTemplate={form.bookingTemplate} />
+          <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} bookingTemplate={form.bookingTemplate} photoManagement={getPackageCapabilities(form.business_package || form.package, form.feature_flags).photoManagement} />
           <div className="smmFlagGrid">
             {Object.keys(defaultFeatureFlags).map((flag) => (
               <label key={flag}>
@@ -6415,7 +6440,7 @@ function ClientDashboard({
                 <h2>{isClientToursTravel ? "Manage tour packages" : "Manage services"}</h2>
               </div>
               <form onSubmit={submitStructuredServices}>
-                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} bookingTemplate={clientBusiness?.bookingTemplate} compact />
+                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} bookingTemplate={clientBusiness?.bookingTemplate} compact photoManagement={capabilities.photoManagement} />
                 <button className="clientPrimaryButton" type="submit">Save Services</button>
               </form>
             </section>
