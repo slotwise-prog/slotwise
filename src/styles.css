@@ -2110,10 +2110,12 @@ h2 {
 .premiumBookingPage {
   --booking-primary: #bd5d6d;
   --booking-accent: #f6dfe3;
+  position: relative;
   background:
-    radial-gradient(circle at 18% 16%, rgba(199, 91, 113, 0.12), transparent 30%),
-    radial-gradient(circle at 84% 20%, rgba(126, 82, 62, 0.1), transparent 28%),
-    linear-gradient(145deg, #fffaf8 0%, #f6edf0 48%, #eef4ff 100%);
+    radial-gradient(circle at 18% 16%, rgba(199, 91, 113, 0.14), transparent 26%),
+    radial-gradient(circle at 84% 20%, rgba(126, 82, 62, 0.11), transparent 24%),
+    radial-gradient(circle at 50% 100%, rgba(15, 118, 110, 0.08), transparent 28%),
+    linear-gradient(145deg, #fffdfb 0%, #fbf3f4 42%, #eef4ff 100%);
 }
 
 .premiumBackButton {
@@ -2126,11 +2128,12 @@ h2 {
   max-width: 1320px;
   grid-template-columns: minmax(360px, 0.78fr) minmax(540px, 1fr);
   gap: 0;
-  border-radius: 22px;
+  border-radius: 28px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(130, 79, 88, 0.16);
-  box-shadow: 0 32px 90px rgba(81, 48, 56, 0.14);
+  border: 1px solid rgba(130, 79, 88, 0.14);
+  box-shadow: 0 30px 100px rgba(81, 48, 56, 0.12);
+  backdrop-filter: blur(14px);
 }
 
 .premiumBrandPanel {
@@ -2143,6 +2146,22 @@ h2 {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  isolation: isolate;
+}
+
+.premiumBrandPanel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(12, 18, 41, 0.10) 0%, rgba(12, 18, 41, 0.50) 48%, rgba(12, 18, 41, 0.82) 100%),
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 24%);
+  z-index: 0;
+}
+
+.premiumBrandPanel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .brandMark {
@@ -2184,9 +2203,10 @@ h2 {
   margin: 18px 0 22px;
   color: #ffffff;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(48px, 7vw, 72px);
+  font-size: clamp(46px, 6.8vw, 74px);
   font-weight: 500;
-  line-height: 0.98;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
 }
 
 .brandStory i {
@@ -2201,15 +2221,17 @@ h2 {
   color: rgba(255, 255, 255, 0.9);
   font-size: 18px;
   line-height: 1.7;
+  max-width: 520px;
 }
 
 .bookingTrustCard {
   max-width: 330px;
-  border-radius: 20px;
+  border-radius: 22px;
   padding: 24px;
-  background: rgba(255, 248, 245, 0.86);
+  background: rgba(255, 248, 245, 0.84);
   color: #2f2430;
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 44px rgba(48, 26, 31, 0.12);
   display: grid;
   gap: 20px;
 }
@@ -2250,7 +2272,7 @@ h2 {
   border: 0;
   border-radius: 0;
   background: rgba(255, 255, 255, 0.94);
-  gap: 28px;
+  gap: 30px;
 }
 
 .bookingFormHeader {
@@ -2264,14 +2286,18 @@ h2 {
   margin: 0 0 8px;
   color: #251927;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(34px, 5vw, 48px);
+  font-size: clamp(34px, 4.7vw, 50px);
   font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
 }
 
 .bookingFormHeader p {
   margin: 0;
   color: #8a7781;
   font-size: 17px;
+  line-height: 1.55;
+  max-width: 680px;
 }
 
 .bookingContactLine {
@@ -2322,30 +2348,32 @@ h2 {
 
 .bookingStepTitle strong {
   font-size: 14px;
+  letter-spacing: 0.08em;
 }
 
 .premiumServiceGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .premiumService {
   position: relative;
-  min-height: 128px;
-  border: 1px solid #eadde0;
-  border-radius: 14px;
-  padding: 18px;
-  background: #ffffff;
+  min-height: 140px;
+  border: 1px solid rgba(234, 221, 224, 0.9);
+  border-radius: 18px;
+  padding: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(250, 247, 248, 0.98));
   color: #251927;
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 8px;
+  gap: 9px;
   text-align: center;
   cursor: pointer;
-  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
   min-width: 0;
+  box-shadow: 0 8px 24px rgba(49, 33, 37, 0.04);
 }
 
 .premiumService strong,
@@ -2363,13 +2391,13 @@ h2 {
 }
 
 .premiumService:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 36px rgba(81, 48, 56, 0.1);
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px rgba(81, 48, 56, 0.1);
 }
 
 .premiumService.active {
   border-color: var(--booking-primary);
-  background: linear-gradient(145deg, #fff7f8, #ffffff);
+  background: linear-gradient(145deg, rgba(255, 246, 248, 0.98), rgba(255, 255, 255, 0.98));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--booking-primary) 24%, transparent);
 }
 
@@ -2388,8 +2416,8 @@ h2 {
 }
 
 .serviceIcon {
-  width: 58px;
-  height: 58px;
+  width: 64px;
+  height: 64px;
   display: grid;
   place-items: center;
 }
@@ -2423,6 +2451,7 @@ h2 {
 
 .premiumService small {
   color: #8a7781;
+  line-height: 1.35;
 }
 
 .premiumService .serviceImageCaption {
@@ -2451,8 +2480,8 @@ h2 {
 }
 
 .consultantPlanCard {
-  padding: 18px;
-  gap: 12px;
+  padding: 20px;
+  gap: 14px;
   text-align: left;
   align-content: start;
   place-items: start;
@@ -2467,14 +2496,15 @@ h2 {
 
 .consultantPlanMedia {
   width: 100%;
-  min-height: 180px;
+  min-height: 220px;
   padding: 0;
   border: 1px solid #eadde0;
-  border-radius: 14px;
+  border-radius: 18px;
   background: linear-gradient(180deg, #fff 0%, #faf7f8 100%);
   display: grid;
   place-items: center;
   cursor: pointer;
+  overflow: hidden;
 }
 
 .consultantPlanMedia:disabled {
@@ -2484,8 +2514,8 @@ h2 {
 
 .consultantPlanIcon {
   width: 100%;
-  height: 180px;
-  border-radius: 14px;
+  height: 220px;
+  border-radius: 18px;
   background: #f9f5f6;
 }
 
@@ -2512,24 +2542,29 @@ h2 {
   font-size: 13px;
   font-weight: 700;
   color: #1f2937;
+  letter-spacing: 0.01em;
 }
 
 .consultantPlanActions {
   width: 100%;
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .planActionButton {
   min-height: 42px;
   border: 1px solid #e6d7db;
   border-radius: 999px;
-  padding: 0 14px;
-  background: #ffffff;
+  padding: 0 16px;
+  background: linear-gradient(135deg, #ffffff, #fff7f8);
   color: #3b2c33;
   font-weight: 700;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 .planActionButton:hover {
@@ -2604,7 +2639,7 @@ h2 {
 .premiumSlotGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .slotGroupLabel {
@@ -2617,11 +2652,12 @@ h2 {
 .premiumSlot {
   min-height: 60px;
   border: 1px solid #eadde0;
-  border-radius: 12px;
+  border-radius: 14px;
   color: #251927;
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff, #fffafc);
   font-weight: 900;
   cursor: pointer;
+  box-shadow: 0 8px 20px rgba(47, 36, 48, 0.04);
 }
 
 .premiumSlot.active {
@@ -2639,13 +2675,14 @@ h2 {
 }
 
 .selectedDateCard {
-  border-radius: 14px;
-  padding: 22px;
+  border-radius: 18px;
+  padding: 24px;
   color: #673444;
   background: linear-gradient(135deg, #fff7f8, #f8ecee);
   display: grid;
   align-content: center;
   gap: 4px;
+  box-shadow: 0 12px 28px rgba(88, 55, 64, 0.08);
 }
 
 .selectedDateCard svg {
@@ -2767,11 +2804,12 @@ h2 {
 
 .reservationSummary {
   border: 1px solid rgba(15, 118, 110, 0.16);
-  border-radius: 14px;
-  padding: 16px 18px;
+  border-radius: 18px;
+  padding: 18px 20px;
   background: linear-gradient(135deg, #f1fbf8, #fffaf0);
   display: grid;
   gap: 4px;
+  box-shadow: 0 12px 28px rgba(15, 118, 110, 0.08);
 }
 
 .reservationSummary span {
@@ -3060,7 +3098,7 @@ h2 {
 .premiumConfirmButton {
   min-height: 64px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 18px;
   color: #ffffff;
   background: linear-gradient(135deg, #512331, #6e2e40);
   box-shadow: 0 18px 42px rgba(81, 35, 49, 0.2);

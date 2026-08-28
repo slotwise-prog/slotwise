@@ -3317,7 +3317,16 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                       {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
                       {detail.description && <p className="serviceDescription">{detail.description}</p>}
                       <div className="consultantPlanActions">
-                        <button type="button" className="planActionButton" onClick={() => openServiceLink(detail)} disabled={!serviceLink}>Open Plan / Service Link</button>
+                        {serviceLink && (
+                          <a
+                            className="planActionButton"
+                            href={serviceLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Open Plan / Service Link
+                          </a>
+                        )}
                       </div>
                       {isSelected && <em><Check size={16} /></em>}
                     </article>
