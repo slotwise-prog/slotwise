@@ -3593,6 +3593,40 @@ function DemoExpiredPage({ business, onBack }) {
   );
 }
 
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error) {
+    console.error("Slotwise app render error", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <main className="setupPage">
+          <section className="setupComplete">
+            <span><ShieldCheck size={22} /></span>
+            <p className="eyebrow">Page error</p>
+            <h1>This booking page could not load.</h1>
+            <p>Please refresh the page or return to the site if the problem continues.</p>
+            <div className="setupCompleteActions">
+              <button onClick={() => window.location.reload()}>Reload</button>
+            </div>
+          </section>
+        </main>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function StructuredServiceManager({ services, onChange, onDeleteService, onUploadImage, onUploadStateChange, bookingTemplate = "GENERAL", compact = false, photoManagement = false }) {
   const copy = getServiceManagerCopy(bookingTemplate);
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
@@ -7095,5 +7129,9 @@ function Plan({ name, price, note, items, featured, onChoose }) {
   );
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+createRoot(document.getElementById("root")).render(
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>
+);
 
