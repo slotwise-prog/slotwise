@@ -59,6 +59,8 @@ import {
   BedDouble,
   Building2,
   Moon,
+  Shirt,
+  WashingMachine,
 } from "lucide-react";
 import "./styles.css";
 
@@ -102,6 +104,8 @@ const bookingTemplateOptions = [
   { value: "CLINIC", label: "Clinic / Dental" },
   { value: "HOME_SERVICE", label: "Home Service" },
   { value: "AUTO", label: "Auto / Car Wash" },
+  { value: "CAR_WASH", label: "Car Wash" },
+  { value: "LAUNDRY", label: "Laundry Shop" },
   { value: "TOURS_TRAVEL", label: "Tours & Travel" },
   { value: "STAYCATION_ACCOMMODATION", label: "Staycation / Accommodation" },
 ];
@@ -258,6 +262,7 @@ function resolveServiceIcon(serviceName = "", business = {}) {
 
   if (hasKeyword(serviceText, ["repair"])) return Wrench;
   if (hasKeyword(serviceText, ["consultation", "consult"])) return MessageSquare;
+  if (hasKeyword(serviceText, ["laundry", "wash", "fold", "dry cleaning", "pickup", "pickup and delivery", "pick up and delivery"])) return WashingMachine;
   return businessTone === "staycation-accommodation" ? BedDouble : isToursTravel ? MapPinned : CircleDot;
 }
 
@@ -266,10 +271,13 @@ function resolveBusinessTone(business = {}) {
   const template = normalizeBookingTemplate(business.bookingTemplate);
   if (template === "STAYCATION_ACCOMMODATION") return "staycation-accommodation";
   if (template === "TOURS_TRAVEL") return "tours-travel";
+  if (template === "CAR_WASH") return "carwash";
+  if (template === "LAUNDRY") return "laundry";
   if (template === "HOME_SERVICE") return "home-service";
   if (template === "AUTO") return "auto";
   if (template === "CLINIC") return "clinic";
   if (template === "BEAUTY") return "beauty";
+  if (hasKeyword(businessText, ["laundry", "wash and fold", "wash & fold", "dry cleaning", "pickup and delivery", "pick up and delivery"])) return "laundry";
   if (hasKeyword(businessText, ["clinic", "dental", "dentist", "medical", "care"])) return "clinic";
   if (hasKeyword(businessText, ["travel", "stay", "hotel", "tour", "cabin"])) return "travel";
   if (hasKeyword(businessText, ["aircon", "air con", "hvac", "home", "repair", "maintenance", "plumbing", "electrical", "appliance"])) return "home-service";
@@ -281,6 +289,8 @@ function resolveBusinessTone(business = {}) {
 function getToneThemeDefaults(tone) {
   if (tone === "staycation-accommodation") return { primaryColor: "#7a4f2f", accentColor: "#f8efe6", pageBackgroundColor: "#F4EFE8" };
   if (tone === "tours-travel") return { primaryColor: "#0f766e", accentColor: "#e6f7f1", pageBackgroundColor: "#F6F2E5" };
+  if (tone === "carwash") return { primaryColor: "#1f2937", accentColor: "#eef2f7", pageBackgroundColor: "#F3F6FA" };
+  if (tone === "laundry") return { primaryColor: "#2d5b87", accentColor: "#e7f1fb", pageBackgroundColor: "#F2F7FB" };
   if (tone === "home-service") return { primaryColor: "#155e75", accentColor: "#eaf7fb", pageBackgroundColor: "#F1F5F9" };
   if (tone === "auto") return { primaryColor: "#1f2937", accentColor: "#eef2f7", pageBackgroundColor: "#F2F4F7" };
   if (tone === "clinic") return { primaryColor: "#148d84", accentColor: "#dff7f3", pageBackgroundColor: "#EEF4F8" };
@@ -321,6 +331,8 @@ function getTemplateFallbackCover(tone = "beauty") {
   const tones = {
     "staycation-accommodation": { title: "STAYCATION", subtitle: "Relax • Sleep • Stay", start: "#4b2f23", end: "#b7794b" },
     "tours-travel": { title: "TRAVEL", subtitle: "Explore • Discover • Go", start: "#0b525b", end: "#f59e0b" },
+    carwash: { title: "CAR WASH", subtitle: "Wash • Shine • Drive", start: "#111827", end: "#60a5fa" },
+    laundry: { title: "LAUNDRY", subtitle: "Wash • Dry • Fold", start: "#2d5b87", end: "#7cc4ff" },
     "home-service": { title: "HOME SERVICE", subtitle: "Repair • Clean • Fix", start: "#0f3f4f", end: "#2563eb" },
     auto: { title: "AUTO", subtitle: "Detail • Wash • Drive", start: "#111827", end: "#ea580c" },
     clinic: { title: "CLINIC", subtitle: "Care • Wellness • Visit", start: "#0f766e", end: "#7dd3fc" },
@@ -450,6 +462,8 @@ function getBookingTemplateTone(bookingTemplate) {
   const nextTemplate = normalizeBookingTemplate(bookingTemplate);
   if (nextTemplate === "STAYCATION_ACCOMMODATION") return "staycation-accommodation";
   if (nextTemplate === "TOURS_TRAVEL") return "tours-travel";
+  if (nextTemplate === "CAR_WASH") return "carwash";
+  if (nextTemplate === "LAUNDRY") return "laundry";
   if (nextTemplate === "HOME_SERVICE") return "home-service";
   if (nextTemplate === "AUTO") return "auto";
   if (nextTemplate === "CLINIC") return "clinic";
@@ -1406,6 +1420,8 @@ function getServiceManagerCopy(bookingTemplate = "GENERAL") {
   const template = normalizeBookingTemplate(bookingTemplate);
   if (template === "TOURS_TRAVEL") return { title: "Tour Packages", single: "Tour package", add: "Add Another Package" };
   if (template === "STAYCATION_ACCOMMODATION") return { title: "Rooms / Units", single: "Room / unit", add: "Add Room / Unit" };
+  if (template === "CAR_WASH") return { title: "Car Wash Services", single: "Car wash service", add: "Add Another Service" };
+  if (template === "LAUNDRY") return { title: "Laundry Services", single: "Laundry service", add: "Add Another Service" };
   if (template === "CLINIC") return { title: "Services / Treatments", single: "Service / treatment", add: "Add Another Service" };
   if (template === "AUTO") return { title: "Services / Packages", single: "Service / package", add: "Add Another Service" };
   return { title: "Services", single: "Service", add: "Add Another Service" };
@@ -1441,8 +1457,11 @@ function inferBookingTemplateFromIndustry(industry = "") {
   const lower = industry.toLowerCase();
   if (/(staycation|accommodation|resort|villa|transient|apartment|condotel|hotel|guest house|cabin|beach house|room|rental)/i.test(lower)) return "STAYCATION_ACCOMMODATION";
   if (/(travel|tour)/i.test(lower)) return "TOURS_TRAVEL";
+  if (/(car wash|carwash|auto detailing|detailing|vehicle cleaning|motorcycle wash|motor wash)/i.test(lower)) return "CAR_WASH";
+  if (/(laundry|wash\s*&\s*fold|wash and fold|dry cleaning|pickup.*delivery|pick up.*delivery)/i.test(lower)) return "LAUNDRY";
   if (/(clinic|dental|doctor|medical)/i.test(lower)) return "CLINIC";
   if (/(home|aircon|repair|cleaning|maintenance|plumbing|electrical)/i.test(lower)) return "HOME_SERVICE";
+  if (/(car wash|carwash|auto detailing|detailing|vehicle cleaning|motorcycle wash|motor wash)/i.test(lower)) return "CAR_WASH";
   if (/(auto|car|wash|detailing)/i.test(lower)) return "AUTO";
   if (/(salon|beauty|hair|lash|nail|makeup)/i.test(lower)) return "BEAUTY";
   return "GENERAL";
@@ -1605,6 +1624,68 @@ const templates = [
     stat: "7 inquiries this week",
     services: ["Room booking", "Travel package", "Document assistance"],
     forms: ["Travel date", "Guests", "Payment method"],
+  },
+  {
+    icon: <WashingMachine />,
+    slug: "freshfold-laundry",
+    name: "Laundry Shop",
+    business: "FreshFold Laundry",
+    link: "freshfold.slotwise.app",
+    logo: "",
+    primaryColor: "#2d5b87",
+    accentColor: "#e7f1fb",
+    phone: "0917 444 8899",
+    messengerLink: "https://m.me/freshfoldlaundry",
+    address: "Sample laundry shop address",
+    description: "Wash, dry, fold, and delivery made simple.",
+    businessType: "Laundry Shop",
+    bookingMode: "booking",
+    bookingTemplate: "LAUNDRY",
+    featureFlags: { ...defaultFeatureFlags, requireAddress: true, customerListEnabled: true },
+    availability: { ...defaultAvailability, days: "Monday to Sunday", hours: "7:00 AM to 8:00 PM", slots: ["7:00 AM", "9:00 AM", "12:00 PM", "3:00 PM", "5:00 PM"] },
+    cover: getTemplateFallbackCover("laundry"),
+    accent: "laundry",
+    tagline: "For wash & fold, dry cleaning, pickup, and delivery bookings.",
+    highlight: "Best for recurring laundry requests and pickup scheduling",
+    stat: "Same-day pickup options",
+    services: ["Wash & Fold", "Dry Cleaning", "Pickup & Delivery"],
+    serviceDetails: [
+      { name: "Wash & Fold", description: "Regular laundry service per kilo", price: 80, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 180, displayOrder: 0, status: "Active" },
+      { name: "Dry Cleaning", description: "Garment care for delicate items", price: 150, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 240, displayOrder: 1, status: "Active" },
+      { name: "Pickup & Delivery", description: "Courier pickup and drop-off service", price: 120, pricingUnit: "PER_TRIP", pricingType: "PER_TRIP", pricingTiers: [], durationMinutes: 60, displayOrder: 2, status: "Active" },
+    ],
+    forms: ["Pickup address", "Laundry notes", "Delivery instructions"],
+  },
+  {
+    icon: <CarFront />,
+    slug: "sparkshine-carwash",
+    name: "Car Wash",
+    business: "SparkShine Car Wash",
+    link: "sparkshine.slotwise.app",
+    logo: "",
+    primaryColor: "#1f2937",
+    accentColor: "#eef2f7",
+    phone: "0917 666 4400",
+    messengerLink: "https://m.me/sparkshinecarwash",
+    address: "Sample car wash address",
+    description: "Book a wash, detail, or quick service with ease.",
+    businessType: "Car Wash",
+    bookingMode: "booking",
+    bookingTemplate: "CAR_WASH",
+    featureFlags: { ...defaultFeatureFlags, requireAddress: true, customerListEnabled: true },
+    availability: { ...defaultAvailability, days: "Monday to Sunday", hours: "7:00 AM to 7:00 PM", slots: ["7:00 AM", "9:00 AM", "11:00 AM", "2:00 PM", "4:00 PM"] },
+    cover: getTemplateFallbackCover("carwash"),
+    accent: "carwash",
+    tagline: "For car wash, detailing, cleaning, and pickup requests.",
+    highlight: "Best for vehicles, recurring washes, and quick reservations",
+    stat: "Same-day slots available",
+    services: ["Exterior Wash", "Full Detail", "Interior Cleaning"],
+    serviceDetails: [
+      { name: "Exterior Wash", description: "Hand wash and rinse", price: 150, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 60, displayOrder: 0, status: "Active" },
+      { name: "Full Detail", description: "Interior and exterior detailing", price: 650, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 180, displayOrder: 1, status: "Active" },
+      { name: "Interior Cleaning", description: "Vacuum, wipe down, and finish", price: 250, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 90, displayOrder: 2, status: "Active" },
+    ],
+    forms: ["Vehicle type", "Pickup location", "Special instructions"],
   },
   {
     icon: <MapPinned />,
@@ -2775,16 +2856,19 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, sm
   const isClinic = bookingTone === "clinic";
   const isToursTravel = bookingTone === "tours-travel";
   const isAccommodation = normalizeBookingTemplate(business.bookingTemplate) === "STAYCATION_ACCOMMODATION";
+  const isLaundry = normalizeBookingTemplate(business.bookingTemplate) === "LAUNDRY";
   const isTravel = bookingTone === "travel" || isToursTravel;
   const isHomeService = bookingTone === "home-service";
   const brandInitial = (business.business || "S").trim().charAt(0).toUpperCase();
-  const brandCategory = isAccommodation ? "Staycation & Accommodation" : isToursTravel ? "Tours & Travel" : isClinic ? "Care & Wellness" : isTravel ? "Stay & Travel" : isHomeService ? "Aircon Services" : bookingTone === "auto" ? "Auto Services" : bookingTone === "general" ? "Service Business" : "Beauty & Wellness";
+  const brandCategory = isAccommodation ? "Staycation & Accommodation" : isToursTravel ? "Tours & Travel" : isLaundry ? "Laundry Shop" : isClinic ? "Care & Wellness" : isTravel ? "Stay & Travel" : isHomeService ? "Aircon Services" : bookingTone === "auto" ? "Auto Services" : bookingTone === "general" ? "Service Business" : "Beauty & Wellness";
   const brandLine = isClinic
     ? ["Your visit, booked with care.", "Private details. Clear schedule."]
     : isAccommodation
       ? ["Reserve your stay with ease.", "Choose your unit, dates, and guests."]
     : isToursTravel
       ? ["Tour packages, transfers, and reservations.", "Send your request in less than a minute."]
+      : isLaundry
+      ? ["Wash, dry, fold, and delivery.", "Book a pickup that fits your schedule."]
       : isTravel
       ? ["Reserve your date.", "Plan your visit with ease."]
       : isHomeService
@@ -2794,15 +2878,15 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, sm
           : bookingTone === "general"
             ? ["Book the service you need.", "Choose a schedule that works for you."]
             : ["Enhance your glow.", "Reveal your best self."];
-  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Book Your Tour" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
-  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
-  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Tour Package" : isHomeService ? "Choose a Service" : "Choose a service";
-  const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Date" : isHomeService ? "Choose date and time" : "Pick a time";
-  const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : "";
-  const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Guest Details" : isHomeService ? "Your contact details" : "Your details";
-  const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
-  const notePlaceholder = isAccommodation ? "Arrival notes, requests, or questions for the host" : isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
-  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Reservation Request" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
+  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Book Your Tour" : isLaundry ? "Book Laundry Pickup" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
+  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
+  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Tour Package" : isLaundry ? "Choose a Laundry Service" : isHomeService ? "Choose a Service" : "Choose a service";
+  const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Date" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
+  const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : isLaundry ? "Pickup Time" : "";
+  const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Guest Details" : isLaundry ? "Pickup Details" : isHomeService ? "Your contact details" : "Your details";
+  const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isLaundry ? "Laundry notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
+  const notePlaceholder = isAccommodation ? "Arrival notes, requests, or questions for the host" : isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isLaundry ? "Fabric care, folding instructions, delivery notes, or special requests" : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
+  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Reservation Request" : isLaundry ? "Submit Pickup Request" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
   const paymentSettings = business.paymentSettings || {};
   const paymentMethods = (business.paymentMethods || []).filter((method) => method.active !== false);
   const allowMultipleServices = Boolean(flags.allowMultipleServices);
