@@ -1708,7 +1708,7 @@ function App() {
   const [bookings, setBookings] = useState(() => JSON.parse(localStorage.getItem("slotwiseBookings") || "[]"));
   const [setupRequests, setSetupRequests] = useState(() => JSON.parse(localStorage.getItem("slotwiseSetupRequests") || "[]"));
   const [databaseBusinesses, setDatabaseBusinesses] = useState([]);
-  const [announcementRows, setAnnouncementRows] = useState([]);
+  const [smmOffers, setSmmOffers] = useState(null);
   const service = services[serviceIndex];
   const selectedFields = useMemo(() => service.fields.join(" + "), [service]);
   const activeDemo = demoSteps[demoStep];
@@ -1853,16 +1853,16 @@ function App() {
       if (!supabaseUrl || !supabaseAnonKey) return;
       if (isSmmAdminPath) return;
       try {
-        const [onlineLeads, onlineBookings, onlineSetupRequests, onlineAnnouncements] = await Promise.all([
+        const [onlineLeads, onlineBookings, onlineSetupRequests, onlineOffers] = await Promise.all([
           supabaseRequest("leads", { query: "?select=*&order=created_at.desc" }),
           supabaseRequest("bookings", { query: "?select=*&order=created_at.desc" }),
           supabaseRequest("setup_requests", { query: "?select=*&order=created_at.desc" }),
-          supabaseRequest("announcements", { query: "?select=*&enabled=eq.true&order=priority.desc,created_at.desc" }).catch(() => []),
+          supabaseRequest("smm_offers", { query: "?select=*&id=eq.global" }).catch(() => []),
         ]);
         setLeads(onlineLeads || []);
         setBookings(onlineBookings || []);
         setSetupRequests((onlineSetupRequests || []).map(normalizeSetupRequest));
-        setAnnouncementRows((onlineAnnouncements || []).map(normalizeAnnouncement));
+        setSmmOffers(normalizeSmmOffers((onlineOffers || [])[0] || null));
       } catch {
         // Keep the local demo data if online loading fails.
       }
@@ -2196,7 +2196,7 @@ function App() {
   };
 
   if (page === "booking") {
-    return <BookingPrototype business={selectedBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} announcements={announcementRows} />;
+    return <BookingPrototype business={selectedBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} smmOffers={smmOffers} />;
   }
 
   if (page === "owner") {
@@ -2234,7 +2234,7 @@ function App() {
     }
 
     return publicBusiness ? (
-      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} announcements={announcementRows} />
+      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} smmOffers={smmOffers} />
     ) : (
       <BusinessNotFoundPage slug={publicBusinessSlug} onBack={() => setPage("home")} onSetup={() => setPage("setup")} />
     );
@@ -2273,7 +2273,7 @@ function App() {
         onSavePaymentMethod={saveClientPaymentMethod}
         onVerifyPayment={verifyClientPayment}
         onRejectPayment={rejectClientPayment}
-        announcements={announcementRows}
+        smmOffers={smmOffers}
       />
     );
   }
@@ -2697,84 +2697,52 @@ function Feature({ icon, title, text }) {
   );
 }
 
-function AnnouncementFeed({
-  title = "Announcements",
-  announcements = [],
-  business = { slug: "", package: "STARTER", status: "DEMO" },
-  placement = "BOTH",
-  compact = false,
-  maxVisible = 2,
-  dismissedIds = [],
-  onDismiss,
-  onViewAll,
-  emptyText = "No announcements yet.",
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const visibleAnnouncements = sortAnnouncements((announcements || []).filter((announcement) => announcementMatchesBusiness(announcement, business, placement)))
-    .filter((announcement) => !dismissedIds.includes(announcement.id));
-  const visibleRows = expanded ? visibleAnnouncements : visibleAnnouncements.slice(0, maxVisible);
-  if (!visibleRows.length) return null;
+function SmmOffersFeed({ offers = null, placement = "BOTH", compact = false, business = null }) {
+  if (!offers?.enabled) return null;
+  if (placement === "DEMO_PREVIEW" && offers.show_on_demo === false) return null;
+  if (placement === "CLIENT_DASHBOARD" && offers.show_on_dashboard === false) return null;
+  const cards = [
+    {
+      id: "offer-one",
+      title: offers.offer_one_title,
+      message: offers.offer_one_message,
+      imageUrl: offers.offer_one_image_url,
+    },
+    {
+      id: "offer-two",
+      title: offers.offer_two_title,
+      message: offers.offer_two_message,
+      imageUrl: offers.offer_two_image_url,
+    },
+  ].filter((item) => item.title || item.message || item.imageUrl);
+  if (!cards.length) return null;
+  const contactHref = business?.messengerLink || "https://m.me/slotwise";
   return (
-    <section className={compact ? "announcementFeed compact" : "announcementFeed"}>
-      <div className="announcementFeedHeader">
+    <section className={compact ? "smmOffers compact" : "smmOffers"}>
+      <div className="smmOffersHeader">
         <div>
-          <p className="eyebrow">{title}</p>
-          <h3>{compact ? "Updates that matter" : "Latest updates and offers"}</h3>
+          <p className="eyebrow">SMM offers</p>
+          <h3>{compact ? "Current promos" : "More from SMM Solutions"}</h3>
+          <small>{offers.cta_label || "Message SMM Solutions"}</small>
         </div>
-        {visibleAnnouncements.length > maxVisible && (
-          <button type="button" className="announcementToggleButton" onClick={() => setExpanded((current) => !current)}>
-            {expanded ? "Show less" : "View All Announcements"}
-          </button>
-        )}
+        <a className="smmOffersCta" href={contactHref} target={contactHref.startsWith("http") ? "_blank" : undefined} rel={contactHref.startsWith("http") ? "noreferrer" : undefined}>
+          {offers.cta_label || "Message SMM Solutions"}
+        </a>
       </div>
-      <div className="announcementList">
-        {visibleRows.map((announcement) => {
-          const Icon = getAnnouncementIcon(announcement.announcement_type);
-          const href = resolveAnnouncementCtaHref(announcement, business);
-          const canOpenImage = announcement.image_clickable !== false && Boolean(href);
-          return (
-            <article key={announcement.id} className={`announcementCard ${getAnnouncementPreviewTone(announcement)}`}>
-              <div className="announcementIcon"><Icon size={18} /></div>
-              <div className="announcementBody">
-                {announcement.image_url && (
-                  <div className={canOpenImage ? "announcementImageWrap clickable" : "announcementImageWrap"}>
-                    {canOpenImage ? (
-                      <a href={href} className="announcementImageLink" target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined}>
-                        <img src={announcement.image_url} alt={announcement.title} className="announcementImage" loading="lazy" />
-                      </a>
-                    ) : (
-                      <img src={announcement.image_url} alt={announcement.title} className="announcementImage" loading="lazy" />
-                    )}
-                  </div>
-                )}
-                <div className="announcementTopLine">
-                  <strong>{announcement.title}</strong>
-                  <span className={`announcementPriority ${announcement.priority === "IMPORTANT" ? "important" : ""}`}>{announcement.announcement_type.replace(/_/g, " ")}</span>
-                </div>
-                <p>{announcement.message}</p>
-                <small>{getAnnouncementAudienceLabel(announcement)} · {getAnnouncementPlacementLabel(announcement)}</small>
-                {announcement.cta_label && href && (
-                  <div className="announcementActions">
-                    <a href={href} className="announcementCta" target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined}>{announcement.cta_label}</a>
-                  </div>
-                )}
-              </div>
-              {announcement.dismissible !== false && onDismiss && (
-                <button type="button" className="announcementDismiss" onClick={() => onDismiss(announcement.id)} aria-label={`Dismiss ${announcement.title}`}>×</button>
-              )}
-            </article>
-          );
-        })}
+      <div className="smmOffersGrid">
+        {cards.map((card) => (
+          <article key={card.id} className="smmOfferCard">
+            {card.imageUrl && <img src={card.imageUrl} alt={card.title || "SMM offer"} className="smmOfferImage" loading="lazy" />}
+            <strong>{card.title || "SMM offer"}</strong>
+            <p>{card.message}</p>
+          </article>
+        ))}
       </div>
-      {onViewAll && visibleAnnouncements.length > maxVisible && !expanded && (
-        <button type="button" className="announcementMoreButton" onClick={onViewAll}>View All Announcements</button>
-      )}
-      {!visibleRows.length && <div className="announcementEmpty">{emptyText}</div>}
     </section>
   );
 }
 
-function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, announcements = [] }) {
+function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, smmOffers = null }) {
   const [pickedService, setPickedService] = useState(business.services[0]);
   const [pickedServices, setPickedServices] = useState([business.services[0]].filter(Boolean));
   const availableSlots = business.availability?.slots?.length ? business.availability.slots : slots;
@@ -2793,13 +2761,6 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
   const [submitting, setSubmitting] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState("");
-  const [dismissedAnnouncementIds, setDismissedAnnouncementIds] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(`slotwiseAnnouncementDismissals:${business.slug}`) || "[]");
-    } catch {
-      return [];
-    }
-  });
   const flags = { ...defaultFeatureFlags, ...(business.featureFlags || {}) };
   const clientStatus = (business.status || "ACTIVE").toUpperCase();
   const isProductionActive = clientStatus === "ACTIVE";
@@ -2845,7 +2806,6 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
   const paymentSettings = business.paymentSettings || {};
   const paymentMethods = (business.paymentMethods || []).filter((method) => method.active !== false);
   const allowMultipleServices = Boolean(flags.allowMultipleServices);
-  const announcementRows = useMemo(() => sortAnnouncements((announcements || []).filter((announcement) => announcementMatchesBusiness(announcement, business, "DEMO_PREVIEW"))), [announcements, business]);
   const getServiceDetail = (serviceName) => {
     const detail = business.serviceDetails?.find((item) => item.name === serviceName);
     return {
@@ -2903,14 +2863,6 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
     setPaymentOpen(false);
     setPaymentStatus("");
   }, [business.slug]);
-
-  useEffect(() => {
-    localStorage.setItem(`slotwiseAnnouncementDismissals:${business.slug}`, JSON.stringify(dismissedAnnouncementIds));
-  }, [business.slug, dismissedAnnouncementIds]);
-
-  const dismissAnnouncement = (announcementId) => {
-    setDismissedAnnouncementIds((current) => Array.from(new Set([...current, announcementId])));
-  };
 
   const toggleService = (serviceName) => {
     if (!allowMultipleServices) {
@@ -3295,18 +3247,8 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
                 </div>
               )}
               {paymentStatus && <span>{paymentStatus}</span>}
-              {(isDemoPreview || isAwaitingActivation) && announcementRows.length > 0 && (
-                <AnnouncementFeed
-                  title="More from SMM Solutions"
-                  announcements={announcementRows}
-                  business={business}
-                  placement="DEMO_PREVIEW"
-                  compact
-                  maxVisible={2}
-                  dismissedIds={dismissedAnnouncementIds}
-                  onDismiss={dismissAnnouncement}
-                  emptyText="No promo notes right now."
-                />
+              {(isDemoPreview || isAwaitingActivation) && smmOffers?.enabled && smmOffers?.show_on_demo !== false && (
+                <SmmOffersFeed offers={smmOffers} placement="DEMO_PREVIEW" compact />
               )}
             </div>
           )}
@@ -4004,6 +3946,42 @@ function emptyAnnouncementForm() {
   };
 }
 
+function emptySmmOffersForm() {
+  return {
+    id: "global",
+    enabled: true,
+    show_on_demo: true,
+    show_on_dashboard: true,
+    cta_label: "Message SMM Solutions",
+    offer_one_title: "Need help getting started?",
+    offer_one_message: "We can guide you through setup, branding, and the right package for your business.",
+    offer_one_image_url: "",
+    offer_two_title: "Want to upgrade your page?",
+    offer_two_message: "We can unlock more controls as your business grows without changing your booking flow.",
+    offer_two_image_url: "",
+    updated_at: "",
+  };
+}
+
+function normalizeSmmOffers(row = {}) {
+  if (!row) return null;
+  return {
+    ...emptySmmOffersForm(),
+    ...row,
+    id: row.id || "global",
+    enabled: row.enabled !== false,
+    show_on_demo: row.show_on_demo !== false,
+    show_on_dashboard: row.show_on_dashboard !== false,
+    cta_label: row.cta_label || "Message SMM Solutions",
+    offer_one_title: row.offer_one_title || emptySmmOffersForm().offer_one_title,
+    offer_one_message: row.offer_one_message || emptySmmOffersForm().offer_one_message,
+    offer_two_title: row.offer_two_title || emptySmmOffersForm().offer_two_title,
+    offer_two_message: row.offer_two_message || emptySmmOffersForm().offer_two_message,
+    offer_one_image_url: row.offer_one_image_url || "",
+    offer_two_image_url: row.offer_two_image_url || "",
+  };
+}
+
 function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient, onUpdateStatus, onPreview }) {
   const [authState, setAuthState] = useState("checking");
   const [adminSession, setAdminSession] = useState(null);
@@ -4029,9 +4007,21 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     operation: "",
   });
   const [announcementToast, setAnnouncementToast] = useState("");
+  const [smmOffers, setSmmOffers] = useState(emptySmmOffersForm());
+  const [smmOffersSaveState, setSmmOffersSaveState] = useState({
+    saving: false,
+    status: "",
+    databaseStatus: "",
+    savedCount: 0,
+    error: "",
+    operation: "",
+  });
+  const [smmOffersToast, setSmmOffersToast] = useState("");
   const logoUploadRef = useRef(null);
   const coverUploadRef = useRef(null);
   const announcementUploadRef = useRef(null);
+  const smmOfferOneUploadRef = useRef(null);
+  const smmOfferTwoUploadRef = useRef(null);
 
   const loadClientAccess = async (session) => {
     if (!session?.access_token) return [];
@@ -4054,11 +4044,33 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     return rows || [];
   };
 
+  const loadSmmOffers = async (session) => {
+    if (!session?.access_token) return null;
+    const rows = await supabaseRequest("smm_offers", {
+      query: "?select=*&id=eq.global",
+      accessToken: session.access_token,
+    }).catch(() => []);
+    const nextOffers = normalizeSmmOffers((rows || [])[0] || null) || emptySmmOffersForm();
+    setSmmOffers(nextOffers);
+    setSmmOffersSaveState((current) => ({ ...current, savedCount: nextOffers.id ? 1 : 0 }));
+    return nextOffers;
+  };
+
   useEffect(() => {
     if (!announcementToast) return undefined;
     const timer = window.setTimeout(() => setAnnouncementToast(""), 3500);
     return () => window.clearTimeout(timer);
   }, [announcementToast]);
+
+  useEffect(() => {
+    if (!smmOffersToast) return undefined;
+    const timer = window.setTimeout(() => setSmmOffersToast(""), 3500);
+    return () => window.clearTimeout(timer);
+  }, [smmOffersToast]);
+
+  useEffect(() => {
+    setSmmOffers((current) => normalizeSmmOffers(current || emptySmmOffersForm()) || emptySmmOffersForm());
+  }, []);
 
   const refreshAnnouncementSaveStatus = (nextState) => {
     setAnnouncementSaveState((current) => ({ ...current, ...nextState }));
@@ -4082,7 +4094,7 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     setAuthState("authorized");
     await onRefresh();
     await loadClientAccess(session);
-    await loadAnnouncements(session);
+    await loadSmmOffers(session);
     return true;
   };
 
@@ -4235,6 +4247,119 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
   const clearAnnouncementAsset = () => {
     setAnnouncementForm((current) => ({ ...current, image_url: "" }));
     setStatusMessage("Announcement image removed.");
+  };
+
+  const refreshSmmOffersSaveStatus = (nextState) => {
+    setSmmOffersSaveState((current) => ({ ...current, ...nextState }));
+  };
+
+  const uploadSmmOfferAsset = async (kind, file) => {
+    validateBrandMediaFile(file);
+    const extension = getFileExtension(file);
+    const stamp = Date.now();
+    const folder = kind === "offer_two_image_url" ? "offer-two" : "offer-one";
+    const path = `smm-offers/global/${folder}-${stamp}.${extension}`;
+    const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
+    setSmmOffers((current) => ({ ...current, [kind]: url }));
+    setStatusMessage(`${kind === "offer_two_image_url" ? "Second offer" : "First offer"} image uploaded.`);
+    return url;
+  };
+
+  const clearSmmOfferAsset = (kind) => {
+    setSmmOffers((current) => ({ ...current, [kind]: "" }));
+    setStatusMessage(`${kind === "offer_two_image_url" ? "Second offer" : "First offer"} image removed.`);
+  };
+
+  const updateSmmOffersForm = (event) => {
+    const { name, value, type, checked } = event.target;
+    setSmmOffers((current) => ({
+      ...current,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const getSafeSmmOffersSaveError = (error) => {
+    const message = String(error?.message || error || "").toLowerCase();
+    if (message.includes("permission") || message.includes("rls") || message.includes("not authorized")) return "Permission denied.";
+    if (message.includes("network") || message.includes("fetch") || message.includes("failed to fetch")) return "Network error.";
+    if (message.includes("null value") || message.includes("required") || message.includes("missing")) return "Required field missing.";
+    return error?.message || "Database insert failed.";
+  };
+
+  const saveSmmOffers = async (event) => {
+    event.preventDefault();
+    if (!adminSession?.access_token) return;
+    refreshSmmOffersSaveStatus({
+      saving: true,
+      status: "Saving...",
+      databaseStatus: "Checking database...",
+      error: "",
+      operation: "UPSERT",
+    });
+    setSmmOffersToast("Saving...");
+    try {
+      const payload = {
+        id: "global",
+        enabled: Boolean(smmOffers.enabled),
+        show_on_demo: Boolean(smmOffers.show_on_demo),
+        show_on_dashboard: Boolean(smmOffers.show_on_dashboard),
+        cta_label: "Message SMM Solutions",
+        offer_one_title: String(smmOffers.offer_one_title || "").trim(),
+        offer_one_message: String(smmOffers.offer_one_message || "").trim(),
+        offer_one_image_url: String(smmOffers.offer_one_image_url || "").trim(),
+        offer_two_title: String(smmOffers.offer_two_title || "").trim(),
+        offer_two_message: String(smmOffers.offer_two_message || "").trim(),
+        offer_two_image_url: String(smmOffers.offer_two_image_url || "").trim(),
+        updated_at: new Date().toISOString(),
+      };
+      const existingRows = await supabaseRequest("smm_offers", {
+        query: "?select=*&id=eq.global",
+        accessToken: adminSession.access_token,
+      }).catch(() => []);
+      if (existingRows?.length) {
+        const updateResult = await supabaseRequest("smm_offers", {
+          method: "PATCH",
+          query: "?id=eq.global",
+          body: payload,
+          accessToken: adminSession.access_token,
+        });
+        if (!Array.isArray(updateResult) || !updateResult.length) throw new Error("Offer update returned no row.");
+      } else {
+        const [insertedRow] = await supabaseRequest("smm_offers", {
+          method: "POST",
+          body: payload,
+          accessToken: adminSession.access_token,
+        });
+        if (!insertedRow?.id) throw new Error("Offer insert returned no row.");
+      }
+      const [freshRow] = await supabaseRequest("smm_offers", {
+        query: "?select=*&id=eq.global",
+        accessToken: adminSession.access_token,
+      });
+      if (!freshRow) throw new Error("Offer was not returned after refresh.");
+      const confirmedOffers = normalizeSmmOffers(freshRow);
+      setSmmOffers(confirmedOffers);
+      refreshSmmOffersSaveStatus({
+        saving: false,
+        status: "Offers saved successfully.",
+        databaseStatus: "Database: Synced ✓",
+        savedCount: 1,
+        error: "",
+      });
+      setSmmOffersToast("✓ Offers saved");
+      setStatusMessage("Offers saved successfully. Database: Synced ✓");
+    } catch (error) {
+      console.error("SMM offers save failed", error);
+      const safeError = getSafeSmmOffersSaveError(error);
+      refreshSmmOffersSaveStatus({
+        saving: false,
+        status: "Save failed",
+        databaseStatus: "Sync failed",
+        error: safeError,
+      });
+      setSmmOffersToast("✕ Offers save failed");
+      setStatusMessage(`Offers could not be saved. ${safeError}`);
+    }
   };
 
   const startAnnouncement = (announcement = emptyAnnouncementForm()) => {
@@ -4917,6 +5042,90 @@ After login, you will only see the bookings and features assigned to your busine
               {packageOptions.map((item) => <option value={item.value} key={item.value}>{item.label} - {item.price}</option>)}
             </select>
           </section>
+          <section className="smmOffersEditor">
+            <div className="smmOffersEditorHeader">
+              <div>
+                <p className="eyebrow">SMM offers</p>
+                <h3>Global promo messages</h3>
+                <span>One shared config for the demo page and client dashboard. CTA stays fixed to Message SMM Solutions.</span>
+              </div>
+              <div className="smmOffersEditorFlags">
+                <label><input type="checkbox" name="enabled" checked={Boolean(smmOffers.enabled)} onChange={updateSmmOffersForm} /> Enabled</label>
+                <label><input type="checkbox" name="show_on_demo" checked={Boolean(smmOffers.show_on_demo)} onChange={updateSmmOffersForm} /> Show on demo</label>
+                <label><input type="checkbox" name="show_on_dashboard" checked={Boolean(smmOffers.show_on_dashboard)} onChange={updateSmmOffersForm} /> Show on dashboard</label>
+              </div>
+            </div>
+            {smmOffersSaveState.status && (
+              <div className={`announcementSaveBanner ${smmOffersSaveState.error ? "error" : "success"}`}>
+                <div>
+                  <strong>{smmOffersSaveState.status}</strong>
+                  <span>{smmOffersSaveState.error || "Saved to database."}</span>
+                </div>
+                <div className="announcementSaveMeta">
+                  <span>{smmOffersSaveState.databaseStatus || "Database: Sync pending"}</span>
+                  <span>{smmOffersSaveState.savedCount} saved</span>
+                </div>
+              </div>
+            )}
+            {smmOffersToast && <div className="announcementToast">{smmOffersToast}</div>}
+            <form className="smmOffersGridEditor" onSubmit={saveSmmOffers}>
+              {[
+                { key: "offer_one", titleField: "offer_one_title", messageField: "offer_one_message", imageField: "offer_one_image_url", label: "First promo" },
+                { key: "offer_two", titleField: "offer_two_title", messageField: "offer_two_message", imageField: "offer_two_image_url", label: "Second promo" },
+              ].map((item, index) => (
+                <article key={item.key} className="smmOfferEditorCard">
+                  <div className="announcementEditorTopRow">
+                    <div>
+                      <p className="eyebrow">{item.label}</p>
+                      <h4>{index === 0 ? "Package teaser" : "Reseller teaser"}</h4>
+                    </div>
+                    <button type="button" onClick={() => clearSmmOfferAsset(item.imageField)}>Clear image</button>
+                  </div>
+                  <div className="announcementMediaPanel">
+                    <div className="announcementMediaPreview">
+                      {smmOffers[item.imageField] ? (
+                        <img src={smmOffers[item.imageField]} alt={smmOffers[item.titleField] || "Offer preview"} />
+                      ) : (
+                        <span>No image yet</span>
+                      )}
+                    </div>
+                    <div className="announcementMediaActions">
+                      <input
+                        ref={index === 0 ? smmOfferOneUploadRef : smmOfferTwoUploadRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = "";
+                          if (!file) return;
+                          uploadSmmOfferAsset(item.imageField, file).catch((error) => {
+                            console.error("SMM offer image upload failed", error);
+                            setStatusMessage(error.message || "Upload failed.");
+                          });
+                        }}
+                        hidden
+                      />
+                      <button type="button" onClick={() => (index === 0 ? smmOfferOneUploadRef.current?.click() : smmOfferTwoUploadRef.current?.click())}>Upload Image</button>
+                      <button type="button" onClick={() => (index === 0 ? smmOfferOneUploadRef.current?.click() : smmOfferTwoUploadRef.current?.click())}>Replace Image</button>
+                    </div>
+                    <input name={item.imageField} value={smmOffers[item.imageField]} onChange={updateSmmOffersForm} placeholder="Image URL or uploaded file link" />
+                  </div>
+                  <label>
+                    Title
+                    <input name={item.titleField} value={smmOffers[item.titleField]} onChange={updateSmmOffersForm} placeholder={index === 0 ? "Need help getting started?" : "Want to upgrade your page?"} />
+                  </label>
+                  <label>
+                    Message
+                    <textarea name={item.messageField} value={smmOffers[item.messageField]} onChange={updateSmmOffersForm} rows="4" placeholder={index === 0 ? "Short promo copy for the first card." : "Short promo copy for the second card."} />
+                  </label>
+                </article>
+              ))}
+              <div className="announcementEditorActions">
+                <button type="submit" disabled={smmOffersSaveState.saving}>{smmOffersSaveState.saving ? "Saving..." : "Save Offers"}</button>
+              </div>
+            </form>
+          </section>
+          {false && (
           <section className="announcementManager">
             <div className="announcementManagerHeader">
               <div>
@@ -5145,6 +5354,7 @@ After login, you will only see the bookings and features assigned to your busine
               </div>
             </div>
           </section>
+          )}
           {form.status === "DEMO" && (
             <section className={`smmPackageControl demoExpiryControl ${demoExpiryState.state}`}>
               <div>
@@ -5294,7 +5504,7 @@ function ClientDashboard({
   onSavePaymentMethod,
   onVerifyPayment,
   onRejectPayment,
-  announcements = [],
+  smmOffers = null,
 }) {
   const [authState, setAuthState] = useState("checking");
   const [clientSession, setClientSession] = useState(null);
@@ -5309,7 +5519,6 @@ function ClientDashboard({
   const [paymentSettings, setPaymentSettings] = useState({ enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [bookingPayments, setBookingPayments] = useState([]);
-  const [announcementDismissals, setAnnouncementDismissals] = useState([]);
   const [activeTab, setActiveTab] = useState(initialView === "login" ? "dashboard" : "dashboard");
   const [filter, setFilter] = useState("All");
   const [calendarFilter, setCalendarFilter] = useState("All");
@@ -5371,10 +5580,6 @@ function ClientDashboard({
       query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=submitted_at.desc`,
       accessToken: session.access_token,
     }).catch(() => []);
-    const dismissalRows = await supabaseRequest("announcement_dismissals", {
-      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&user_id=eq.${encodeURIComponent(session.user.id)}&order=dismissed_at.desc`,
-      accessToken: session.access_token,
-    }).catch(() => []);
     const normalizedAvailability = {
       days: availabilityRow?.open_days || defaultAvailability.days,
       hours: availabilityRow?.open_hours || defaultAvailability.hours,
@@ -5402,7 +5607,6 @@ function ClientDashboard({
     setPaymentSettings(paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
     setPaymentMethods(paymentMethodRows || []);
     setBookingPayments(paymentRows || []);
-    setAnnouncementDismissals(dismissalRows || []);
     setAuthState("authorized");
     return true;
   };
@@ -5895,8 +6099,6 @@ function ClientDashboard({
   const capabilities = getPackageCapabilities(clientBusiness?.package, clientBusiness?.featureFlags);
   const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
   const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
-  const visibleAnnouncements = useMemo(() => sortAnnouncements((announcements || []).filter((announcement) => announcementMatchesBusiness(announcement, clientBusiness, "CLIENT_DASHBOARD"))), [announcements, clientBusiness]);
-  const announcementDismissalIds = announcementDismissals.map((item) => item.announcement_id);
   const paymentsByBooking = bookingPayments.reduce((grouped, payment) => {
     grouped[payment.booking_id] = grouped[payment.booking_id] || [];
     grouped[payment.booking_id].push(payment);
@@ -5905,27 +6107,6 @@ function ClientDashboard({
   const selectedBookingPayments = selectedBooking ? paymentsByBooking[selectedBooking.id] || [] : [];
   const latestSelectedPayment = selectedBookingPayments[0];
   const selectedBookingItems = selectedBooking ? getBookingLineItems(selectedBooking) : [];
-  const dismissAnnouncement = async (announcementId) => {
-    if (!clientSession?.user?.id || !selectedBusinessSlug) return;
-    try {
-      const payload = {
-        id: `dismiss-${announcementId}-${clientSession.user.id}-${selectedBusinessSlug}`,
-        announcement_id: announcementId,
-        user_id: clientSession.user.id,
-        business_slug: selectedBusinessSlug,
-        dismissed_at: new Date().toISOString(),
-      };
-      await supabaseRequest("announcement_dismissals", {
-        method: "POST",
-        body: payload,
-        accessToken: clientSession.access_token,
-      });
-      setAnnouncementDismissals((current) => [...current.filter((item) => item.announcement_id !== announcementId), payload]);
-    } catch (error) {
-      console.error("Announcement dismissal failed", error);
-      setStatusMessage("Could not save the announcement dismissal.");
-    }
-  };
   const selectedBookingTotal = selectedBooking?.estimated_total ?? selectedBooking?.metadata?.estimated_total ?? (
     selectedBookingItems.every((item) => item.lineTotal !== null && item.lineTotal !== undefined)
       ? selectedBookingItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0)
@@ -6048,17 +6229,7 @@ function ClientDashboard({
                 <p>{clientBusiness?.bookingMode === "inquiry" ? "Review new inquiries and customer messages." : "Review bookings and keep appointment statuses updated."}</p>
                 <span className="clientPackageBadge">{packageOptions.find((item) => item.value === capabilities.packageKey)?.label || "Starter"} package</span>
               </div>
-              <AnnouncementFeed
-                title="Updates & Offers"
-                announcements={visibleAnnouncements}
-                business={clientBusiness}
-                placement="CLIENT_DASHBOARD"
-                compact
-                maxVisible={3}
-                dismissedIds={announcementDismissalIds}
-                onDismiss={dismissAnnouncement}
-                emptyText="No active updates right now."
-              />
+              <SmmOffersFeed offers={smmOffers} placement="CLIENT_DASHBOARD" compact business={clientBusiness} />
               <div className="clientMetricGrid">
                 <article><span>Today</span><strong>{todayCount}</strong></article>
                 <article><span>Pending</span><strong>{pendingCount}</strong></article>
