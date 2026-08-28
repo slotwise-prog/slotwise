@@ -481,12 +481,16 @@ function getBookingTemplateTone(bookingTemplate) {
 
 function normalizePricingUnit(value, fallback = "FLAT") {
   const nextUnit = (value || fallback || "FLAT").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-  return ["FLAT", "PER_PAX", "PER_PERSON", "PER_GROUP", "PER_TRIP", "PER_DAY", "PER_NIGHT", "FIXED"].includes(nextUnit) ? nextUnit : "FLAT";
+  return ["FLAT", "PER_PAX", "PER_PERSON", "PER_GROUP", "PER_TRIP", "PER_DAY", "PER_NIGHT", "PER_YEAR", "FIXED"].includes(nextUnit) ? nextUnit : "FLAT";
 }
 
 function normalizePricingType(value, fallback = "FIXED") {
   const nextType = (value || fallback || "FIXED").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-  return ["PER_PAX", "GROUP_TIER", "PER_TRIP", "PER_DAY", "PER_NIGHT", "FIXED"].includes(nextType) ? nextType : "FIXED";
+  return ["PER_PAX", "GROUP_TIER", "PER_TRIP", "PER_DAY", "PER_NIGHT", "STARTING_AT", "CUSTOM_INQUIRY", "IMAGE_BASED_PRICING", "FIXED"].includes(nextType) ? nextType : "FIXED";
+}
+
+function isInquiryPricingType(value = "") {
+  return ["CUSTOM_INQUIRY", "IMAGE_BASED_PRICING"].includes(normalizePricingType(value));
 }
 
 function getNightCount(checkIn, checkOut) {
@@ -522,6 +526,7 @@ function validatePricingTiers(tiers) {
 function hasValidPricingConfiguration(serviceDetail = {}) {
   const pricingType = normalizePricingType(serviceDetail.pricingType, serviceDetail.pricingUnit);
   const price = serviceDetail.price === "" || serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
+  if (isInquiryPricingType(pricingType)) return true;
   if (pricingType === "GROUP_TIER") {
     const tiers = validatePricingTiers(serviceDetail.pricingTiers);
     return tiers.ok && tiers.tiers.length > 0;
@@ -532,6 +537,9 @@ function hasValidPricingConfiguration(serviceDetail = {}) {
 function getPricingForGuests(serviceDetail, guestCount) {
   const pricingType = normalizePricingType(serviceDetail.pricingType, serviceDetail.pricingUnit);
   const price = serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
+  if (isInquiryPricingType(pricingType)) {
+    return { pricingType, unitPrice: null, selectedTier: null, estimatedTotal: null, totalAvailable: true };
+  }
   if (pricingType === "GROUP_TIER") {
     const selectedTier = normalizePricingTiers(serviceDetail.pricingTiers).find((tier) => (
       guestCount >= tier.minGuests && guestCount <= tier.maxGuests
@@ -548,6 +556,9 @@ function getPricingForGuests(serviceDetail, guestCount) {
   }
   if (pricingType === "PER_NIGHT") {
     return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price === null ? null : price * guestCount, totalAvailable: price !== null };
+  }
+  if (pricingType === "STARTING_AT") {
+    return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price, totalAvailable: price !== null };
   }
   return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price, totalAvailable: price !== null };
 }
@@ -588,6 +599,11 @@ function calculateLineItem(serviceDetail = {}, context = {}) {
     lineLabel = pricing.selectedTier
       ? `${pricing.selectedTier.minGuests}-${pricing.selectedTier.maxGuests} pax rate`
       : "Group rate unavailable";
+  } else if (pricingType === "STARTING_AT") {
+    lineLabel = `Starting at ${formatPeso(pricing.unitPrice)}`;
+  } else if (isInquiryPricingType(pricingType)) {
+    lineLabel = "See Plan Details / Inquire for Pricing";
+    lineTotal = null;
   }
 
   return {
@@ -605,7 +621,7 @@ function calculateLineItem(serviceDetail = {}, context = {}) {
 
 function calculateBookingTotal(selectedServices = [], context = {}) {
   const lineItems = selectedServices.map((service) => calculateLineItem(service, context));
-  const invalidItem = lineItems.find((item) => !item.totalAvailable || item.lineTotal === null || item.lineTotal === undefined || Number.isNaN(Number(item.lineTotal)));
+  const invalidItem = lineItems.find((item) => !item.totalAvailable || (!isInquiryPricingType(item.pricingType) && (item.lineTotal === null || item.lineTotal === undefined || Number.isNaN(Number(item.lineTotal)))));
   const estimatedTotal = invalidItem ? null : lineItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
   return {
     lineItems,
@@ -690,6 +706,7 @@ function formatServicePriceLabel(detail = {}, fallbackPricingType = "FIXED") {
   const price = detail.price;
   const base = formatPeso(price);
   const tiers = normalizePricingTiers(detail.pricingTiers ?? detail.pricing_tiers);
+  if (pricingType === "CUSTOM_INQUIRY" || pricingType === "IMAGE_BASED_PRICING") return "See Plan Details / Inquire for Pricing";
   if (pricingType === "GROUP_TIER" && tiers.length) {
     const prices = tiers.map((tier) => tier.price);
     const minPrice = Math.min(...prices);
@@ -701,6 +718,7 @@ function formatServicePriceLabel(detail = {}, fallbackPricingType = "FIXED") {
   if (pricingType === "PER_TRIP") return `${base} / trip`;
   if (pricingType === "PER_DAY") return `${base} / day`;
   if (pricingType === "PER_NIGHT") return `${base} / night`;
+  if (pricingType === "STARTING_AT") return `Starting at ${base}`;
   return base;
 }
 
@@ -1363,6 +1381,7 @@ function serviceRowToStructured(service = {}, index = 0) {
   return {
     id: service.id || "",
     name: service.name || "",
+    serviceCategory: service.service_category || service.serviceCategory || "",
     description: service.description || "",
     price: service.price ?? "",
     durationMinutes: service.duration_minutes ?? service.durationMinutes ?? "",
@@ -1392,21 +1411,29 @@ function normalizeStructuredServices(value, minimumSlots = 3) {
 function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
   const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
+  const isConsultant = normalizeBookingTemplate(bookingTemplate) === "PROFESSIONAL_SERVICES";
   return normalizeStructuredServices(value, 0)
     .filter((service) => service.name.trim())
     .map((service, index) => {
-      const pricingType = isAccommodation ? "PER_NIGHT" : isTravel ? normalizePricingType(service.pricingType, service.pricingUnit) : "FIXED";
+      const pricingType = isAccommodation
+        ? "PER_NIGHT"
+        : isTravel
+          ? normalizePricingType(service.pricingType, service.pricingUnit)
+          : isConsultant
+            ? normalizePricingType(service.pricingType, service.pricingUnit)
+            : "FIXED";
       return {
         ...service,
         name: service.name.trim(),
+        serviceCategory: service.serviceCategory || "",
         description: service.description.trim(),
         price: service.price === "" ? null : Number(service.price),
         durationMinutes: service.durationMinutes === "" ? null : Number(service.durationMinutes),
         displayOrder: index,
         status: service.status || "Active",
         pricingType,
-        pricingUnit: isAccommodation ? "PER_NIGHT" : isTravel ? normalizePricingUnit(service.pricingUnit, pricingType) : "FLAT",
-        pricingTiers: isTravel && pricingType === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers) : [],
+        pricingUnit: isAccommodation ? "PER_NIGHT" : isTravel || isConsultant ? normalizePricingUnit(service.pricingUnit, pricingType) : "FLAT",
+        pricingTiers: (isTravel || isConsultant) && pricingType === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers) : [],
         maxGuests: service.maxGuests === "" ? null : Number(service.maxGuests),
         includedGuests: service.includedGuests === "" ? null : Number(service.includedGuests),
         extraGuestFee: service.extraGuestFee === "" ? null : Number(service.extraGuestFee),
@@ -1414,6 +1441,7 @@ function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
         imageTitle: service.imageTitle || "",
         imageCaption: service.imageCaption || "",
         unitQuantity: service.unitQuantity === "" ? 1 : Number(service.unitQuantity || 1),
+        serviceCategory: service.serviceCategory || "",
       };
     });
 }
@@ -1449,7 +1477,7 @@ function getServiceManagerCopy(bookingTemplate = "GENERAL") {
   const template = normalizeBookingTemplate(bookingTemplate);
   if (template === "TOURS_TRAVEL") return { title: "Tour Packages", single: "Tour package", add: "Add Another Package" };
   if (template === "STAYCATION_ACCOMMODATION") return { title: "Rooms / Units", single: "Room / unit", add: "Add Room / Unit" };
-  if (template === "PROFESSIONAL_SERVICES") return { title: "Consulting Services", single: "Consulting service", add: "Add Another Service" };
+  if (template === "PROFESSIONAL_SERVICES") return { title: "Plans & Services", single: "Plan / product", add: "Add Another Plan" };
   if (template === "CAR_WASH") return { title: "Car Wash Services", single: "Car wash service", add: "Add Another Service" };
   if (template === "LAUNDRY") return { title: "Laundry Services", single: "Laundry service", add: "Add Another Service" };
   if (template === "CLINIC") return { title: "Services / Treatments", single: "Service / treatment", add: "Add Another Service" };
@@ -1534,6 +1562,7 @@ function setupToServiceRows(setup, slug, requestId) {
     id: service.id || `${requestId}-SVC-${index + 1}`,
     business_slug: slug,
     name: service.name,
+    service_category: service.serviceCategory || "",
     duration_minutes: service.durationMinutes,
     price: service.price,
     pricing_unit: normalizePricingUnit(service.pricingUnit),
@@ -1681,13 +1710,40 @@ const templates = [
     tagline: "For consultants, advisors, agencies, and professional sessions.",
     highlight: "Best for appointment-based consultations and service retainers",
     stat: "Consults booked this week",
-    services: ["Strategy Session", "Business Consultation", "Project Review"],
+    services: ["Maxicare Health Plans", "MediCard Individual & Family Plans"],
     serviceDetails: [
-      { name: "Strategy Session", description: "Focused planning call or meeting", price: 1500, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 60, displayOrder: 0, status: "Active" },
-      { name: "Business Consultation", description: "Professional advice and recommendations", price: 2500, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 90, displayOrder: 1, status: "Active" },
-      { name: "Project Review", description: "Document or project assessment session", price: 1800, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 75, displayOrder: 2, status: "Active" },
+      {
+        name: "Maxicare Health Plans",
+        serviceCategory: "HMO / Health Plan",
+        description: "Choose from available Maxicare health plans based on your preferred coverage and benefits.",
+        price: null,
+        pricingUnit: "FLAT",
+        pricingType: "IMAGE_BASED_PRICING",
+        pricingTiers: [],
+        durationMinutes: null,
+        displayOrder: 0,
+        status: "Active",
+        imageUrl: "",
+        imageTitle: "Maxicare Health Plans",
+        imageCaption: "See Plan Details / Inquire for Pricing",
+      },
+      {
+        name: "MediCard Individual & Family Plans",
+        serviceCategory: "HMO / Health Plan",
+        description: "Individual and family healthcare plans with Standard and VIP options.",
+        price: 10739,
+        pricingUnit: "PER_YEAR",
+        pricingType: "STARTING_AT",
+        pricingTiers: [],
+        durationMinutes: null,
+        displayOrder: 1,
+        status: "Active",
+        imageUrl: "",
+        imageTitle: "MediCard Individual & Family Plans",
+        imageCaption: "Starting at PHP 10,739 per year",
+      },
     ],
-    forms: ["Company name", "Project details", "Preferred consultation notes"],
+    forms: ["Company name", "Coverage needs", "Preferred consultation notes"],
   },
   {
     icon: <WashingMachine />,
@@ -2910,6 +2966,7 @@ function SmmOffersFeed({ offers = null, placement = "BOTH", compact = false, bus
 function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, smmOffers = null }) {
   const [pickedService, setPickedService] = useState(business.services[0]);
   const [pickedServices, setPickedServices] = useState([business.services[0]].filter(Boolean));
+  const [selectedPlanImage, setSelectedPlanImage] = useState(null);
   const availableSlots = business.availability?.slots?.length ? business.availability.slots : slots;
   const [pickedSlot, setPickedSlot] = useState(availableSlots[1] || availableSlots[0] || "10:15 AM");
   const [selectedBookingDate, setSelectedBookingDate] = useState(getTodayDateValue());
@@ -2943,8 +3000,9 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, sm
   const isLaundry = normalizeBookingTemplate(business.bookingTemplate) === "LAUNDRY";
   const isTravel = bookingTone === "travel" || isToursTravel;
   const isHomeService = bookingTone === "home-service";
+  const isConsultant = bookingTone === "professional-services";
   const brandInitial = (business.business || "S").trim().charAt(0).toUpperCase();
-  const brandCategory = isAccommodation ? "Staycation & Accommodation" : isToursTravel ? "Tours & Travel" : isLaundry ? "Laundry Shop" : isClinic ? "Care & Wellness" : isTravel ? "Stay & Travel" : isHomeService ? "Aircon Services" : bookingTone === "auto" ? "Auto Services" : bookingTone === "general" ? "Service Business" : "Beauty & Wellness";
+  const brandCategory = isAccommodation ? "Staycation & Accommodation" : isToursTravel ? "Tours & Travel" : isLaundry ? "Laundry Shop" : isClinic ? "Care & Wellness" : isConsultant ? "Plans & Services" : isTravel ? "Stay & Travel" : isHomeService ? "Aircon Services" : bookingTone === "auto" ? "Auto Services" : bookingTone === "general" ? "Service Business" : "Beauty & Wellness";
   const brandLine = isClinic
     ? ["Your visit, booked with care.", "Private details. Clear schedule."]
     : isAccommodation
@@ -2962,15 +3020,15 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, sm
           : bookingTone === "general"
             ? ["Book the service you need.", "Choose a schedule that works for you."]
             : ["Enhance your glow.", "Reveal your best self."];
-  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Book Your Tour" : isLaundry ? "Book Laundry Pickup" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
-  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
-  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Tour Package" : isLaundry ? "Choose a Laundry Service" : isHomeService ? "Choose a Service" : "Choose a service";
+  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Book Your Tour" : isLaundry ? "Book Laundry Pickup" : isConsultant ? "Plans & Services" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
+  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
+  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Tour Package" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
   const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Date" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
   const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : isLaundry ? "Pickup Time" : "";
   const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Guest Details" : isLaundry ? "Pickup Details" : isHomeService ? "Your contact details" : "Your details";
-  const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isLaundry ? "Laundry notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
-  const notePlaceholder = isAccommodation ? "Arrival notes, requests, or questions for the host" : isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isLaundry ? "Fabric care, folding instructions, delivery notes, or special requests" : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
-  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Reservation Request" : isLaundry ? "Submit Pickup Request" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
+  const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isLaundry ? "Laundry notes" : isConsultant ? "Inquiry / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
+  const notePlaceholder = isAccommodation ? "Arrival notes, requests, or questions for the host" : isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isLaundry ? "Fabric care, folding instructions, delivery notes, or special requests" : isConsultant ? "Tell us which plan you need, coverage questions, or who should contact you." : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
+  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Reservation Request" : isLaundry ? "Submit Pickup Request" : isConsultant ? "Send Inquiry" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
   const paymentSettings = business.paymentSettings || {};
   const paymentMethods = (business.paymentMethods || []).filter((method) => method.active !== false);
   const allowMultipleServices = Boolean(flags.allowMultipleServices);
@@ -2988,6 +3046,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, sm
       includedGuests: detail?.includedGuests ?? null,
       extraGuestFee: detail?.extraGuestFee ?? null,
       imageUrl: detail?.imageUrl || "",
+      serviceCategory: detail?.serviceCategory || detail?.category || "",
       unitQuantity: detail?.unitQuantity ?? 1,
       description: detail?.description || "",
     };
@@ -3007,6 +3066,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, sm
     return formatServicePriceLabel(detail, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FIXED");
   };
   const serviceMetaLabel = (detail) => [
+    isConsultant && detail.serviceCategory ? detail.serviceCategory : "",
     isAccommodation && detail.maxGuests ? `Up to ${detail.maxGuests} guests` : detail.durationMinutes ? `${detail.durationMinutes} min` : "",
     detail.price !== null || detail.pricingTiers?.length ? servicePriceLabel(detail) : "",
   ].filter(Boolean).join(" • ");
@@ -3031,6 +3091,15 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, sm
     setPaymentOpen(false);
     setPaymentStatus("");
   }, [business.slug]);
+
+  const openPlanImage = (detail) => {
+    if (!detail?.imageUrl) return;
+    setSelectedPlanImage({
+      src: resolveBusinessMediaUrl(detail.imageUrl),
+      title: detail.imageTitle || detail.name || "Plan image",
+      caption: detail.imageCaption || detail.description || "",
+    });
+  };
 
   const toggleService = (serviceName) => {
     if (!allowMultipleServices) {
@@ -3231,20 +3300,43 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, sm
           {flags.bookingEnabled && (
           <div className="bookingStep">
             <div className="bookingStepTitle"><span>1</span><strong>{serviceStepLabel}</strong></div>
-            <div className="premiumServiceGrid">
+            <div className={isConsultant ? "premiumServiceGrid consultantServiceGrid" : "premiumServiceGrid"}>
               {business.services.map((item) => {
                 const ServiceIcon = resolveServiceIcon(item, business);
                 const isSelected = selectedServiceNames.includes(item);
                 const detail = getServiceDetail(item);
+                const mediaUrl = resolveBusinessMediaUrl(detail.imageUrl);
+                const planLabel = detail.price === null
+                  ? "See Plan Details / Inquire for Pricing"
+                  : formatServicePriceLabel(detail, detail.pricingType);
                 return (
-                  <button type="button" key={item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
-                    <span className="serviceIcon">{resolveBusinessMediaUrl(detail.imageUrl) ? <img src={resolveBusinessMediaUrl(detail.imageUrl)} alt="" /> : <ServiceIcon size={22} />}</span>
-                    <strong>{detail.imageTitle || item}</strong>
-                    {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
-                    {detail.description && <p className="serviceDescription">{detail.description}</p>}
-                    {flags.showPrices && serviceMetaLabel(detail) && <small>{serviceMetaLabel(detail)}</small>}
-                    {isSelected && <em><Check size={16} /></em>}
-                  </button>
+                  isConsultant ? (
+                    <article key={item} className={isSelected ? "premiumService active consultantPlanCard" : "premiumService consultantPlanCard"} aria-pressed={isSelected}>
+                      <button type="button" className="consultantPlanMedia" onClick={() => openPlanImage(detail)} disabled={!mediaUrl}>
+                        <span className="serviceIcon consultantPlanIcon">{mediaUrl ? <img src={mediaUrl} alt="" /> : <ServiceIcon size={22} />}</span>
+                      </button>
+                      <strong>{detail.imageTitle || item}</strong>
+                      {detail.serviceCategory && <small className="serviceCategoryTag">{detail.serviceCategory}</small>}
+                      <small className="servicePriceTag">{planLabel}</small>
+                      {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
+                      {detail.description && <p className="serviceDescription">{detail.description}</p>}
+                      <div className="consultantPlanActions">
+                        <button type="button" className="planActionButton" onClick={() => openPlanImage(detail)} disabled={!mediaUrl}>View Full Plan</button>
+                        <button type="button" className="planActionButton" onClick={() => toggleService(item)}>I'm Interested</button>
+                        {flags.bookingEnabled && <button type="button" className="planActionButton" onClick={() => toggleService(item)}>Book Consultation</button>}
+                      </div>
+                      {isSelected && <em><Check size={16} /></em>}
+                    </article>
+                  ) : (
+                    <button type="button" key={item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
+                      <span className={isConsultant ? "serviceIcon consultantPlanIcon" : "serviceIcon"}>{mediaUrl ? <img src={mediaUrl} alt="" /> : <ServiceIcon size={22} />}</span>
+                      <strong>{detail.imageTitle || item}</strong>
+                      {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
+                      {detail.description && <p className="serviceDescription">{detail.description}</p>}
+                      {flags.showPrices && serviceMetaLabel(detail) && <small>{serviceMetaLabel(detail)}</small>}
+                      {isSelected && <em><Check size={16} /></em>}
+                    </button>
+                  )
                 );
               })}
             </div>
@@ -3357,6 +3449,19 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, sm
             {submitting ? "Submitting request..." : submitLabel} <ChevronRight size={22} />
           </button>
           {bookingError && <p className="formError premiumError">{bookingError}</p>}
+          {selectedPlanImage && (
+            <div className="planImageOverlay" role="dialog" aria-modal="true" aria-label={selectedPlanImage.title}>
+              <button type="button" className="planImageBackdrop" onClick={() => setSelectedPlanImage(null)} aria-label="Close image viewer" />
+              <section className="planImageModal">
+                <button type="button" className="planImageClose" onClick={() => setSelectedPlanImage(null)}>Close</button>
+                <img src={selectedPlanImage.src} alt={selectedPlanImage.title} />
+                <div className="planImageMeta">
+                  <strong>{selectedPlanImage.title}</strong>
+                  {selectedPlanImage.caption && <p>{selectedPlanImage.caption}</p>}
+                </div>
+              </section>
+            </div>
+          )}
           {confirmed && (
             <div className="formSuccess premiumSuccess">
               <strong>{isProductionActive ? (isToursTravel ? "Reservation Request Received" : "Booking Request Received") : "Demo booking completed"}</strong>
@@ -3492,8 +3597,13 @@ function StructuredServiceManager({ services, onChange, onDeleteService, onUploa
   const copy = getServiceManagerCopy(bookingTemplate);
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
   const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
+  const isConsultant = normalizeBookingTemplate(bookingTemplate) === "PROFESSIONAL_SERVICES";
   const updateService = (index, updates) => {
     onChange(services.map((service, itemIndex) => itemIndex === index ? { ...service, ...updates } : service));
+  };
+  const toggleServiceStatus = (index) => {
+    const service = services[index];
+    updateService(index, { status: (service.status || "Active") === "Inactive" ? "Active" : "Inactive" });
   };
   const uploadServiceImage = async (index, event) => {
     const file = event.target.files?.[0];
@@ -3559,11 +3669,12 @@ function StructuredServiceManager({ services, onChange, onDeleteService, onUploa
               <button type="button" className="structuredServiceSummary" onClick={() => updateService(index, { expanded: !expanded })}>
                 <strong>{service.name || `${copy.single} ${index + 1}`}</strong>
                 <span>{hasValidPricingConfiguration(service) ? formatPeso(normalizePricingType(service.pricingType, service.pricingUnit) === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers)[0]?.price : service.price) : "Pricing required"}</span>
-                <em>{service.status || "Active"}</em>
+                <em>{isConsultant ? ((service.status || "Active") === "Inactive" ? "Disabled" : "Enabled") : (service.status || "Active")}</em>
               </button>
               {expanded && (
                 <div className="structuredServiceFields">
                   <input value={service.name} onChange={(event) => updateService(index, { name: event.target.value })} placeholder={`${copy.single} name`} />
+                  {normalizeBookingTemplate(bookingTemplate) === "PROFESSIONAL_SERVICES" && <input value={service.serviceCategory || ""} onChange={(event) => updateService(index, { serviceCategory: event.target.value })} placeholder="Category / label" />}
                   <input value={service.description} onChange={(event) => updateService(index, { description: event.target.value })} placeholder="Description" />
                   <input type="number" min="0" value={service.price} onChange={(event) => updateService(index, { price: event.target.value })} placeholder={isAccommodation ? "Price per night" : "Price"} />
                   {!isAccommodation && <input type="number" min="0" value={service.durationMinutes} onChange={(event) => updateService(index, { durationMinutes: event.target.value })} placeholder="Duration in minutes" />}
@@ -3619,6 +3730,7 @@ function StructuredServiceManager({ services, onChange, onDeleteService, onUploa
                     <option>Active</option>
                     <option>Inactive</option>
                   </select>
+                  {isConsultant && <button type="button" onClick={() => toggleServiceStatus(index)}>{(service.status || "Active") === "Inactive" ? "Enable plan" : "Disable plan"}</button>}
                   {isTravel && normalizePricingType(service.pricingType, service.pricingUnit) === "GROUP_TIER" && (
                     <div className="pricingTierEditor serviceTierEditor">
                       <span>Group pricing tiers</span>
@@ -3800,8 +3912,8 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
           {step === 1 && (
             <div className="setupPanel">
               <p className="eyebrow">Step 2</p>
-              <h2>Services and prices</h2>
-              <p>Add each service with price and duration. Blank slots will not be saved.</p>
+              <h2>{setupBookingTemplate === "PROFESSIONAL_SERVICES" ? "Plans and pricing" : "Services and prices"}</h2>
+              <p>{setupBookingTemplate === "PROFESSIONAL_SERVICES" ? "Add each plan or product with its category, pricing label, and photo if needed. Blank slots will not be saved." : "Add each service with price and duration. Blank slots will not be saved."}</p>
                 <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} onUploadImage={uploadSetupServiceImage} onUploadStateChange={setServiceImageUploading} bookingTemplate={setupBookingTemplate} photoManagement={getPackageCapabilities(form.package, form.featureFlags).photoManagement} />
             </div>
           )}
@@ -3836,7 +3948,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
                 <article><span>Contact</span><strong>{form.ownerName || "Owner name"}</strong><em>{form.contact || "Contact details"}</em></article>
                 <article><span>Public page</span><strong>/{form.slug || makeSlug(form.businessName)}</strong><em>Permanent client booking URL</em></article>
                 <article><span>Schedule</span><strong>{form.openDays}</strong><em>{form.openHours}</em></article>
-                <article><span>Services</span><strong>{getSavableStructuredServices(form.serviceEntries, setupBookingTemplate).length} services listed</strong><em>Ready for page setup</em></article>
+                <article><span>{setupBookingTemplate === "PROFESSIONAL_SERVICES" ? "Plans" : "Services"}</span><strong>{getSavableStructuredServices(form.serviceEntries, setupBookingTemplate).length} {setupBookingTemplate === "PROFESSIONAL_SERVICES" ? "plans listed" : "services listed"}</strong><em>Ready for page setup</em></article>
               </div>
             </div>
           )}
@@ -5761,7 +5873,7 @@ function ClientDashboard({
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(getTodayDateValue());
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const emptyServiceForm = { id: "", name: "", description: "", price: "", durationMinutes: 60, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [], imageUrl: "", imageTitle: "", imageCaption: "" };
+  const emptyServiceForm = { id: "", name: "", serviceCategory: "", description: "", price: "", durationMinutes: 60, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [], imageUrl: "", imageTitle: "", imageCaption: "" };
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [clientServiceEntries, setClientServiceEntries] = useState(emptyStructuredServices());
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
@@ -6008,11 +6120,12 @@ function ClientDashboard({
   };
 
   const editService = (service = null) => {
-    setServiceForm(service ? {
-      id: service.id,
-      name: service.name || "",
-      description: service.description || "",
-      price: service.price ?? "",
+      setServiceForm(service ? {
+        id: service.id,
+        name: service.name || "",
+        serviceCategory: service.service_category || service.serviceCategory || "",
+        description: service.description || "",
+        price: service.price ?? "",
       durationMinutes: service.duration_minutes || 60,
       pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
       pricingUnit: normalizePricingUnit(service.pricing_unit),
@@ -6070,6 +6183,7 @@ function ClientDashboard({
         service_image_title: serviceForm.imageTitle || "",
         service_image_caption: serviceForm.imageCaption || "",
         service_unit_quantity: serviceForm.unitQuantity === "" ? 1 : Number(serviceForm.unitQuantity || 1),
+        service_category: serviceForm.serviceCategory || "",
       };
       await onSaveService(payload, clientSession?.access_token);
       const [confirmedService] = await supabaseRequest("business_services", {
@@ -6084,6 +6198,7 @@ function ClientDashboard({
           ...service,
           name: payload.service_name,
           description: payload.service_description,
+          serviceCategory: payload.service_category,
           price: payload.service_price,
           duration_minutes: payload.service_duration,
           pricing_type: payload.service_pricing_type,
@@ -6100,6 +6215,7 @@ function ClientDashboard({
           business_slug: selectedBusinessSlug,
           name: payload.service_name,
           description: payload.service_description,
+          serviceCategory: payload.service_category,
           price: payload.service_price,
           duration_minutes: payload.service_duration,
           pricing_type: payload.service_pricing_type,
@@ -6121,6 +6237,7 @@ function ClientDashboard({
           pricingType: service.pricing_type,
           pricingUnit: service.pricing_unit,
           pricingTiers: service.pricing_tiers,
+          serviceCategory: service.service_category || "",
           description: service.description || "",
           imageUrl: service.image_url || "",
           imageTitle: service.image_title || "",
@@ -6179,6 +6296,7 @@ function ClientDashboard({
           service_image_title: service.imageTitle,
           service_image_caption: service.imageCaption,
           service_unit_quantity: service.unitQuantity,
+          service_category: service.serviceCategory || "",
         }, clientSession?.access_token);
       }
       const refreshedAfterSave = await supabaseRequest("business_services", {
@@ -6198,14 +6316,15 @@ function ClientDashboard({
             service_price: oldService.price,
             service_duration: oldService.duration_minutes,
             service_status: "Inactive",
-            service_pricing_type: oldService.pricing_type || "FIXED",
-            service_pricing_unit: oldService.pricing_unit || "FLAT",
-            service_pricing_tiers: oldService.pricing_tiers || [],
-            service_image_url: oldService.image_url || "",
-            service_image_title: oldService.image_title || "",
-            service_image_caption: oldService.image_caption || "",
-            service_unit_quantity: oldService.unit_quantity ?? 1,
-          }, clientSession?.access_token);
+          service_pricing_type: oldService.pricing_type || "FIXED",
+          service_pricing_unit: oldService.pricing_unit || "FLAT",
+          service_pricing_tiers: oldService.pricing_tiers || [],
+          service_image_url: oldService.image_url || "",
+          service_image_title: oldService.image_title || "",
+          service_image_caption: oldService.image_caption || "",
+          service_unit_quantity: oldService.unit_quantity ?? 1,
+          service_category: oldService.service_category || "",
+        }, clientSession?.access_token);
         }
       }
       const serviceRows = await supabaseRequest("business_services", {
