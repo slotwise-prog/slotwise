@@ -3051,8 +3051,6 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       includedGuests: detail?.includedGuests ?? null,
       extraGuestFee: detail?.extraGuestFee ?? null,
       imageUrl: detail?.imageUrl || "",
-      imageTitle: detail?.imageTitle || "",
-      imageCaption: detail?.imageCaption || "",
       serviceCategory: detail?.serviceCategory || detail?.category || "",
       unitQuantity: detail?.unitQuantity ?? 1,
       description: detail?.description || "",
@@ -6003,19 +6001,55 @@ function ClientDashboard({
   const uploadClientServiceImage = async (service, file) => {
     validateBrandMediaFile(file);
     if (!clientSession?.access_token) throw new Error("Please sign in again before uploading service images.");
-    const slug = makeSlug(service?.businessSlug || selectedBusinessSlug || clientBusiness?.slug || service?.name || "client-business");
+
+    const slug = makeSlug(service?.businessSlug || selectedBusinessSlug || clientBusiness?.slug || "client-business");
+    if (!service?.id) {
+      throw new Error("Save this service first, then upload its photo.");
+    }
+
     const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
     const extension = getFileExtension(file);
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
     const url = await supabaseStorageUpload(path, file, clientSession.access_token);
-    if (service?.id) {
-      await supabaseRequest("business_services", {
-        method: "PATCH",
-        query: `?id=eq.${encodeURIComponent(service.id)}&business_slug=eq.${encodeURIComponent(slug)}`,
-        body: { image_url: url },
-        accessToken: clientSession.access_token,
-      });
+
+    // IMPORTANT: client service rows are managed through the SECURITY DEFINER RPC.
+    // A direct PATCH to business_services can be silently filtered by RLS and return
+    // an empty result even though the Storage upload succeeded. Persist the new URL
+    // through the same RPC used by the normal service editor instead.
+    await onSaveService({
+      service_id: service.id,
+      target_slug: slug,
+      service_name: service.name || "Service",
+      service_description: service.description || "",
+      service_price: service.price === "" || service.price === undefined ? null : service.price,
+      service_duration: service.durationMinutes ?? service.duration_minutes ?? null,
+      service_status: service.status || "Active",
+      service_pricing_type: normalizePricingType(service.pricingType || service.pricing_type, service.pricingUnit || service.pricing_unit),
+      service_pricing_unit: normalizePricingUnit(service.pricingUnit || service.pricing_unit, service.pricingType || service.pricing_type),
+      service_pricing_tiers: normalizePricingTiers(service.pricingTiers || service.pricing_tiers),
+      service_display_order: service.displayOrder ?? service.display_order ?? 0,
+      service_max_guests: service.maxGuests === "" ? null : (service.maxGuests ?? service.max_guests ?? null),
+      service_included_guests: service.includedGuests === "" ? null : (service.includedGuests ?? service.included_guests ?? null),
+      service_extra_guest_fee: service.extraGuestFee === "" ? null : (service.extraGuestFee ?? service.extra_guest_fee ?? null),
+      service_category: service.serviceCategory || service.service_category || "",
+      service_image_url: url,
+      service_image_title: service.imageTitle || service.image_title || "",
+      service_image_caption: service.imageCaption || service.image_caption || "",
+      service_unit_quantity: service.unitQuantity ?? service.unit_quantity ?? 1,
+    }, clientSession.access_token);
+
+    // Read the row back from Supabase before telling the UI the upload succeeded.
+    const [confirmedService] = await supabaseRequest("business_services", {
+      query: `?select=id,image_url&business_slug=eq.${encodeURIComponent(slug)}&id=eq.${encodeURIComponent(service.id)}`,
+      accessToken: clientSession.access_token,
+    });
+    if (!confirmedService?.image_url || confirmedService.image_url !== url) {
+      throw new Error("Photo uploaded to Storage, but the service record did not save it.");
     }
+
+    // Keep the loaded service row in sync so a later Save Services action cannot
+    // overwrite the freshly persisted URL with an older empty value.
+    setClientServices((current) => current.map((item) => item.id === service.id ? { ...item, image_url: url } : item));
     return url;
   };
 
@@ -6192,15 +6226,14 @@ function ClientDashboard({
       }
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
       const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
-      const isClientConsultant = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "PROFESSIONAL_SERVICES";
       const tierValidation = validatePricingTiers(serviceForm.pricingTiers);
-      if ((isClientToursTravel || isClientConsultant) && serviceForm.pricingType === "GROUP_TIER" && (!tierValidation.ok || tierValidation.tiers.length === 0)) {
+      if (isClientToursTravel && serviceForm.pricingType === "GROUP_TIER" && (!tierValidation.ok || tierValidation.tiers.length === 0)) {
         setStatusMessage(tierValidation.message || "Add at least one valid pricing tier.");
         return;
       }
       if (serviceForm.status !== "Inactive" && !hasValidPricingConfiguration({
-        pricingType: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? serviceForm.pricingType : "FIXED",
-        pricingUnit: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? serviceForm.pricingUnit : "FLAT",
+        pricingType: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? serviceForm.pricingType : "FIXED",
+        pricingUnit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? serviceForm.pricingUnit : "FLAT",
         price: serviceForm.price,
         pricingTiers: serviceForm.pricingTiers,
       })) {
@@ -6215,10 +6248,9 @@ function ClientDashboard({
         service_price: serviceForm.price === "" ? null : Number(serviceForm.price),
         service_duration: isClientAccommodation ? null : Number(serviceForm.durationMinutes) || 60,
         service_status: serviceForm.status,
-        service_pricing_type: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? normalizePricingType(serviceForm.pricingType) : "FIXED",
-        service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? normalizePricingUnit(serviceForm.pricingUnit, serviceForm.pricingType) : "FLAT",
-        service_pricing_tiers: (isClientToursTravel || isClientConsultant) && serviceForm.pricingType === "GROUP_TIER" ? tierValidation.tiers : [],
-        service_category: isClientConsultant ? (serviceForm.serviceCategory || "") : "",
+        service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingType(serviceForm.pricingType) : "FIXED",
+        service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingUnit(serviceForm.pricingUnit, serviceForm.pricingType) : "FLAT",
+        service_pricing_tiers: isClientToursTravel ? tierValidation.tiers : [],
         service_max_guests: serviceForm.maxGuests === "" ? null : Number(serviceForm.maxGuests),
         service_included_guests: serviceForm.includedGuests === "" ? null : Number(serviceForm.includedGuests),
         service_extra_guest_fee: serviceForm.extraGuestFee === "" ? null : Number(serviceForm.extraGuestFee),
@@ -6306,10 +6338,9 @@ function ClientDashboard({
       }
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
       const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
-      const isClientConsultant = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "PROFESSIONAL_SERVICES";
       const savableServices = getSavableStructuredServices(clientServiceEntries, clientBusiness?.bookingTemplate);
       for (const service of savableServices) {
-        if ((isClientToursTravel || isClientConsultant) && service.pricingType === "GROUP_TIER" && !validatePricingTiers(service.pricingTiers).ok) {
+        if (isClientToursTravel && service.pricingType === "GROUP_TIER" && !validatePricingTiers(service.pricingTiers).ok) {
           setStatusMessage(`Fix pricing tiers for ${service.name}.`);
           return;
         }
@@ -6329,10 +6360,9 @@ function ClientDashboard({
           service_price: service.price,
           service_duration: service.durationMinutes,
           service_status: service.status,
-          service_pricing_type: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? normalizePricingType(service.pricingType) : "FIXED",
-          service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : (isClientToursTravel || isClientConsultant) ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
-          service_pricing_tiers: (isClientToursTravel || isClientConsultant) && service.pricingType === "GROUP_TIER" ? service.pricingTiers : [],
-          service_category: isClientConsultant ? (service.serviceCategory || "") : "",
+          service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingType(service.pricingType) : "FIXED",
+          service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
+          service_pricing_tiers: isClientToursTravel ? service.pricingTiers : [],
           service_max_guests: service.maxGuests,
           service_included_guests: service.includedGuests,
           service_extra_guest_fee: service.extraGuestFee,
