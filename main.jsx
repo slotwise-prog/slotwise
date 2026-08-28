@@ -59,6 +59,8 @@ import {
   BedDouble,
   Building2,
   Moon,
+  Shirt,
+  WashingMachine,
 } from "lucide-react";
 import "./styles.css";
 
@@ -100,8 +102,11 @@ const bookingTemplateOptions = [
   { value: "GENERAL", label: "General" },
   { value: "BEAUTY", label: "Beauty / Salon" },
   { value: "CLINIC", label: "Clinic / Dental" },
+  { value: "PROFESSIONAL_SERVICES", label: "Consultant / Professional Services" },
   { value: "HOME_SERVICE", label: "Home Service" },
   { value: "AUTO", label: "Auto / Car Wash" },
+  { value: "CAR_WASH", label: "Car Wash" },
+  { value: "LAUNDRY", label: "Laundry Shop" },
   { value: "TOURS_TRAVEL", label: "Tours & Travel" },
   { value: "STAYCATION_ACCOMMODATION", label: "Staycation / Accommodation" },
 ];
@@ -109,6 +114,7 @@ const bookingTemplateOptions = [
 const packageCapabilityMap = {
   STARTER: {
     services: false,
+    photoManagement: false,
     schedule: false,
     customers: false,
     basicStats: false,
@@ -120,6 +126,7 @@ const packageCapabilityMap = {
   },
   BUSINESS: {
     services: true,
+    photoManagement: true,
     schedule: true,
     customers: true,
     basicStats: true,
@@ -131,6 +138,7 @@ const packageCapabilityMap = {
   },
   PRO: {
     services: true,
+    photoManagement: true,
     schedule: true,
     customers: true,
     basicStats: true,
@@ -258,6 +266,7 @@ function resolveServiceIcon(serviceName = "", business = {}) {
 
   if (hasKeyword(serviceText, ["repair"])) return Wrench;
   if (hasKeyword(serviceText, ["consultation", "consult"])) return MessageSquare;
+  if (hasKeyword(serviceText, ["laundry", "wash", "fold", "dry cleaning", "pickup", "pickup and delivery", "pick up and delivery"])) return WashingMachine;
   return businessTone === "staycation-accommodation" ? BedDouble : isToursTravel ? MapPinned : CircleDot;
 }
 
@@ -266,10 +275,14 @@ function resolveBusinessTone(business = {}) {
   const template = normalizeBookingTemplate(business.bookingTemplate);
   if (template === "STAYCATION_ACCOMMODATION") return "staycation-accommodation";
   if (template === "TOURS_TRAVEL") return "tours-travel";
+  if (template === "PROFESSIONAL_SERVICES") return "professional-services";
+  if (template === "CAR_WASH") return "carwash";
+  if (template === "LAUNDRY") return "laundry";
   if (template === "HOME_SERVICE") return "home-service";
   if (template === "AUTO") return "auto";
   if (template === "CLINIC") return "clinic";
   if (template === "BEAUTY") return "beauty";
+  if (hasKeyword(businessText, ["laundry", "wash and fold", "wash & fold", "dry cleaning", "pickup and delivery", "pick up and delivery"])) return "laundry";
   if (hasKeyword(businessText, ["clinic", "dental", "dentist", "medical", "care"])) return "clinic";
   if (hasKeyword(businessText, ["travel", "stay", "hotel", "tour", "cabin"])) return "travel";
   if (hasKeyword(businessText, ["aircon", "air con", "hvac", "home", "repair", "maintenance", "plumbing", "electrical", "appliance"])) return "home-service";
@@ -281,6 +294,9 @@ function resolveBusinessTone(business = {}) {
 function getToneThemeDefaults(tone) {
   if (tone === "staycation-accommodation") return { primaryColor: "#7a4f2f", accentColor: "#f8efe6", pageBackgroundColor: "#F4EFE8" };
   if (tone === "tours-travel") return { primaryColor: "#0f766e", accentColor: "#e6f7f1", pageBackgroundColor: "#F6F2E5" };
+  if (tone === "professional-services") return { primaryColor: "#334155", accentColor: "#e8eef7", pageBackgroundColor: "#F4F7FB" };
+  if (tone === "carwash") return { primaryColor: "#1f2937", accentColor: "#eef2f7", pageBackgroundColor: "#F3F6FA" };
+  if (tone === "laundry") return { primaryColor: "#2d5b87", accentColor: "#e7f1fb", pageBackgroundColor: "#F2F7FB" };
   if (tone === "home-service") return { primaryColor: "#155e75", accentColor: "#eaf7fb", pageBackgroundColor: "#F1F5F9" };
   if (tone === "auto") return { primaryColor: "#1f2937", accentColor: "#eef2f7", pageBackgroundColor: "#F2F4F7" };
   if (tone === "clinic") return { primaryColor: "#148d84", accentColor: "#dff7f3", pageBackgroundColor: "#EEF4F8" };
@@ -321,6 +337,9 @@ function getTemplateFallbackCover(tone = "beauty") {
   const tones = {
     "staycation-accommodation": { title: "STAYCATION", subtitle: "Relax • Sleep • Stay", start: "#4b2f23", end: "#b7794b" },
     "tours-travel": { title: "TRAVEL", subtitle: "Explore • Discover • Go", start: "#0b525b", end: "#f59e0b" },
+    "professional-services": { title: "CONSULTING", subtitle: "Plan • Guide • Deliver", start: "#0f172a", end: "#64748b" },
+    carwash: { title: "CAR WASH", subtitle: "Wash • Shine • Drive", start: "#111827", end: "#60a5fa" },
+    laundry: { title: "LAUNDRY", subtitle: "Wash • Dry • Fold", start: "#2d5b87", end: "#7cc4ff" },
     "home-service": { title: "HOME SERVICE", subtitle: "Repair • Clean • Fix", start: "#0f3f4f", end: "#2563eb" },
     auto: { title: "AUTO", subtitle: "Detail • Wash • Drive", start: "#111827", end: "#ea580c" },
     clinic: { title: "CLINIC", subtitle: "Care • Wellness • Visit", start: "#0f766e", end: "#7dd3fc" },
@@ -450,6 +469,9 @@ function getBookingTemplateTone(bookingTemplate) {
   const nextTemplate = normalizeBookingTemplate(bookingTemplate);
   if (nextTemplate === "STAYCATION_ACCOMMODATION") return "staycation-accommodation";
   if (nextTemplate === "TOURS_TRAVEL") return "tours-travel";
+  if (nextTemplate === "PROFESSIONAL_SERVICES") return "professional-services";
+  if (nextTemplate === "CAR_WASH") return "carwash";
+  if (nextTemplate === "LAUNDRY") return "laundry";
   if (nextTemplate === "HOME_SERVICE") return "home-service";
   if (nextTemplate === "AUTO") return "auto";
   if (nextTemplate === "CLINIC") return "clinic";
@@ -459,12 +481,16 @@ function getBookingTemplateTone(bookingTemplate) {
 
 function normalizePricingUnit(value, fallback = "FLAT") {
   const nextUnit = (value || fallback || "FLAT").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-  return ["FLAT", "PER_PAX", "PER_PERSON", "PER_GROUP", "PER_TRIP", "PER_DAY", "PER_NIGHT", "FIXED"].includes(nextUnit) ? nextUnit : "FLAT";
+  return ["FLAT", "PER_PAX", "PER_PERSON", "PER_GROUP", "PER_TRIP", "PER_DAY", "PER_NIGHT", "PER_YEAR", "FIXED"].includes(nextUnit) ? nextUnit : "FLAT";
 }
 
 function normalizePricingType(value, fallback = "FIXED") {
   const nextType = (value || fallback || "FIXED").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-  return ["PER_PAX", "GROUP_TIER", "PER_TRIP", "PER_DAY", "PER_NIGHT", "FIXED"].includes(nextType) ? nextType : "FIXED";
+  return ["PER_PAX", "GROUP_TIER", "PER_TRIP", "PER_DAY", "PER_NIGHT", "STARTING_AT", "CUSTOM_INQUIRY", "IMAGE_BASED_PRICING", "FIXED"].includes(nextType) ? nextType : "FIXED";
+}
+
+function isInquiryPricingType(value = "") {
+  return ["CUSTOM_INQUIRY", "IMAGE_BASED_PRICING"].includes(normalizePricingType(value));
 }
 
 function getNightCount(checkIn, checkOut) {
@@ -500,6 +526,7 @@ function validatePricingTiers(tiers) {
 function hasValidPricingConfiguration(serviceDetail = {}) {
   const pricingType = normalizePricingType(serviceDetail.pricingType, serviceDetail.pricingUnit);
   const price = serviceDetail.price === "" || serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
+  if (isInquiryPricingType(pricingType)) return true;
   if (pricingType === "GROUP_TIER") {
     const tiers = validatePricingTiers(serviceDetail.pricingTiers);
     return tiers.ok && tiers.tiers.length > 0;
@@ -510,6 +537,9 @@ function hasValidPricingConfiguration(serviceDetail = {}) {
 function getPricingForGuests(serviceDetail, guestCount) {
   const pricingType = normalizePricingType(serviceDetail.pricingType, serviceDetail.pricingUnit);
   const price = serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
+  if (isInquiryPricingType(pricingType)) {
+    return { pricingType, unitPrice: null, selectedTier: null, estimatedTotal: null, totalAvailable: true };
+  }
   if (pricingType === "GROUP_TIER") {
     const selectedTier = normalizePricingTiers(serviceDetail.pricingTiers).find((tier) => (
       guestCount >= tier.minGuests && guestCount <= tier.maxGuests
@@ -526,6 +556,9 @@ function getPricingForGuests(serviceDetail, guestCount) {
   }
   if (pricingType === "PER_NIGHT") {
     return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price === null ? null : price * guestCount, totalAvailable: price !== null };
+  }
+  if (pricingType === "STARTING_AT") {
+    return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price, totalAvailable: price !== null };
   }
   return { pricingType, unitPrice: price, selectedTier: null, estimatedTotal: price, totalAvailable: price !== null };
 }
@@ -566,6 +599,11 @@ function calculateLineItem(serviceDetail = {}, context = {}) {
     lineLabel = pricing.selectedTier
       ? `${pricing.selectedTier.minGuests}-${pricing.selectedTier.maxGuests} pax rate`
       : "Group rate unavailable";
+  } else if (pricingType === "STARTING_AT") {
+    lineLabel = `Starting at ${formatPeso(pricing.unitPrice)}`;
+  } else if (isInquiryPricingType(pricingType)) {
+    lineLabel = "See Plan Details / Inquire for Pricing";
+    lineTotal = null;
   }
 
   return {
@@ -583,7 +621,7 @@ function calculateLineItem(serviceDetail = {}, context = {}) {
 
 function calculateBookingTotal(selectedServices = [], context = {}) {
   const lineItems = selectedServices.map((service) => calculateLineItem(service, context));
-  const invalidItem = lineItems.find((item) => !item.totalAvailable || item.lineTotal === null || item.lineTotal === undefined || Number.isNaN(Number(item.lineTotal)));
+  const invalidItem = lineItems.find((item) => !item.totalAvailable || (!isInquiryPricingType(item.pricingType) && (item.lineTotal === null || item.lineTotal === undefined || Number.isNaN(Number(item.lineTotal)))));
   const estimatedTotal = invalidItem ? null : lineItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0);
   return {
     lineItems,
@@ -668,6 +706,7 @@ function formatServicePriceLabel(detail = {}, fallbackPricingType = "FIXED") {
   const price = detail.price;
   const base = formatPeso(price);
   const tiers = normalizePricingTiers(detail.pricingTiers ?? detail.pricing_tiers);
+  if (pricingType === "CUSTOM_INQUIRY" || pricingType === "IMAGE_BASED_PRICING") return "See Plan Details / Inquire for Pricing";
   if (pricingType === "GROUP_TIER" && tiers.length) {
     const prices = tiers.map((tier) => tier.price);
     const minPrice = Math.min(...prices);
@@ -679,6 +718,7 @@ function formatServicePriceLabel(detail = {}, fallbackPricingType = "FIXED") {
   if (pricingType === "PER_TRIP") return `${base} / trip`;
   if (pricingType === "PER_DAY") return `${base} / day`;
   if (pricingType === "PER_NIGHT") return `${base} / night`;
+  if (pricingType === "STARTING_AT") return `Starting at ${base}`;
   return base;
 }
 
@@ -755,7 +795,7 @@ async function supabaseRpcRequest(functionName, body, accessToken = "") {
   return data;
 }
 
-async function supabaseStorageUpload(path, file, accessToken = "") {
+async function supabaseStorageUpload(path, file, accessToken = "", options = {}) {
   if (!supabaseUrl || !supabaseAnonKey) throw new Error("Supabase is not connected.");
   const response = await fetch(`${supabaseUrl}/storage/v1/object/business-media/${path}`, {
     method: "PUT",
@@ -769,7 +809,20 @@ async function supabaseStorageUpload(path, file, accessToken = "") {
   });
   const responseText = await response.text();
   if (!response.ok) throw new Error(responseText || "Upload failed.");
-  return `${supabaseUrl}/storage/v1/object/public/business-media/${path}`;
+  const publicUrl = `${supabaseUrl}/storage/v1/object/public/business-media/${path}`;
+  const verifyResponse = await fetch(publicUrl, { method: "GET" });
+  if (!verifyResponse.ok) {
+    throw new Error("Upload completed, but the saved photo could not be read back.");
+  }
+  return options.returnStoredPath ? path : publicUrl;
+}
+
+function resolveBusinessMediaUrl(value = "") {
+  const next = String(value || "").trim();
+  if (!next) return "";
+  if (/^https?:\/\//i.test(next)) return next;
+  if (!supabaseUrl) return next;
+  return `${supabaseUrl}/storage/v1/object/public/business-media/${next.replace(/^\/+/, "")}`;
 }
 
 function validateBrandMediaFile(file) {
@@ -885,6 +938,8 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
       includedGuests: service.included_guests ?? service.includedGuests ?? "",
       extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
       imageUrl: service.image_url || service.imageUrl || "",
+      imageTitle: service.image_title || service.imageTitle || "",
+      imageCaption: service.image_caption || service.imageCaption || "",
       unitQuantity: service.unit_quantity ?? service.unitQuantity ?? 1,
       description: service.description || "",
       displayOrder: service.display_order || 0,
@@ -1315,6 +1370,8 @@ function emptyStructuredServices(count = 3) {
     includedGuests: "",
     extraGuestFee: "",
     imageUrl: "",
+    imageTitle: "",
+    imageCaption: "",
     unitQuantity: 1,
     expanded: true,
   }));
@@ -1324,6 +1381,7 @@ function serviceRowToStructured(service = {}, index = 0) {
   return {
     id: service.id || "",
     name: service.name || "",
+    serviceCategory: service.service_category || service.serviceCategory || "",
     description: service.description || "",
     price: service.price ?? "",
     durationMinutes: service.duration_minutes ?? service.durationMinutes ?? "",
@@ -1336,6 +1394,8 @@ function serviceRowToStructured(service = {}, index = 0) {
     includedGuests: service.included_guests ?? service.includedGuests ?? "",
     extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
     imageUrl: service.image_url || service.imageUrl || "",
+    imageTitle: service.image_title || service.imageTitle || "",
+    imageCaption: service.image_caption || service.imageCaption || "",
     unitQuantity: service.unit_quantity ?? service.unitQuantity ?? 1,
     expanded: index < 3,
   };
@@ -1351,26 +1411,37 @@ function normalizeStructuredServices(value, minimumSlots = 3) {
 function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
   const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
+  const isConsultant = normalizeBookingTemplate(bookingTemplate) === "PROFESSIONAL_SERVICES";
   return normalizeStructuredServices(value, 0)
     .filter((service) => service.name.trim())
     .map((service, index) => {
-      const pricingType = isAccommodation ? "PER_NIGHT" : isTravel ? normalizePricingType(service.pricingType, service.pricingUnit) : "FIXED";
+      const pricingType = isAccommodation
+        ? "PER_NIGHT"
+        : isTravel
+          ? normalizePricingType(service.pricingType, service.pricingUnit)
+          : isConsultant
+            ? normalizePricingType(service.pricingType, service.pricingUnit)
+            : "FIXED";
       return {
         ...service,
         name: service.name.trim(),
+        serviceCategory: service.serviceCategory || "",
         description: service.description.trim(),
         price: service.price === "" ? null : Number(service.price),
         durationMinutes: service.durationMinutes === "" ? null : Number(service.durationMinutes),
         displayOrder: index,
         status: service.status || "Active",
         pricingType,
-        pricingUnit: isAccommodation ? "PER_NIGHT" : isTravel ? normalizePricingUnit(service.pricingUnit, pricingType) : "FLAT",
-        pricingTiers: isTravel && pricingType === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers) : [],
+        pricingUnit: isAccommodation ? "PER_NIGHT" : isTravel || isConsultant ? normalizePricingUnit(service.pricingUnit, pricingType) : "FLAT",
+        pricingTiers: (isTravel || isConsultant) && pricingType === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers) : [],
         maxGuests: service.maxGuests === "" ? null : Number(service.maxGuests),
         includedGuests: service.includedGuests === "" ? null : Number(service.includedGuests),
         extraGuestFee: service.extraGuestFee === "" ? null : Number(service.extraGuestFee),
         imageUrl: service.imageUrl || "",
+        imageTitle: service.imageTitle || "",
+        imageCaption: service.imageCaption || "",
         unitQuantity: service.unitQuantity === "" ? 1 : Number(service.unitQuantity || 1),
+        serviceCategory: service.serviceCategory || "",
       };
     });
 }
@@ -1406,6 +1477,9 @@ function getServiceManagerCopy(bookingTemplate = "GENERAL") {
   const template = normalizeBookingTemplate(bookingTemplate);
   if (template === "TOURS_TRAVEL") return { title: "Tour Packages", single: "Tour package", add: "Add Another Package" };
   if (template === "STAYCATION_ACCOMMODATION") return { title: "Rooms / Units", single: "Room / unit", add: "Add Room / Unit" };
+  if (template === "PROFESSIONAL_SERVICES") return { title: "Plans & Services", single: "Plan / product", add: "Add Another Plan" };
+  if (template === "CAR_WASH") return { title: "Car Wash Services", single: "Car wash service", add: "Add Another Service" };
+  if (template === "LAUNDRY") return { title: "Laundry Services", single: "Laundry service", add: "Add Another Service" };
   if (template === "CLINIC") return { title: "Services / Treatments", single: "Service / treatment", add: "Add Another Service" };
   if (template === "AUTO") return { title: "Services / Packages", single: "Service / package", add: "Add Another Service" };
   return { title: "Services", single: "Service", add: "Add Another Service" };
@@ -1441,8 +1515,12 @@ function inferBookingTemplateFromIndustry(industry = "") {
   const lower = industry.toLowerCase();
   if (/(staycation|accommodation|resort|villa|transient|apartment|condotel|hotel|guest house|cabin|beach house|room|rental)/i.test(lower)) return "STAYCATION_ACCOMMODATION";
   if (/(travel|tour)/i.test(lower)) return "TOURS_TRAVEL";
+  if (/(consultant|consulting|professional services|professional service|agency|advisory|advisor|accounting|legal|lawyer|real estate|broker|marketing|design|freelance|profession)/i.test(lower)) return "PROFESSIONAL_SERVICES";
+  if (/(car wash|carwash|auto detailing|detailing|vehicle cleaning|motorcycle wash|motor wash)/i.test(lower)) return "CAR_WASH";
+  if (/(laundry|wash\s*&\s*fold|wash and fold|dry cleaning|pickup.*delivery|pick up.*delivery)/i.test(lower)) return "LAUNDRY";
   if (/(clinic|dental|doctor|medical)/i.test(lower)) return "CLINIC";
   if (/(home|aircon|repair|cleaning|maintenance|plumbing|electrical)/i.test(lower)) return "HOME_SERVICE";
+  if (/(car wash|carwash|auto detailing|detailing|vehicle cleaning|motorcycle wash|motor wash)/i.test(lower)) return "CAR_WASH";
   if (/(auto|car|wash|detailing)/i.test(lower)) return "AUTO";
   if (/(salon|beauty|hair|lash|nail|makeup)/i.test(lower)) return "BEAUTY";
   return "GENERAL";
@@ -1484,6 +1562,7 @@ function setupToServiceRows(setup, slug, requestId) {
     id: service.id || `${requestId}-SVC-${index + 1}`,
     business_slug: slug,
     name: service.name,
+    service_category: service.serviceCategory || "",
     duration_minutes: service.durationMinutes,
     price: service.price,
     pricing_unit: normalizePricingUnit(service.pricingUnit),
@@ -1493,6 +1572,8 @@ function setupToServiceRows(setup, slug, requestId) {
     included_guests: service.includedGuests,
     extra_guest_fee: service.extraGuestFee,
     image_url: service.imageUrl,
+    image_title: service.imageTitle || "",
+    image_caption: service.imageCaption || "",
     unit_quantity: service.unitQuantity,
     description: service.description,
     display_order: service.displayOrder,
@@ -1607,6 +1688,126 @@ const templates = [
     forms: ["Travel date", "Guests", "Payment method"],
   },
   {
+    icon: <BriefcaseBusiness />,
+    slug: "primepoint-consulting",
+    name: "Consultant / Professional Services",
+    business: "PrimePoint Consulting",
+    link: "primepoint.slotwise.app",
+    logo: "",
+    primaryColor: "#334155",
+    accentColor: "#e8eef7",
+    phone: "0917 555 4412",
+    messengerLink: "https://m.me/primepointconsulting",
+    address: "Sample consulting office address",
+    description: "Advice, strategy, and service sessions booked in one simple flow.",
+    businessType: "Consulting / Professional Services",
+    bookingMode: "booking",
+    bookingTemplate: "PROFESSIONAL_SERVICES",
+    featureFlags: { ...defaultFeatureFlags, requireAddress: false, customerListEnabled: true },
+    availability: { ...defaultAvailability, days: "Monday to Friday", hours: "9:00 AM to 6:00 PM", slots: ["9:00 AM", "11:00 AM", "1:00 PM", "3:00 PM", "5:00 PM"] },
+    cover: getTemplateFallbackCover("professional-services"),
+    accent: "professional",
+    tagline: "For consultants, advisors, agencies, and professional sessions.",
+    highlight: "Best for appointment-based consultations and service retainers",
+    stat: "Consults booked this week",
+    services: ["Maxicare Health Plans", "MediCard Individual & Family Plans"],
+    serviceDetails: [
+      {
+        name: "Maxicare Health Plans",
+        serviceCategory: "HMO / Health Plan",
+        description: "Choose from available Maxicare health plans based on your preferred coverage and benefits.",
+        price: null,
+        pricingUnit: "FLAT",
+        pricingType: "IMAGE_BASED_PRICING",
+        pricingTiers: [],
+        durationMinutes: null,
+        displayOrder: 0,
+        status: "Active",
+        imageUrl: "",
+        imageTitle: "Maxicare Health Plans",
+        imageCaption: "See Plan Details / Inquire for Pricing",
+      },
+      {
+        name: "MediCard Individual & Family Plans",
+        serviceCategory: "HMO / Health Plan",
+        description: "Individual and family healthcare plans with Standard and VIP options.",
+        price: 10739,
+        pricingUnit: "PER_YEAR",
+        pricingType: "STARTING_AT",
+        pricingTiers: [],
+        durationMinutes: null,
+        displayOrder: 1,
+        status: "Active",
+        imageUrl: "",
+        imageTitle: "MediCard Individual & Family Plans",
+        imageCaption: "Starting at PHP 10,739 per year",
+      },
+    ],
+    forms: ["Company name", "Coverage needs", "Preferred consultation notes"],
+  },
+  {
+    icon: <WashingMachine />,
+    slug: "freshfold-laundry",
+    name: "Laundry Shop",
+    business: "FreshFold Laundry",
+    link: "freshfold.slotwise.app",
+    logo: "",
+    primaryColor: "#2d5b87",
+    accentColor: "#e7f1fb",
+    phone: "0917 444 8899",
+    messengerLink: "https://m.me/freshfoldlaundry",
+    address: "Sample laundry shop address",
+    description: "Wash, dry, fold, and delivery made simple.",
+    businessType: "Laundry Shop",
+    bookingMode: "booking",
+    bookingTemplate: "LAUNDRY",
+    featureFlags: { ...defaultFeatureFlags, requireAddress: true, customerListEnabled: true },
+    availability: { ...defaultAvailability, days: "Monday to Sunday", hours: "7:00 AM to 8:00 PM", slots: ["7:00 AM", "9:00 AM", "12:00 PM", "3:00 PM", "5:00 PM"] },
+    cover: getTemplateFallbackCover("laundry"),
+    accent: "laundry",
+    tagline: "For wash & fold, dry cleaning, pickup, and delivery bookings.",
+    highlight: "Best for recurring laundry requests and pickup scheduling",
+    stat: "Same-day pickup options",
+    services: ["Wash & Fold", "Dry Cleaning", "Pickup & Delivery"],
+    serviceDetails: [
+      { name: "Wash & Fold", description: "Regular laundry service per kilo", price: 80, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 180, displayOrder: 0, status: "Active" },
+      { name: "Dry Cleaning", description: "Garment care for delicate items", price: 150, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 240, displayOrder: 1, status: "Active" },
+      { name: "Pickup & Delivery", description: "Courier pickup and drop-off service", price: 120, pricingUnit: "PER_TRIP", pricingType: "PER_TRIP", pricingTiers: [], durationMinutes: 60, displayOrder: 2, status: "Active" },
+    ],
+    forms: ["Pickup address", "Laundry notes", "Delivery instructions"],
+  },
+  {
+    icon: <CarFront />,
+    slug: "sparkshine-carwash",
+    name: "Car Wash",
+    business: "SparkShine Car Wash",
+    link: "sparkshine.slotwise.app",
+    logo: "",
+    primaryColor: "#1f2937",
+    accentColor: "#eef2f7",
+    phone: "0917 666 4400",
+    messengerLink: "https://m.me/sparkshinecarwash",
+    address: "Sample car wash address",
+    description: "Book a wash, detail, or quick service with ease.",
+    businessType: "Car Wash",
+    bookingMode: "booking",
+    bookingTemplate: "CAR_WASH",
+    featureFlags: { ...defaultFeatureFlags, requireAddress: true, customerListEnabled: true },
+    availability: { ...defaultAvailability, days: "Monday to Sunday", hours: "7:00 AM to 7:00 PM", slots: ["7:00 AM", "9:00 AM", "11:00 AM", "2:00 PM", "4:00 PM"] },
+    cover: getTemplateFallbackCover("carwash"),
+    accent: "carwash",
+    tagline: "For car wash, detailing, cleaning, and pickup requests.",
+    highlight: "Best for vehicles, recurring washes, and quick reservations",
+    stat: "Same-day slots available",
+    services: ["Exterior Wash", "Full Detail", "Interior Cleaning"],
+    serviceDetails: [
+      { name: "Exterior Wash", description: "Hand wash and rinse", price: 150, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 60, displayOrder: 0, status: "Active" },
+      { name: "Full Detail", description: "Interior and exterior detailing", price: 650, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 180, displayOrder: 1, status: "Active" },
+      { name: "Interior Cleaning", description: "Vacuum, wipe down, and finish", price: 250, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: 90, displayOrder: 2, status: "Active" },
+    ],
+    forms: ["Vehicle type", "Pickup location", "Special instructions"],
+  },
+  {
     icon: <MapPinned />,
     slug: "kagana-tours-test",
     name: "Tours & Travel",
@@ -1708,7 +1909,7 @@ function App() {
   const [bookings, setBookings] = useState(() => JSON.parse(localStorage.getItem("slotwiseBookings") || "[]"));
   const [setupRequests, setSetupRequests] = useState(() => JSON.parse(localStorage.getItem("slotwiseSetupRequests") || "[]"));
   const [databaseBusinesses, setDatabaseBusinesses] = useState([]);
-  const [announcementRows, setAnnouncementRows] = useState([]);
+  const [smmOffers, setSmmOffers] = useState(null);
   const service = services[serviceIndex];
   const selectedFields = useMemo(() => service.fields.join(" + "), [service]);
   const activeDemo = demoSteps[demoStep];
@@ -1744,7 +1945,7 @@ function App() {
     { key: "customers", label: "Customers", title: "Customer database sample" },
   ];
 
-  const loadBusinessConfigs = async (scopeSlug = "") => {
+  const loadBusinessConfigs = async (scopeSlug = "", accessToken = "") => {
     if (!supabaseUrl || !supabaseAnonKey) return [];
     const businessQuery = scopeSlug
       ? `?select=*&slug=eq.${encodeURIComponent(scopeSlug)}`
@@ -1765,12 +1966,12 @@ function App() {
       ? `?select=*&business_slug=eq.${encodeURIComponent(scopeSlug)}&active=eq.true`
       : "?select=*&active=eq.true";
     const [onlineBusinesses, onlineServices, onlineAvailability, onlineBlockedDates, onlinePaymentSettings, onlinePaymentMethods] = await Promise.all([
-      supabaseRequest("businesses", { query: businessQuery }),
-      supabaseRequest("business_services", { query: serviceQuery }),
-      supabaseRequest("business_availability", { query: availabilityQuery }),
-      supabaseRequest("business_blocked_dates", { query: blockedDatesQuery }).catch(() => []),
-      supabaseRequest("business_payment_settings", { query: paymentSettingsQuery }).catch(() => []),
-      supabaseRequest("business_payment_methods", { query: paymentMethodsQuery }).catch(() => []),
+      supabaseRequest("businesses", { query: businessQuery, accessToken }),
+      supabaseRequest("business_services", { query: serviceQuery, accessToken }),
+      supabaseRequest("business_availability", { query: availabilityQuery, accessToken }),
+      supabaseRequest("business_blocked_dates", { query: blockedDatesQuery, accessToken }).catch(() => []),
+      supabaseRequest("business_payment_settings", { query: paymentSettingsQuery, accessToken }).catch(() => []),
+      supabaseRequest("business_payment_methods", { query: paymentMethodsQuery, accessToken }).catch(() => []),
     ]);
     const servicesByBusiness = (onlineServices || []).reduce((grouped, service) => {
       grouped[service.business_slug] = grouped[service.business_slug] || [];
@@ -1853,16 +2054,16 @@ function App() {
       if (!supabaseUrl || !supabaseAnonKey) return;
       if (isSmmAdminPath) return;
       try {
-        const [onlineLeads, onlineBookings, onlineSetupRequests, onlineAnnouncements] = await Promise.all([
+        const [onlineLeads, onlineBookings, onlineSetupRequests, onlineOffers] = await Promise.all([
           supabaseRequest("leads", { query: "?select=*&order=created_at.desc" }),
           supabaseRequest("bookings", { query: "?select=*&order=created_at.desc" }),
           supabaseRequest("setup_requests", { query: "?select=*&order=created_at.desc" }),
-          supabaseRequest("announcements", { query: "?select=*&enabled=eq.true&order=priority.desc,created_at.desc" }).catch(() => []),
+          supabaseRequest("smm_offers", { query: "?select=*&id=eq.global" }).catch(() => []),
         ]);
         setLeads(onlineLeads || []);
         setBookings(onlineBookings || []);
         setSetupRequests((onlineSetupRequests || []).map(normalizeSetupRequest));
-        setAnnouncementRows((onlineAnnouncements || []).map(normalizeAnnouncement));
+        setSmmOffers(normalizeSmmOffers((onlineOffers || [])[0] || null));
       } catch {
         // Keep the local demo data if online loading fails.
       }
@@ -1946,6 +2147,26 @@ function App() {
     setSetupRequests(nextRequests);
     localStorage.setItem("slotwiseSetupRequests", JSON.stringify(nextRequests));
     return saveResult;
+  };
+
+  const uploadSetupServiceImage = async (service, file) => {
+    validateBrandMediaFile(file);
+    const session = getStoredAdminSession();
+    if (!session?.access_token) throw new Error("Please sign in again before uploading service images.");
+    const slug = makeSlug(service?.businessSlug || service?.slug || service?.business_slug || service?.name || "client-business");
+    const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
+    const extension = getFileExtension(file);
+    const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
+    const url = await supabaseStorageUpload(path, file, session.access_token);
+    if (service?.id) {
+      await supabaseRequest("business_services", {
+        method: "PATCH",
+        query: `?id=eq.${encodeURIComponent(service.id)}&business_slug=eq.${encodeURIComponent(slug)}`,
+        body: { image_url: url },
+        accessToken: session.access_token,
+      });
+    }
+    return url;
   };
 
   const saveAdminClient = async (client, originalSlug = "", accessToken = "") => {
@@ -2040,23 +2261,39 @@ function App() {
       body: setupToAvailabilityDatabase(nextClient, slug, requestId),
       accessToken,
     });
-    const refreshedBusinesses = await loadBusinessConfigs(slug);
+    const refreshedBusinesses = await loadBusinessConfigs(slug, accessToken);
     const confirmedBusiness = (refreshedBusinesses || []).find((business) => business.slug === slug);
     if (!confirmedBusiness) {
       throw new Error("Theme could not be saved.");
     }
-    const expectedBackgroundType = (businessBody.page_background_type || "SOLID").toUpperCase();
-    const expectedBackgroundColor = normalizeHexColor(businessBody.page_background_color, "");
-    const expectedBackgroundColor2 = normalizeHexColor(businessBody.page_background_color_2, "");
-    const confirmedBackgroundType = (confirmedBusiness.pageBackgroundType || "SOLID").toUpperCase();
-    const confirmedBackgroundColor = normalizeHexColor(confirmedBusiness.pageBackgroundColor, "");
-    const confirmedBackgroundColor2 = normalizeHexColor(confirmedBusiness.pageBackgroundColor2, "");
-    if (
-      confirmedBackgroundType !== expectedBackgroundType
-      || confirmedBackgroundColor !== expectedBackgroundColor
-      || confirmedBackgroundColor2 !== expectedBackgroundColor2
-    ) {
-      throw new Error("Theme could not be saved.");
+    const expectedBusiness = normalizeBusinessConfig(normalizeDatabaseBusiness({
+      ...businessBody,
+      slug,
+      business: businessBody.business,
+    }, [], null, null, []));
+    const confirmedFields = {
+      bookingTemplate: normalizeBookingTemplate(confirmedBusiness.bookingTemplate),
+      primaryColor: normalizeHexColor(confirmedBusiness.primaryColor, ""),
+      accentColor: normalizeHexColor(confirmedBusiness.accentColor, ""),
+      pageBackgroundType: (confirmedBusiness.pageBackgroundType || "SOLID").toUpperCase(),
+      pageBackgroundColor: normalizeHexColor(confirmedBusiness.pageBackgroundColor, ""),
+      pageBackgroundColor2: normalizeHexColor(confirmedBusiness.pageBackgroundColor2, ""),
+      logo: confirmedBusiness.logo || "",
+      cover: confirmedBusiness.cover || "",
+    };
+    const expectedFields = {
+      bookingTemplate: expectedBusiness.bookingTemplate,
+      primaryColor: normalizeHexColor(expectedBusiness.primaryColor, ""),
+      accentColor: normalizeHexColor(expectedBusiness.accentColor, ""),
+      pageBackgroundType: (expectedBusiness.pageBackgroundType || "SOLID").toUpperCase(),
+      pageBackgroundColor: normalizeHexColor(expectedBusiness.pageBackgroundColor, ""),
+      pageBackgroundColor2: normalizeHexColor(expectedBusiness.pageBackgroundColor2, ""),
+      logo: expectedBusiness.logo || "",
+      cover: expectedBusiness.cover || "",
+    };
+    const mismatch = Object.entries(expectedFields).find(([key, value]) => value !== confirmedFields[key]);
+    if (mismatch) {
+      throw new Error(`Business field did not persist: ${mismatch[0]}.`);
     }
     return {
       savedOnline: true,
@@ -2180,7 +2417,7 @@ function App() {
   };
 
   if (page === "booking") {
-    return <BookingPrototype business={selectedBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} announcements={announcementRows} />;
+    return <BookingPrototype business={selectedBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} smmOffers={smmOffers} />;
   }
 
   if (page === "owner") {
@@ -2218,7 +2455,7 @@ function App() {
     }
 
     return publicBusiness ? (
-      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} announcements={announcementRows} />
+      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} smmOffers={smmOffers} />
     ) : (
       <BusinessNotFoundPage slug={publicBusinessSlug} onBack={() => setPage("home")} onSetup={() => setPage("setup")} />
     );
@@ -2257,7 +2494,7 @@ function App() {
         onSavePaymentMethod={saveClientPaymentMethod}
         onVerifyPayment={verifyClientPayment}
         onRejectPayment={rejectClientPayment}
-        announcements={announcementRows}
+        smmOffers={smmOffers}
       />
     );
   }
@@ -2681,86 +2918,63 @@ function Feature({ icon, title, text }) {
   );
 }
 
-function AnnouncementFeed({
-  title = "Announcements",
-  announcements = [],
-  business = { slug: "", package: "STARTER", status: "DEMO" },
-  placement = "BOTH",
-  compact = false,
-  maxVisible = 2,
-  dismissedIds = [],
-  onDismiss,
-  onViewAll,
-  emptyText = "No announcements yet.",
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const visibleAnnouncements = sortAnnouncements((announcements || []).filter((announcement) => announcementMatchesBusiness(announcement, business, placement)))
-    .filter((announcement) => !dismissedIds.includes(announcement.id));
-  const visibleRows = expanded ? visibleAnnouncements : visibleAnnouncements.slice(0, maxVisible);
-  if (!visibleRows.length) return null;
+function SmmOffersFeed({ offers = null, placement = "BOTH", compact = false, business = null }) {
+  if (!offers?.enabled) return null;
+  if (placement === "DEMO_PREVIEW" && offers.show_on_demo === false) return null;
+  if (placement === "CLIENT_DASHBOARD" && offers.show_on_dashboard === false) return null;
+  const cards = [
+    {
+      id: "offer-one",
+      title: offers.offer_one_title,
+      message: offers.offer_one_message,
+      imageUrl: offers.offer_one_image_url,
+    },
+    {
+      id: "offer-two",
+      title: offers.offer_two_title,
+      message: offers.offer_two_message,
+      imageUrl: offers.offer_two_image_url,
+    },
+  ].filter((item) => item.title || item.message || item.imageUrl);
+  if (!cards.length) return null;
+  const contactHref = business?.messengerLink || "https://m.me/slotwise";
   return (
-    <section className={compact ? "announcementFeed compact" : "announcementFeed"}>
-      <div className="announcementFeedHeader">
+    <section className={compact ? "smmOffers compact" : "smmOffers"}>
+      <div className="smmOffersHeader">
         <div>
-          <p className="eyebrow">{title}</p>
-          <h3>{compact ? "Updates that matter" : "Latest updates and offers"}</h3>
+          <p className="eyebrow">SMM offers</p>
+          <h3>{compact ? "Current promos" : "More from SMM Solutions"}</h3>
+          <small>{offers.cta_label || "Message SMM Solutions"}</small>
         </div>
-        {visibleAnnouncements.length > maxVisible && (
-          <button type="button" className="announcementToggleButton" onClick={() => setExpanded((current) => !current)}>
-            {expanded ? "Show less" : "View All Announcements"}
-          </button>
-        )}
+        <a className="smmOffersCta" href={contactHref} target={contactHref.startsWith("http") ? "_blank" : undefined} rel={contactHref.startsWith("http") ? "noreferrer" : undefined}>
+          {offers.cta_label || "Message SMM Solutions"}
+        </a>
       </div>
-      <div className="announcementList">
-        {visibleRows.map((announcement) => {
-          const Icon = getAnnouncementIcon(announcement.announcement_type);
-          const href = resolveAnnouncementCtaHref(announcement, business);
-          const canOpenImage = announcement.image_clickable !== false && Boolean(href);
-          return (
-            <article key={announcement.id} className={`announcementCard ${getAnnouncementPreviewTone(announcement)}`}>
-              <div className="announcementIcon"><Icon size={18} /></div>
-              <div className="announcementBody">
-                {announcement.image_url && (
-                  <div className={canOpenImage ? "announcementImageWrap clickable" : "announcementImageWrap"}>
-                    {canOpenImage ? (
-                      <a href={href} className="announcementImageLink" target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined}>
-                        <img src={announcement.image_url} alt={announcement.title} className="announcementImage" loading="lazy" />
-                      </a>
-                    ) : (
-                      <img src={announcement.image_url} alt={announcement.title} className="announcementImage" loading="lazy" />
-                    )}
-                  </div>
-                )}
-                <div className="announcementTopLine">
-                  <strong>{announcement.title}</strong>
-                  <span className={`announcementPriority ${announcement.priority === "IMPORTANT" ? "important" : ""}`}>{announcement.announcement_type.replace(/_/g, " ")}</span>
-                </div>
-                <p>{announcement.message}</p>
-                <small>{getAnnouncementAudienceLabel(announcement)} · {getAnnouncementPlacementLabel(announcement)}</small>
-                {announcement.cta_label && href && (
-                  <div className="announcementActions">
-                    <a href={href} className="announcementCta" target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined}>{announcement.cta_label}</a>
-                  </div>
-                )}
-              </div>
-              {announcement.dismissible !== false && onDismiss && (
-                <button type="button" className="announcementDismiss" onClick={() => onDismiss(announcement.id)} aria-label={`Dismiss ${announcement.title}`}>×</button>
-              )}
-            </article>
-          );
-        })}
+      <div className="smmOffersGrid">
+        {cards.map((card) => (
+          <article key={card.id} className="smmOfferCard">
+            {card.imageUrl && <img src={card.imageUrl} alt={card.title || "SMM offer"} className="smmOfferImage" loading="lazy" />}
+            <strong>{card.title || "SMM offer"}</strong>
+            <p>{card.message}</p>
+          </article>
+        ))}
       </div>
-      {onViewAll && visibleAnnouncements.length > maxVisible && !expanded && (
-        <button type="button" className="announcementMoreButton" onClick={onViewAll}>View All Announcements</button>
-      )}
-      {!visibleRows.length && <div className="announcementEmpty">{emptyText}</div>}
     </section>
   );
 }
 
-function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, announcements = [] }) {
+function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, onSubmitPayment, smmOffers = null }) {
+  const business = useMemo(() => normalizeBusinessConfig({
+    ...(incomingBusiness || {}),
+    services: Array.isArray(incomingBusiness?.services) ? incomingBusiness.services : [],
+    serviceDetails: Array.isArray(incomingBusiness?.serviceDetails) ? incomingBusiness.serviceDetails : [],
+    forms: Array.isArray(incomingBusiness?.forms) && incomingBusiness.forms.length ? incomingBusiness.forms : undefined,
+    availability: incomingBusiness?.availability && typeof incomingBusiness.availability === "object" ? incomingBusiness.availability : {},
+    featureFlags: incomingBusiness?.featureFlags && typeof incomingBusiness.featureFlags === "object" ? incomingBusiness.featureFlags : {},
+  }), [incomingBusiness]);
   const [pickedService, setPickedService] = useState(business.services[0]);
   const [pickedServices, setPickedServices] = useState([business.services[0]].filter(Boolean));
+  const [selectedPlanImage, setSelectedPlanImage] = useState(null);
   const availableSlots = business.availability?.slots?.length ? business.availability.slots : slots;
   const [pickedSlot, setPickedSlot] = useState(availableSlots[1] || availableSlots[0] || "10:15 AM");
   const [selectedBookingDate, setSelectedBookingDate] = useState(getTodayDateValue());
@@ -2777,13 +2991,6 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
   const [submitting, setSubmitting] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState("");
-  const [dismissedAnnouncementIds, setDismissedAnnouncementIds] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(`slotwiseAnnouncementDismissals:${business.slug}`) || "[]");
-    } catch {
-      return [];
-    }
-  });
   const flags = { ...defaultFeatureFlags, ...(business.featureFlags || {}) };
   const clientStatus = (business.status || "ACTIVE").toUpperCase();
   const isProductionActive = clientStatus === "ACTIVE";
@@ -2798,16 +3005,20 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
   const isClinic = bookingTone === "clinic";
   const isToursTravel = bookingTone === "tours-travel";
   const isAccommodation = normalizeBookingTemplate(business.bookingTemplate) === "STAYCATION_ACCOMMODATION";
+  const isLaundry = normalizeBookingTemplate(business.bookingTemplate) === "LAUNDRY";
   const isTravel = bookingTone === "travel" || isToursTravel;
   const isHomeService = bookingTone === "home-service";
+  const isConsultant = bookingTone === "professional-services";
   const brandInitial = (business.business || "S").trim().charAt(0).toUpperCase();
-  const brandCategory = isAccommodation ? "Staycation & Accommodation" : isToursTravel ? "Tours & Travel" : isClinic ? "Care & Wellness" : isTravel ? "Stay & Travel" : isHomeService ? "Aircon Services" : bookingTone === "auto" ? "Auto Services" : bookingTone === "general" ? "Service Business" : "Beauty & Wellness";
+  const brandCategory = isAccommodation ? "Staycation & Accommodation" : isToursTravel ? "Tours & Travel" : isLaundry ? "Laundry Shop" : isClinic ? "Care & Wellness" : isConsultant ? "Plans & Services" : isTravel ? "Stay & Travel" : isHomeService ? "Aircon Services" : bookingTone === "auto" ? "Auto Services" : bookingTone === "general" ? "Service Business" : "Beauty & Wellness";
   const brandLine = isClinic
     ? ["Your visit, booked with care.", "Private details. Clear schedule."]
     : isAccommodation
       ? ["Reserve your stay with ease.", "Choose your unit, dates, and guests."]
     : isToursTravel
       ? ["Tour packages, transfers, and reservations.", "Send your request in less than a minute."]
+      : isLaundry
+      ? ["Wash, dry, fold, and delivery.", "Book a pickup that fits your schedule."]
       : isTravel
       ? ["Reserve your date.", "Plan your visit with ease."]
       : isHomeService
@@ -2817,19 +3028,18 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
           : bookingTone === "general"
             ? ["Book the service you need.", "Choose a schedule that works for you."]
             : ["Enhance your glow.", "Reveal your best self."];
-  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Book Your Tour" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
-  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
-  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Tour Package" : isHomeService ? "Choose a Service" : "Choose a service";
-  const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Date" : isHomeService ? "Choose date and time" : "Pick a time";
-  const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : "";
-  const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Guest Details" : isHomeService ? "Your contact details" : "Your details";
-  const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
-  const notePlaceholder = isAccommodation ? "Arrival notes, requests, or questions for the host" : isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
-  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Reservation Request" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
+  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Book Your Tour" : isLaundry ? "Book Laundry Pickup" : isConsultant ? "Plans & Services" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
+  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
+  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Tour Package" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
+  const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Date" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
+  const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : isLaundry ? "Pickup Time" : "";
+  const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Guest Details" : isLaundry ? "Pickup Details" : isHomeService ? "Your contact details" : "Your details";
+  const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isLaundry ? "Laundry notes" : isConsultant ? "Inquiry / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
+  const notePlaceholder = isAccommodation ? "Arrival notes, requests, or questions for the host" : isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isLaundry ? "Fabric care, folding instructions, delivery notes, or special requests" : isConsultant ? "Tell us which plan you need, coverage questions, or who should contact you." : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
+  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Reservation Request" : isLaundry ? "Submit Pickup Request" : isConsultant ? "Send Inquiry" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
   const paymentSettings = business.paymentSettings || {};
   const paymentMethods = (business.paymentMethods || []).filter((method) => method.active !== false);
   const allowMultipleServices = Boolean(flags.allowMultipleServices);
-  const announcementRows = useMemo(() => sortAnnouncements((announcements || []).filter((announcement) => announcementMatchesBusiness(announcement, business, "DEMO_PREVIEW"))), [announcements, business]);
   const getServiceDetail = (serviceName) => {
     const detail = business.serviceDetails?.find((item) => item.name === serviceName);
     return {
@@ -2844,6 +3054,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
       includedGuests: detail?.includedGuests ?? null,
       extraGuestFee: detail?.extraGuestFee ?? null,
       imageUrl: detail?.imageUrl || "",
+      serviceCategory: detail?.serviceCategory || detail?.category || "",
       unitQuantity: detail?.unitQuantity ?? 1,
       description: detail?.description || "",
     };
@@ -2863,6 +3074,7 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
     return formatServicePriceLabel(detail, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FIXED");
   };
   const serviceMetaLabel = (detail) => [
+    isConsultant && detail.serviceCategory ? detail.serviceCategory : "",
     isAccommodation && detail.maxGuests ? `Up to ${detail.maxGuests} guests` : detail.durationMinutes ? `${detail.durationMinutes} min` : "",
     detail.price !== null || detail.pricingTiers?.length ? servicePriceLabel(detail) : "",
   ].filter(Boolean).join(" • ");
@@ -2888,12 +3100,13 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
     setPaymentStatus("");
   }, [business.slug]);
 
-  useEffect(() => {
-    localStorage.setItem(`slotwiseAnnouncementDismissals:${business.slug}`, JSON.stringify(dismissedAnnouncementIds));
-  }, [business.slug, dismissedAnnouncementIds]);
-
-  const dismissAnnouncement = (announcementId) => {
-    setDismissedAnnouncementIds((current) => Array.from(new Set([...current, announcementId])));
+  const openPlanImage = (detail) => {
+    if (!detail?.imageUrl) return;
+    setSelectedPlanImage({
+      src: resolveBusinessMediaUrl(detail.imageUrl),
+      title: detail.imageTitle || detail.name || "Plan image",
+      caption: detail.imageCaption || detail.description || "",
+    });
   };
 
   const toggleService = (serviceName) => {
@@ -3095,19 +3308,43 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
           {flags.bookingEnabled && (
           <div className="bookingStep">
             <div className="bookingStepTitle"><span>1</span><strong>{serviceStepLabel}</strong></div>
-            <div className="premiumServiceGrid">
+            <div className={isConsultant ? "premiumServiceGrid consultantServiceGrid" : "premiumServiceGrid"}>
               {business.services.map((item) => {
                 const ServiceIcon = resolveServiceIcon(item, business);
                 const isSelected = selectedServiceNames.includes(item);
                 const detail = getServiceDetail(item);
+                const mediaUrl = resolveBusinessMediaUrl(detail.imageUrl);
+                const planLabel = detail.price === null
+                  ? "See Plan Details / Inquire for Pricing"
+                  : formatServicePriceLabel(detail, detail.pricingType);
                 return (
-                  <button type="button" key={item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
-                    <span className="serviceIcon">{isAccommodation && detail.imageUrl ? <img src={detail.imageUrl} alt="" /> : <ServiceIcon size={22} />}</span>
-                    <strong>{item}</strong>
-                    {detail.description && <p className="serviceDescription">{detail.description}</p>}
-                    {flags.showPrices && serviceMetaLabel(detail) && <small>{serviceMetaLabel(detail)}</small>}
-                    {isSelected && <em><Check size={16} /></em>}
-                  </button>
+                  isConsultant ? (
+                    <article key={item} className={isSelected ? "premiumService active consultantPlanCard" : "premiumService consultantPlanCard"} aria-pressed={isSelected}>
+                      <button type="button" className="consultantPlanMedia" onClick={() => openPlanImage(detail)} disabled={!mediaUrl}>
+                        <span className="serviceIcon consultantPlanIcon">{mediaUrl ? <img src={mediaUrl} alt="" /> : <ServiceIcon size={22} />}</span>
+                      </button>
+                      <strong>{detail.imageTitle || item}</strong>
+                      {detail.serviceCategory && <small className="serviceCategoryTag">{detail.serviceCategory}</small>}
+                      <small className="servicePriceTag">{planLabel}</small>
+                      {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
+                      {detail.description && <p className="serviceDescription">{detail.description}</p>}
+                      <div className="consultantPlanActions">
+                        <button type="button" className="planActionButton" onClick={() => openPlanImage(detail)} disabled={!mediaUrl}>View Full Plan</button>
+                        <button type="button" className="planActionButton" onClick={() => toggleService(item)}>I'm Interested</button>
+                        {flags.bookingEnabled && <button type="button" className="planActionButton" onClick={() => toggleService(item)}>Book Consultation</button>}
+                      </div>
+                      {isSelected && <em><Check size={16} /></em>}
+                    </article>
+                  ) : (
+                    <button type="button" key={item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
+                      <span className={isConsultant ? "serviceIcon consultantPlanIcon" : "serviceIcon"}>{mediaUrl ? <img src={mediaUrl} alt="" /> : <ServiceIcon size={22} />}</span>
+                      <strong>{detail.imageTitle || item}</strong>
+                      {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
+                      {detail.description && <p className="serviceDescription">{detail.description}</p>}
+                      {flags.showPrices && serviceMetaLabel(detail) && <small>{serviceMetaLabel(detail)}</small>}
+                      {isSelected && <em><Check size={16} /></em>}
+                    </button>
+                  )
                 );
               })}
             </div>
@@ -3220,6 +3457,19 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
             {submitting ? "Submitting request..." : submitLabel} <ChevronRight size={22} />
           </button>
           {bookingError && <p className="formError premiumError">{bookingError}</p>}
+          {selectedPlanImage && (
+            <div className="planImageOverlay" role="dialog" aria-modal="true" aria-label={selectedPlanImage.title}>
+              <button type="button" className="planImageBackdrop" onClick={() => setSelectedPlanImage(null)} aria-label="Close image viewer" />
+              <section className="planImageModal">
+                <button type="button" className="planImageClose" onClick={() => setSelectedPlanImage(null)}>Close</button>
+                <img src={selectedPlanImage.src} alt={selectedPlanImage.title} />
+                <div className="planImageMeta">
+                  <strong>{selectedPlanImage.title}</strong>
+                  {selectedPlanImage.caption && <p>{selectedPlanImage.caption}</p>}
+                </div>
+              </section>
+            </div>
+          )}
           {confirmed && (
             <div className="formSuccess premiumSuccess">
               <strong>{isProductionActive ? (isToursTravel ? "Reservation Request Received" : "Booking Request Received") : "Demo booking completed"}</strong>
@@ -3279,18 +3529,8 @@ function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, an
                 </div>
               )}
               {paymentStatus && <span>{paymentStatus}</span>}
-              {(isDemoPreview || isAwaitingActivation) && announcementRows.length > 0 && (
-                <AnnouncementFeed
-                  title="More from SMM Solutions"
-                  announcements={announcementRows}
-                  business={business}
-                  placement="DEMO_PREVIEW"
-                  compact
-                  maxVisible={2}
-                  dismissedIds={dismissedAnnouncementIds}
-                  onDismiss={dismissAnnouncement}
-                  emptyText="No promo notes right now."
-                />
+              {(isDemoPreview || isAwaitingActivation) && smmOffers?.enabled && smmOffers?.show_on_demo !== false && (
+                <SmmOffersFeed offers={smmOffers} placement="DEMO_PREVIEW" compact />
               )}
             </div>
           )}
@@ -3361,12 +3601,71 @@ function DemoExpiredPage({ business, onBack }) {
   );
 }
 
-function StructuredServiceManager({ services, onChange, onDeleteService, bookingTemplate = "GENERAL", compact = false }) {
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error) {
+    console.error("Slotwise app render error", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <main className="setupPage">
+          <section className="setupComplete">
+            <span><ShieldCheck size={22} /></span>
+            <p className="eyebrow">Page error</p>
+            <h1>This booking page could not load.</h1>
+            <p>Please refresh the page or return to the site if the problem continues.</p>
+            <div className="setupCompleteActions">
+              <button onClick={() => window.location.reload()}>Reload</button>
+            </div>
+          </section>
+        </main>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function StructuredServiceManager({ services, onChange, onDeleteService, onUploadImage, onUploadStateChange, bookingTemplate = "GENERAL", compact = false, photoManagement = false }) {
   const copy = getServiceManagerCopy(bookingTemplate);
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
   const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
+  const isConsultant = normalizeBookingTemplate(bookingTemplate) === "PROFESSIONAL_SERVICES";
   const updateService = (index, updates) => {
     onChange(services.map((service, itemIndex) => itemIndex === index ? { ...service, ...updates } : service));
+  };
+  const toggleServiceStatus = (index) => {
+    const service = services[index];
+    updateService(index, { status: (service.status || "Active") === "Inactive" ? "Active" : "Inactive" });
+  };
+  const uploadServiceImage = async (index, event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!onUploadImage) {
+      window.alert("Service image uploads are not available in this view yet.");
+      return;
+    }
+    try {
+      onUploadStateChange?.(true);
+      const service = services[index];
+      const imageUrl = await onUploadImage(service, file);
+      updateService(index, { imageUrl });
+    } catch (error) {
+      console.error("Service image upload failed", error);
+      window.alert(error.message || "Service image upload failed.");
+    } finally {
+      onUploadStateChange?.(false);
+    }
   };
   const removeService = async (index) => {
     const service = services[index];
@@ -3412,21 +3711,43 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
               <button type="button" className="structuredServiceSummary" onClick={() => updateService(index, { expanded: !expanded })}>
                 <strong>{service.name || `${copy.single} ${index + 1}`}</strong>
                 <span>{hasValidPricingConfiguration(service) ? formatPeso(normalizePricingType(service.pricingType, service.pricingUnit) === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers)[0]?.price : service.price) : "Pricing required"}</span>
-                <em>{service.status || "Active"}</em>
+                <em>{isConsultant ? ((service.status || "Active") === "Inactive" ? "Disabled" : "Enabled") : (service.status || "Active")}</em>
               </button>
               {expanded && (
                 <div className="structuredServiceFields">
                   <input value={service.name} onChange={(event) => updateService(index, { name: event.target.value })} placeholder={`${copy.single} name`} />
+                  {normalizeBookingTemplate(bookingTemplate) === "PROFESSIONAL_SERVICES" && <input value={service.serviceCategory || ""} onChange={(event) => updateService(index, { serviceCategory: event.target.value })} placeholder="Category / label" />}
                   <input value={service.description} onChange={(event) => updateService(index, { description: event.target.value })} placeholder="Description" />
                   <input type="number" min="0" value={service.price} onChange={(event) => updateService(index, { price: event.target.value })} placeholder={isAccommodation ? "Price per night" : "Price"} />
                   {!isAccommodation && <input type="number" min="0" value={service.durationMinutes} onChange={(event) => updateService(index, { durationMinutes: event.target.value })} placeholder="Duration in minutes" />}
-                  {isAccommodation && (
+                  {photoManagement && (
                     <>
                       <input type="number" min="1" value={service.maxGuests} onChange={(event) => updateService(index, { maxGuests: event.target.value })} placeholder="Maximum guests" />
                       <input type="number" min="1" value={service.includedGuests} onChange={(event) => updateService(index, { includedGuests: event.target.value })} placeholder="Included guests" />
                       <input type="number" min="0" value={service.extraGuestFee} onChange={(event) => updateService(index, { extraGuestFee: event.target.value })} placeholder="Extra guest fee / night" />
                       <input type="number" min="1" value={service.unitQuantity} onChange={(event) => updateService(index, { unitQuantity: event.target.value })} placeholder="Available quantity" />
-                      <input value={service.imageUrl} onChange={(event) => updateService(index, { imageUrl: event.target.value })} placeholder="Optional image URL" />
+                      <label className="serviceImageUpload">
+                        <span>Service photo</span>
+                        <input type="file" accept="image/*" onChange={(event) => uploadServiceImage(index, event)} />
+                      </label>
+                      <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Photo title" />
+                      <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Photo caption" />
+                      {service.imageUrl && <img src={resolveBusinessMediaUrl(service.imageUrl)} alt={service.imageTitle || service.name || "Service photo"} className="serviceImagePreview" loading="lazy" />}
+                    </>
+                  )}
+                  {isAccommodation && !photoManagement && (
+                    <>
+                      <input type="number" min="1" value={service.maxGuests} onChange={(event) => updateService(index, { maxGuests: event.target.value })} placeholder="Maximum guests" />
+                      <input type="number" min="1" value={service.includedGuests} onChange={(event) => updateService(index, { includedGuests: event.target.value })} placeholder="Included guests" />
+                      <input type="number" min="0" value={service.extraGuestFee} onChange={(event) => updateService(index, { extraGuestFee: event.target.value })} placeholder="Extra guest fee / night" />
+                      <input type="number" min="1" value={service.unitQuantity} onChange={(event) => updateService(index, { unitQuantity: event.target.value })} placeholder="Available quantity" />
+                      <label className="serviceImageUpload">
+                        <span>Service photo</span>
+                        <input type="file" accept="image/*" onChange={(event) => uploadServiceImage(index, event)} />
+                      </label>
+                      <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Photo title" />
+                      <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Photo caption" />
+                      {service.imageUrl && <img src={resolveBusinessMediaUrl(service.imageUrl)} alt={service.imageTitle || service.name || "Service photo"} className="serviceImagePreview" loading="lazy" />}
                     </>
                   )}
                   {isTravel && (
@@ -3451,6 +3772,7 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
                     <option>Active</option>
                     <option>Inactive</option>
                   </select>
+                  {isConsultant && <button type="button" onClick={() => toggleServiceStatus(index)}>{(service.status || "Active") === "Inactive" ? "Enable plan" : "Disable plan"}</button>}
                   {isTravel && normalizePricingType(service.pricingType, service.pricingUnit) === "GROUP_TIER" && (
                     <div className="pricingTierEditor serviceTierEditor">
                       <span>Group pricing tiers</span>
@@ -3487,6 +3809,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
   const [submitted, setSubmitted] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null);
   const [slugEdited, setSlugEdited] = useState(false);
+  const [serviceImageUploading, setServiceImageUploading] = useState(false);
   const [form, setForm] = useState({
     businessName: "",
     slug: "",
@@ -3532,6 +3855,10 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
 
   const finishSetup = async (event) => {
     event.preventDefault();
+    if (serviceImageUploading) {
+      setSaveStatus({ blocked: true, message: "Please wait for the service photo upload to finish." });
+      return;
+    }
     const result = await onSaveSetup(form);
     setSaveStatus(result);
     if (result?.blocked) {
@@ -3627,9 +3954,9 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
           {step === 1 && (
             <div className="setupPanel">
               <p className="eyebrow">Step 2</p>
-              <h2>Services and prices</h2>
-              <p>Add each service with price and duration. Blank slots will not be saved.</p>
-              <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} bookingTemplate={setupBookingTemplate} />
+              <h2>{setupBookingTemplate === "PROFESSIONAL_SERVICES" ? "Plans and pricing" : "Services and prices"}</h2>
+              <p>{setupBookingTemplate === "PROFESSIONAL_SERVICES" ? "Add each plan or product with its category, pricing label, and photo if needed. Blank slots will not be saved." : "Add each service with price and duration. Blank slots will not be saved."}</p>
+                <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} onUploadImage={uploadSetupServiceImage} onUploadStateChange={setServiceImageUploading} bookingTemplate={setupBookingTemplate} photoManagement={getPackageCapabilities(form.package, form.featureFlags).photoManagement} />
             </div>
           )}
 
@@ -3663,7 +3990,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
                 <article><span>Contact</span><strong>{form.ownerName || "Owner name"}</strong><em>{form.contact || "Contact details"}</em></article>
                 <article><span>Public page</span><strong>/{form.slug || makeSlug(form.businessName)}</strong><em>Permanent client booking URL</em></article>
                 <article><span>Schedule</span><strong>{form.openDays}</strong><em>{form.openHours}</em></article>
-                <article><span>Services</span><strong>{getSavableStructuredServices(form.serviceEntries, setupBookingTemplate).length} services listed</strong><em>Ready for page setup</em></article>
+                <article><span>{setupBookingTemplate === "PROFESSIONAL_SERVICES" ? "Plans" : "Services"}</span><strong>{getSavableStructuredServices(form.serviceEntries, setupBookingTemplate).length} {setupBookingTemplate === "PROFESSIONAL_SERVICES" ? "plans listed" : "services listed"}</strong><em>Ready for page setup</em></article>
               </div>
             </div>
           )}
@@ -3673,7 +4000,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
             {step < setupSteps.length - 1 ? (
               <button type="button" onClick={nextStep}>Next</button>
             ) : (
-              <button type="submit">Submit setup details</button>
+              <button type="submit" disabled={serviceImageUploading}>{serviceImageUploading ? "Uploading photo..." : "Submit setup details"}</button>
             )}
           </div>
         </form>
@@ -3988,6 +4315,42 @@ function emptyAnnouncementForm() {
   };
 }
 
+function emptySmmOffersForm() {
+  return {
+    id: "global",
+    enabled: true,
+    show_on_demo: true,
+    show_on_dashboard: true,
+    cta_label: "Message SMM Solutions",
+    offer_one_title: "Need help getting started?",
+    offer_one_message: "We can guide you through setup, branding, and the right package for your business.",
+    offer_one_image_url: "",
+    offer_two_title: "Want to upgrade your page?",
+    offer_two_message: "We can unlock more controls as your business grows without changing your booking flow.",
+    offer_two_image_url: "",
+    updated_at: "",
+  };
+}
+
+function normalizeSmmOffers(row = {}) {
+  if (!row) return null;
+  return {
+    ...emptySmmOffersForm(),
+    ...row,
+    id: row.id || "global",
+    enabled: row.enabled !== false,
+    show_on_demo: row.show_on_demo !== false,
+    show_on_dashboard: row.show_on_dashboard !== false,
+    cta_label: row.cta_label || "Message SMM Solutions",
+    offer_one_title: row.offer_one_title || emptySmmOffersForm().offer_one_title,
+    offer_one_message: row.offer_one_message || emptySmmOffersForm().offer_one_message,
+    offer_two_title: row.offer_two_title || emptySmmOffersForm().offer_two_title,
+    offer_two_message: row.offer_two_message || emptySmmOffersForm().offer_two_message,
+    offer_one_image_url: row.offer_one_image_url || "",
+    offer_two_image_url: row.offer_two_image_url || "",
+  };
+}
+
 function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient, onUpdateStatus, onPreview }) {
   const [authState, setAuthState] = useState("checking");
   const [adminSession, setAdminSession] = useState(null);
@@ -4010,11 +4373,25 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     databaseStatus: "",
     savedCount: 0,
     error: "",
+    operation: "",
   });
   const [announcementToast, setAnnouncementToast] = useState("");
+  const [smmOffers, setSmmOffers] = useState(emptySmmOffersForm());
+  const [serviceImageUploading, setServiceImageUploading] = useState(false);
+  const [smmOffersSaveState, setSmmOffersSaveState] = useState({
+    saving: false,
+    status: "",
+    databaseStatus: "",
+    savedCount: 0,
+    error: "",
+    operation: "",
+  });
+  const [smmOffersToast, setSmmOffersToast] = useState("");
   const logoUploadRef = useRef(null);
   const coverUploadRef = useRef(null);
   const announcementUploadRef = useRef(null);
+  const smmOfferOneUploadRef = useRef(null);
+  const smmOfferTwoUploadRef = useRef(null);
 
   const loadClientAccess = async (session) => {
     if (!session?.access_token) return [];
@@ -4033,7 +4410,20 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
       accessToken: session.access_token,
     });
     setAnnouncements((rows || []).map(normalizeAnnouncement));
+    setAnnouncementSaveState((current) => ({ ...current, savedCount: (rows || []).length }));
     return rows || [];
+  };
+
+  const loadSmmOffers = async (session) => {
+    if (!session?.access_token) return null;
+    const rows = await supabaseRequest("smm_offers", {
+      query: "?select=*&id=eq.global",
+      accessToken: session.access_token,
+    }).catch(() => []);
+    const nextOffers = normalizeSmmOffers((rows || [])[0] || null) || emptySmmOffersForm();
+    setSmmOffers(nextOffers);
+    setSmmOffersSaveState((current) => ({ ...current, savedCount: nextOffers.id ? 1 : 0 }));
+    return nextOffers;
   };
 
   useEffect(() => {
@@ -4041,6 +4431,16 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     const timer = window.setTimeout(() => setAnnouncementToast(""), 3500);
     return () => window.clearTimeout(timer);
   }, [announcementToast]);
+
+  useEffect(() => {
+    if (!smmOffersToast) return undefined;
+    const timer = window.setTimeout(() => setSmmOffersToast(""), 3500);
+    return () => window.clearTimeout(timer);
+  }, [smmOffersToast]);
+
+  useEffect(() => {
+    setSmmOffers((current) => normalizeSmmOffers(current || emptySmmOffersForm()) || emptySmmOffersForm());
+  }, []);
 
   const refreshAnnouncementSaveStatus = (nextState) => {
     setAnnouncementSaveState((current) => ({ ...current, ...nextState }));
@@ -4064,7 +4464,7 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     setAuthState("authorized");
     await onRefresh();
     await loadClientAccess(session);
-    await loadAnnouncements(session);
+    await loadSmmOffers(session);
     return true;
   };
 
@@ -4197,6 +4597,25 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     return url;
   };
 
+  const uploadServiceImageAsset = async (service, file) => {
+    validateBrandMediaFile(file);
+    const slug = makeSlug(editingSlug || form.slug || form.businessName || "client-business");
+    const extension = getFileExtension(file);
+    const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
+    const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
+    const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
+    if (service?.id) {
+      await supabaseRequest("business_services", {
+        method: "PATCH",
+        query: `?id=eq.${encodeURIComponent(service.id)}&business_slug=eq.${encodeURIComponent(slug)}`,
+        body: { image_url: url },
+        accessToken: adminSession?.access_token,
+      });
+    }
+    setStatusMessage("Service photo uploaded.");
+    return url;
+  };
+
   const uploadAnnouncementAsset = async (file) => {
     validateAnnouncementMediaFile(file);
     const slug = makeSlug(editingSlug || form.slug || form.businessName || "client-business");
@@ -4217,6 +4636,119 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
   const clearAnnouncementAsset = () => {
     setAnnouncementForm((current) => ({ ...current, image_url: "" }));
     setStatusMessage("Announcement image removed.");
+  };
+
+  const refreshSmmOffersSaveStatus = (nextState) => {
+    setSmmOffersSaveState((current) => ({ ...current, ...nextState }));
+  };
+
+  const uploadSmmOfferAsset = async (kind, file) => {
+    validateBrandMediaFile(file);
+    const extension = getFileExtension(file);
+    const stamp = Date.now();
+    const folder = kind === "offer_two_image_url" ? "offer-two" : "offer-one";
+    const path = `smm-offers/global/${folder}-${stamp}.${extension}`;
+    const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
+    setSmmOffers((current) => ({ ...current, [kind]: url }));
+    setStatusMessage(`${kind === "offer_two_image_url" ? "Second offer" : "First offer"} image uploaded.`);
+    return url;
+  };
+
+  const clearSmmOfferAsset = (kind) => {
+    setSmmOffers((current) => ({ ...current, [kind]: "" }));
+    setStatusMessage(`${kind === "offer_two_image_url" ? "Second offer" : "First offer"} image removed.`);
+  };
+
+  const updateSmmOffersForm = (event) => {
+    const { name, value, type, checked } = event.target;
+    setSmmOffers((current) => ({
+      ...current,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const getSafeSmmOffersSaveError = (error) => {
+    const message = String(error?.message || error || "").toLowerCase();
+    if (message.includes("permission") || message.includes("rls") || message.includes("not authorized")) return "Permission denied.";
+    if (message.includes("network") || message.includes("fetch") || message.includes("failed to fetch")) return "Network error.";
+    if (message.includes("null value") || message.includes("required") || message.includes("missing")) return "Required field missing.";
+    return error?.message || "Database insert failed.";
+  };
+
+  const saveSmmOffers = async (event) => {
+    event.preventDefault();
+    if (!adminSession?.access_token) return;
+    refreshSmmOffersSaveStatus({
+      saving: true,
+      status: "Saving...",
+      databaseStatus: "Checking database...",
+      error: "",
+      operation: "UPSERT",
+    });
+    setSmmOffersToast("Saving...");
+    try {
+      const payload = {
+        id: "global",
+        enabled: Boolean(smmOffers.enabled),
+        show_on_demo: Boolean(smmOffers.show_on_demo),
+        show_on_dashboard: Boolean(smmOffers.show_on_dashboard),
+        cta_label: "Message SMM Solutions",
+        offer_one_title: String(smmOffers.offer_one_title || "").trim(),
+        offer_one_message: String(smmOffers.offer_one_message || "").trim(),
+        offer_one_image_url: String(smmOffers.offer_one_image_url || "").trim(),
+        offer_two_title: String(smmOffers.offer_two_title || "").trim(),
+        offer_two_message: String(smmOffers.offer_two_message || "").trim(),
+        offer_two_image_url: String(smmOffers.offer_two_image_url || "").trim(),
+        updated_at: new Date().toISOString(),
+      };
+      const existingRows = await supabaseRequest("smm_offers", {
+        query: "?select=*&id=eq.global",
+        accessToken: adminSession.access_token,
+      }).catch(() => []);
+      if (existingRows?.length) {
+        const updateResult = await supabaseRequest("smm_offers", {
+          method: "PATCH",
+          query: "?id=eq.global",
+          body: payload,
+          accessToken: adminSession.access_token,
+        });
+        if (!Array.isArray(updateResult) || !updateResult.length) throw new Error("Offer update returned no row.");
+      } else {
+        const [insertedRow] = await supabaseRequest("smm_offers", {
+          method: "POST",
+          body: payload,
+          accessToken: adminSession.access_token,
+        });
+        if (!insertedRow?.id) throw new Error("Offer insert returned no row.");
+      }
+      const [freshRow] = await supabaseRequest("smm_offers", {
+        query: "?select=*&id=eq.global",
+        accessToken: adminSession.access_token,
+      });
+      if (!freshRow) throw new Error("Offer was not returned after refresh.");
+      const confirmedOffers = normalizeSmmOffers(freshRow);
+      setSmmOffers(confirmedOffers);
+      refreshSmmOffersSaveStatus({
+        saving: false,
+        status: "Offers saved successfully.",
+        databaseStatus: "Database: Synced ✓",
+        savedCount: 1,
+        error: "",
+      });
+      setSmmOffersToast("✓ Offers saved");
+      setStatusMessage("Offers saved successfully. Database: Synced ✓");
+    } catch (error) {
+      console.error("SMM offers save failed", error);
+      const safeError = getSafeSmmOffersSaveError(error);
+      refreshSmmOffersSaveStatus({
+        saving: false,
+        status: "Save failed",
+        databaseStatus: "Sync failed",
+        error: safeError,
+      });
+      setSmmOffersToast("✕ Offers save failed");
+      setStatusMessage(`Offers could not be saved. ${safeError}`);
+    }
   };
 
   const startAnnouncement = (announcement = emptyAnnouncementForm()) => {
@@ -4283,6 +4815,7 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
       status: "Saving...",
       databaseStatus: "Checking database...",
       error: "",
+      operation: editingAnnouncementId ? "UPDATE" : "INSERT",
     });
     setAnnouncementToast("Saving...");
     try {
@@ -4321,18 +4854,31 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
       }
       const targetId = payload.id;
       if (editingAnnouncementId) {
-        await supabaseRequest("announcements", {
+        const updateResult = await supabaseRequest("announcements", {
           method: "PATCH",
           query: `?id=eq.${encodeURIComponent(editingAnnouncementId)}`,
           body: payload,
           accessToken: adminSession.access_token,
         });
+        if (!Array.isArray(updateResult) || !updateResult.length) {
+          throw new Error("Announcement update returned no row.");
+        }
       } else {
-        await supabaseRequest("announcements", {
+        const [insertedRow] = await supabaseRequest("announcements", {
           method: "POST",
           body: payload,
           accessToken: adminSession.access_token,
         });
+        if (insertedRow?.id && insertedRow.id !== targetId) {
+          throw new Error("Announcement insert returned the wrong record.");
+        }
+      }
+      const [freshRow] = await supabaseRequest("announcements", {
+        query: `?select=*&id=eq.${encodeURIComponent(targetId)}`,
+        accessToken: adminSession.access_token,
+      });
+      if (!freshRow) {
+        throw new Error("Announcement was not returned after refresh.");
       }
       const confirmedRows = (await loadAnnouncements(adminSession)).map(normalizeAnnouncement);
       const confirmedAnnouncement = confirmedRows.find((row) => row.id === targetId || row.title === payload.title);
@@ -4357,6 +4903,7 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
         status: "Save failed",
         databaseStatus: "Sync failed",
         error: safeError,
+        lastErrorCode: error?.code || error?.status || "",
       });
       setAnnouncementToast("✕ Announcement save failed");
       setStatusMessage(`Announcement could not be saved. ${safeError}`);
@@ -4884,6 +5431,90 @@ After login, you will only see the bookings and features assigned to your busine
               {packageOptions.map((item) => <option value={item.value} key={item.value}>{item.label} - {item.price}</option>)}
             </select>
           </section>
+          <section className="smmOffersEditor">
+            <div className="smmOffersEditorHeader">
+              <div>
+                <p className="eyebrow">SMM offers</p>
+                <h3>Global promo messages</h3>
+                <span>One shared config for the demo page and client dashboard. CTA stays fixed to Message SMM Solutions.</span>
+              </div>
+              <div className="smmOffersEditorFlags">
+                <label><input type="checkbox" name="enabled" checked={Boolean(smmOffers.enabled)} onChange={updateSmmOffersForm} /> Enabled</label>
+                <label><input type="checkbox" name="show_on_demo" checked={Boolean(smmOffers.show_on_demo)} onChange={updateSmmOffersForm} /> Show on demo</label>
+                <label><input type="checkbox" name="show_on_dashboard" checked={Boolean(smmOffers.show_on_dashboard)} onChange={updateSmmOffersForm} /> Show on dashboard</label>
+              </div>
+            </div>
+            {smmOffersSaveState.status && (
+              <div className={`announcementSaveBanner ${smmOffersSaveState.error ? "error" : "success"}`}>
+                <div>
+                  <strong>{smmOffersSaveState.status}</strong>
+                  <span>{smmOffersSaveState.error || "Saved to database."}</span>
+                </div>
+                <div className="announcementSaveMeta">
+                  <span>{smmOffersSaveState.databaseStatus || "Database: Sync pending"}</span>
+                  <span>{smmOffersSaveState.savedCount} saved</span>
+                </div>
+              </div>
+            )}
+            {smmOffersToast && <div className="announcementToast">{smmOffersToast}</div>}
+            <form className="smmOffersGridEditor" onSubmit={saveSmmOffers}>
+              {[
+                { key: "offer_one", titleField: "offer_one_title", messageField: "offer_one_message", imageField: "offer_one_image_url", label: "First promo" },
+                { key: "offer_two", titleField: "offer_two_title", messageField: "offer_two_message", imageField: "offer_two_image_url", label: "Second promo" },
+              ].map((item, index) => (
+                <article key={item.key} className="smmOfferEditorCard">
+                  <div className="announcementEditorTopRow">
+                    <div>
+                      <p className="eyebrow">{item.label}</p>
+                      <h4>{index === 0 ? "Package teaser" : "Reseller teaser"}</h4>
+                    </div>
+                    <button type="button" onClick={() => clearSmmOfferAsset(item.imageField)}>Clear image</button>
+                  </div>
+                  <div className="announcementMediaPanel">
+                    <div className="announcementMediaPreview">
+                      {smmOffers[item.imageField] ? (
+                        <img src={smmOffers[item.imageField]} alt={smmOffers[item.titleField] || "Offer preview"} />
+                      ) : (
+                        <span>No image yet</span>
+                      )}
+                    </div>
+                    <div className="announcementMediaActions">
+                      <input
+                        ref={index === 0 ? smmOfferOneUploadRef : smmOfferTwoUploadRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.target.value = "";
+                          if (!file) return;
+                          uploadSmmOfferAsset(item.imageField, file).catch((error) => {
+                            console.error("SMM offer image upload failed", error);
+                            setStatusMessage(error.message || "Upload failed.");
+                          });
+                        }}
+                        hidden
+                      />
+                      <button type="button" onClick={() => (index === 0 ? smmOfferOneUploadRef.current?.click() : smmOfferTwoUploadRef.current?.click())}>Upload Image</button>
+                      <button type="button" onClick={() => (index === 0 ? smmOfferOneUploadRef.current?.click() : smmOfferTwoUploadRef.current?.click())}>Replace Image</button>
+                    </div>
+                    <input name={item.imageField} value={smmOffers[item.imageField]} onChange={updateSmmOffersForm} placeholder="Image URL or uploaded file link" />
+                  </div>
+                  <label>
+                    Title
+                    <input name={item.titleField} value={smmOffers[item.titleField]} onChange={updateSmmOffersForm} placeholder={index === 0 ? "Need help getting started?" : "Want to upgrade your page?"} />
+                  </label>
+                  <label>
+                    Message
+                    <textarea name={item.messageField} value={smmOffers[item.messageField]} onChange={updateSmmOffersForm} rows="4" placeholder={index === 0 ? "Short promo copy for the first card." : "Short promo copy for the second card."} />
+                  </label>
+                </article>
+              ))}
+              <div className="announcementEditorActions">
+                <button type="submit" disabled={smmOffersSaveState.saving}>{smmOffersSaveState.saving ? "Saving..." : "Save Offers"}</button>
+              </div>
+            </form>
+          </section>
+          {false && (
           <section className="announcementManager">
             <div className="announcementManagerHeader">
               <div>
@@ -5112,6 +5743,7 @@ After login, you will only see the bookings and features assigned to your busine
               </div>
             </div>
           </section>
+          )}
           {form.status === "DEMO" && (
             <section className={`smmPackageControl demoExpiryControl ${demoExpiryState.state}`}>
               <div>
@@ -5204,7 +5836,7 @@ After login, you will only see the bookings and features assigned to your busine
             </div>
           </section>
           <label>Description<textarea name="rules" value={form.rules} onChange={updateForm} rows="3" /></label>
-          <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} bookingTemplate={form.bookingTemplate} />
+           <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} onUploadImage={uploadServiceImageAsset} onUploadStateChange={setServiceImageUploading} bookingTemplate={form.bookingTemplate} photoManagement={getPackageCapabilities(form.business_package || form.package, form.feature_flags).photoManagement} />
           <div className="smmFlagGrid">
             {Object.keys(defaultFeatureFlags).map((flag) => (
               <label key={flag}>
@@ -5213,7 +5845,7 @@ After login, you will only see the bookings and features assigned to your busine
               </label>
             ))}
           </div>
-          <button className="smmSaveButton" type="submit" disabled={saving}>{saving ? "Saving..." : "Save client"}</button>
+          <button className="smmSaveButton" type="submit" disabled={saving || serviceImageUploading}>{serviceImageUploading ? "Uploading photo..." : saving ? "Saving..." : "Save client"}</button>
         </form>
       ) : (
         <section className="smmClientList">
@@ -5261,7 +5893,7 @@ function ClientDashboard({
   onSavePaymentMethod,
   onVerifyPayment,
   onRejectPayment,
-  announcements = [],
+  smmOffers = null,
 }) {
   const [authState, setAuthState] = useState("checking");
   const [clientSession, setClientSession] = useState(null);
@@ -5276,7 +5908,6 @@ function ClientDashboard({
   const [paymentSettings, setPaymentSettings] = useState({ enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [bookingPayments, setBookingPayments] = useState([]);
-  const [announcementDismissals, setAnnouncementDismissals] = useState([]);
   const [activeTab, setActiveTab] = useState(initialView === "login" ? "dashboard" : "dashboard");
   const [filter, setFilter] = useState("All");
   const [calendarFilter, setCalendarFilter] = useState("All");
@@ -5284,12 +5915,13 @@ function ClientDashboard({
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(getTodayDateValue());
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const emptyServiceForm = { id: "", name: "", description: "", price: "", durationMinutes: 60, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [] };
+  const emptyServiceForm = { id: "", name: "", serviceCategory: "", description: "", price: "", durationMinutes: 60, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [], imageUrl: "", imageTitle: "", imageCaption: "" };
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [clientServiceEntries, setClientServiceEntries] = useState(emptyStructuredServices());
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
   const [blockedDateForm, setBlockedDateForm] = useState({ blockedDate: "", reason: "" });
   const [paymentMethodForm, setPaymentMethodForm] = useState({ method_type: "GCASH", method_name: "GCash", account_name: "", account_number: "", instructions: "", active: true });
+  const [serviceImageUploading, setServiceImageUploading] = useState(false);
 
   const loadClientData = async (session) => {
     const mappings = await supabaseRequest("business_users", {
@@ -5338,10 +5970,6 @@ function ClientDashboard({
       query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=submitted_at.desc`,
       accessToken: session.access_token,
     }).catch(() => []);
-    const dismissalRows = await supabaseRequest("announcement_dismissals", {
-      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&user_id=eq.${encodeURIComponent(session.user.id)}&order=dismissed_at.desc`,
-      accessToken: session.access_token,
-    }).catch(() => []);
     const normalizedAvailability = {
       days: availabilityRow?.open_days || defaultAvailability.days,
       hours: availabilityRow?.open_hours || defaultAvailability.hours,
@@ -5369,9 +5997,27 @@ function ClientDashboard({
     setPaymentSettings(paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
     setPaymentMethods(paymentMethodRows || []);
     setBookingPayments(paymentRows || []);
-    setAnnouncementDismissals(dismissalRows || []);
     setAuthState("authorized");
     return true;
+  };
+
+  const uploadClientServiceImage = async (service, file) => {
+    validateBrandMediaFile(file);
+    if (!clientSession?.access_token) throw new Error("Please sign in again before uploading service images.");
+    const slug = makeSlug(service?.businessSlug || selectedBusinessSlug || clientBusiness?.slug || service?.name || "client-business");
+    const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
+    const extension = getFileExtension(file);
+    const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
+    const url = await supabaseStorageUpload(path, file, clientSession.access_token);
+    if (service?.id) {
+      await supabaseRequest("business_services", {
+        method: "PATCH",
+        query: `?id=eq.${encodeURIComponent(service.id)}&business_slug=eq.${encodeURIComponent(slug)}`,
+        body: { image_url: url },
+        accessToken: clientSession.access_token,
+      });
+    }
+    return url;
   };
 
   useEffect(() => {
@@ -5516,11 +6162,12 @@ function ClientDashboard({
   };
 
   const editService = (service = null) => {
-    setServiceForm(service ? {
-      id: service.id,
-      name: service.name || "",
-      description: service.description || "",
-      price: service.price ?? "",
+      setServiceForm(service ? {
+        id: service.id,
+        name: service.name || "",
+        serviceCategory: service.service_category || service.serviceCategory || "",
+        description: service.description || "",
+        price: service.price ?? "",
       durationMinutes: service.duration_minutes || 60,
       pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
       pricingUnit: normalizePricingUnit(service.pricing_unit),
@@ -5529,6 +6176,8 @@ function ClientDashboard({
       includedGuests: service.included_guests ?? "",
       extraGuestFee: service.extra_guest_fee ?? "",
       imageUrl: service.image_url || "",
+      imageTitle: service.image_title || "",
+      imageCaption: service.image_caption || "",
       unitQuantity: service.unit_quantity ?? 1,
       status: service.status || "Active",
     } : emptyServiceForm);
@@ -5538,6 +6187,10 @@ function ClientDashboard({
     event.preventDefault();
     setStatusMessage("");
     try {
+      if (serviceImageUploading) {
+        setStatusMessage("Please wait for the service photo upload to finish.");
+        return;
+      }
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
       const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
       const tierValidation = validatePricingTiers(serviceForm.pricingTiers);
@@ -5569,19 +6222,34 @@ function ClientDashboard({
         service_included_guests: serviceForm.includedGuests === "" ? null : Number(serviceForm.includedGuests),
         service_extra_guest_fee: serviceForm.extraGuestFee === "" ? null : Number(serviceForm.extraGuestFee),
         service_image_url: serviceForm.imageUrl || "",
+        service_image_title: serviceForm.imageTitle || "",
+        service_image_caption: serviceForm.imageCaption || "",
         service_unit_quantity: serviceForm.unitQuantity === "" ? 1 : Number(serviceForm.unitQuantity || 1),
+        service_category: serviceForm.serviceCategory || "",
       };
       await onSaveService(payload, clientSession?.access_token);
+      const [confirmedService] = await supabaseRequest("business_services", {
+        query: `?select=id,image_url,image_title,image_caption&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&id=eq.${encodeURIComponent(payload.service_id)}`,
+        accessToken: clientSession?.access_token,
+      }).catch(() => []);
+      if (payload.service_image_url && !(confirmedService?.image_url || "").trim()) {
+        throw new Error("Service saved, but photo did not persist.");
+      }
       const nextServices = serviceForm.id
         ? clientServices.map((service) => service.id === serviceForm.id ? {
           ...service,
           name: payload.service_name,
           description: payload.service_description,
+          serviceCategory: payload.service_category,
           price: payload.service_price,
           duration_minutes: payload.service_duration,
           pricing_type: payload.service_pricing_type,
           pricing_unit: payload.service_pricing_unit,
           pricing_tiers: payload.service_pricing_tiers,
+          image_url: payload.service_image_url,
+          image_title: payload.service_image_title,
+          image_caption: payload.service_image_caption,
+          unit_quantity: payload.service_unit_quantity,
           status: payload.service_status,
         } : service)
         : [...clientServices, {
@@ -5589,11 +6257,16 @@ function ClientDashboard({
           business_slug: selectedBusinessSlug,
           name: payload.service_name,
           description: payload.service_description,
+          serviceCategory: payload.service_category,
           price: payload.service_price,
           duration_minutes: payload.service_duration,
           pricing_type: payload.service_pricing_type,
           pricing_unit: payload.service_pricing_unit,
           pricing_tiers: payload.service_pricing_tiers,
+          image_url: payload.service_image_url,
+          image_title: payload.service_image_title,
+          image_caption: payload.service_image_caption,
+          unit_quantity: payload.service_unit_quantity,
           status: payload.service_status,
         }];
       setClientServices(nextServices);
@@ -5606,7 +6279,12 @@ function ClientDashboard({
           pricingType: service.pricing_type,
           pricingUnit: service.pricing_unit,
           pricingTiers: service.pricing_tiers,
+          serviceCategory: service.service_category || "",
           description: service.description || "",
+          imageUrl: service.image_url || "",
+          imageTitle: service.image_title || "",
+          imageCaption: service.image_caption || "",
+          unitQuantity: service.unit_quantity ?? 1,
         })),
         services: nextServices.filter((service) => service.status !== "Inactive").map((service) => service.name),
       }));
@@ -5622,6 +6300,10 @@ function ClientDashboard({
     event.preventDefault();
     setStatusMessage("");
     try {
+      if (serviceImageUploading) {
+        setStatusMessage("Please wait for the service photo upload to finish.");
+        return;
+      }
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
       const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
       const savableServices = getSavableStructuredServices(clientServiceEntries, clientBusiness?.bookingTemplate);
@@ -5653,8 +6335,18 @@ function ClientDashboard({
           service_included_guests: service.includedGuests,
           service_extra_guest_fee: service.extraGuestFee,
           service_image_url: service.imageUrl,
+          service_image_title: service.imageTitle,
+          service_image_caption: service.imageCaption,
           service_unit_quantity: service.unitQuantity,
+          service_category: service.serviceCategory || "",
         }, clientSession?.access_token);
+      }
+      const refreshedAfterSave = await supabaseRequest("business_services", {
+        query: `?select=id,image_url,image_title,image_caption,business_slug&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
+        accessToken: clientSession?.access_token,
+      });
+      if (savableServices.some((service) => service.imageUrl) && !(refreshedAfterSave || []).some((row) => row.image_url)) {
+        throw new Error("Services saved, but photo upload did not persist.");
       }
       for (const oldService of clientServices) {
         if (currentIds.has(oldService.id) && !nextIds.has(oldService.id)) {
@@ -5666,10 +6358,15 @@ function ClientDashboard({
             service_price: oldService.price,
             service_duration: oldService.duration_minutes,
             service_status: "Inactive",
-            service_pricing_type: oldService.pricing_type || "FIXED",
-            service_pricing_unit: oldService.pricing_unit || "FLAT",
-            service_pricing_tiers: oldService.pricing_tiers || [],
-          }, clientSession?.access_token);
+          service_pricing_type: oldService.pricing_type || "FIXED",
+          service_pricing_unit: oldService.pricing_unit || "FLAT",
+          service_pricing_tiers: oldService.pricing_tiers || [],
+          service_image_url: oldService.image_url || "",
+          service_image_title: oldService.image_title || "",
+          service_image_caption: oldService.image_caption || "",
+          service_unit_quantity: oldService.unit_quantity ?? 1,
+          service_category: oldService.service_category || "",
+        }, clientSession?.access_token);
         }
       }
       const serviceRows = await supabaseRequest("business_services", {
@@ -5862,8 +6559,6 @@ function ClientDashboard({
   const capabilities = getPackageCapabilities(clientBusiness?.package, clientBusiness?.featureFlags);
   const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
   const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
-  const visibleAnnouncements = useMemo(() => sortAnnouncements((announcements || []).filter((announcement) => announcementMatchesBusiness(announcement, clientBusiness, "CLIENT_DASHBOARD"))), [announcements, clientBusiness]);
-  const announcementDismissalIds = announcementDismissals.map((item) => item.announcement_id);
   const paymentsByBooking = bookingPayments.reduce((grouped, payment) => {
     grouped[payment.booking_id] = grouped[payment.booking_id] || [];
     grouped[payment.booking_id].push(payment);
@@ -5872,27 +6567,6 @@ function ClientDashboard({
   const selectedBookingPayments = selectedBooking ? paymentsByBooking[selectedBooking.id] || [] : [];
   const latestSelectedPayment = selectedBookingPayments[0];
   const selectedBookingItems = selectedBooking ? getBookingLineItems(selectedBooking) : [];
-  const dismissAnnouncement = async (announcementId) => {
-    if (!clientSession?.user?.id || !selectedBusinessSlug) return;
-    try {
-      const payload = {
-        id: `dismiss-${announcementId}-${clientSession.user.id}-${selectedBusinessSlug}`,
-        announcement_id: announcementId,
-        user_id: clientSession.user.id,
-        business_slug: selectedBusinessSlug,
-        dismissed_at: new Date().toISOString(),
-      };
-      await supabaseRequest("announcement_dismissals", {
-        method: "POST",
-        body: payload,
-        accessToken: clientSession.access_token,
-      });
-      setAnnouncementDismissals((current) => [...current.filter((item) => item.announcement_id !== announcementId), payload]);
-    } catch (error) {
-      console.error("Announcement dismissal failed", error);
-      setStatusMessage("Could not save the announcement dismissal.");
-    }
-  };
   const selectedBookingTotal = selectedBooking?.estimated_total ?? selectedBooking?.metadata?.estimated_total ?? (
     selectedBookingItems.every((item) => item.lineTotal !== null && item.lineTotal !== undefined)
       ? selectedBookingItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0)
@@ -6015,17 +6689,7 @@ function ClientDashboard({
                 <p>{clientBusiness?.bookingMode === "inquiry" ? "Review new inquiries and customer messages." : "Review bookings and keep appointment statuses updated."}</p>
                 <span className="clientPackageBadge">{packageOptions.find((item) => item.value === capabilities.packageKey)?.label || "Starter"} package</span>
               </div>
-              <AnnouncementFeed
-                title="Updates & Offers"
-                announcements={visibleAnnouncements}
-                business={clientBusiness}
-                placement="CLIENT_DASHBOARD"
-                compact
-                maxVisible={3}
-                dismissedIds={announcementDismissalIds}
-                onDismiss={dismissAnnouncement}
-                emptyText="No active updates right now."
-              />
+              <SmmOffersFeed offers={smmOffers} placement="CLIENT_DASHBOARD" compact business={clientBusiness} />
               <div className="clientMetricGrid">
                 <article><span>Today</span><strong>{todayCount}</strong></article>
                 <article><span>Pending</span><strong>{pendingCount}</strong></article>
@@ -6089,8 +6753,8 @@ function ClientDashboard({
                 <h2>{isClientToursTravel ? "Manage tour packages" : "Manage services"}</h2>
               </div>
               <form onSubmit={submitStructuredServices}>
-                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} bookingTemplate={clientBusiness?.bookingTemplate} compact />
-                <button className="clientPrimaryButton" type="submit">Save Services</button>
+                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} onUploadImage={uploadClientServiceImage} onUploadStateChange={setServiceImageUploading} bookingTemplate={clientBusiness?.bookingTemplate} compact photoManagement={capabilities.photoManagement} />
+                <button className="clientPrimaryButton" type="submit" disabled={serviceImageUploading}>{serviceImageUploading ? "Uploading photo..." : "Save Services"}</button>
               </form>
             </section>
           )}
@@ -6473,5 +7137,9 @@ function Plan({ name, price, note, items, featured, onChoose }) {
   );
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+createRoot(document.getElementById("root")).render(
+  <AppErrorBoundary>
+    <App />
+  </AppErrorBoundary>
+);
 
