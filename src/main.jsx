@@ -3318,8 +3318,6 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                       {detail.description && <p className="serviceDescription">{detail.description}</p>}
                       <div className="consultantPlanActions">
                         <button type="button" className="planActionButton" onClick={() => openServiceLink(detail)} disabled={!serviceLink}>Open Plan / Service Link</button>
-                        <button type="button" className="planActionButton" onClick={() => toggleService(item)}>I'm Interested</button>
-                        {flags.bookingEnabled && <button type="button" className="planActionButton" onClick={() => toggleService(item)}>Book Consultation</button>}
                       </div>
                       {isSelected && <em><Check size={16} /></em>}
                     </article>
@@ -7101,4 +7099,3 @@ createRoot(document.getElementById("root")).render(
     <App />
   </AppErrorBoundary>
 );
-
