@@ -165,6 +165,7 @@ create table if not exists business_services (
   max_guests integer,
   included_guests integer,
   extra_guest_fee numeric,
+  service_category text,
   image_url text,
   image_title text,
   image_caption text,
@@ -181,6 +182,7 @@ alter table business_services add column if not exists pricing_tiers jsonb not n
 alter table business_services add column if not exists max_guests integer;
 alter table business_services add column if not exists included_guests integer;
 alter table business_services add column if not exists extra_guest_fee numeric;
+alter table business_services add column if not exists service_category text;
 alter table business_services add column if not exists image_url text;
 alter table business_services add column if not exists image_title text;
 alter table business_services add column if not exists image_caption text;
@@ -831,6 +833,7 @@ create or replace function public.upsert_client_service(
   service_max_guests integer default null,
   service_included_guests integer default null,
   service_extra_guest_fee numeric default null,
+  service_category text default '',
   service_image_url text default '',
   service_image_title text default '',
   service_image_caption text default '',
@@ -858,6 +861,7 @@ begin
     max_guests,
     included_guests,
     extra_guest_fee,
+    service_category,
     image_url,
     image_title,
     image_caption,
@@ -878,6 +882,7 @@ begin
     service_max_guests,
     service_included_guests,
     service_extra_guest_fee,
+    coalesce(service_category, ''),
     coalesce(service_image_url, ''),
     coalesce(service_image_title, ''),
     coalesce(service_image_caption, ''),
@@ -897,6 +902,7 @@ begin
     max_guests = excluded.max_guests,
     included_guests = excluded.included_guests,
     extra_guest_fee = excluded.extra_guest_fee,
+    service_category = excluded.service_category,
     image_url = excluded.image_url,
     image_title = excluded.image_title,
     image_caption = excluded.image_caption,
@@ -1270,7 +1276,7 @@ end;
 $$;
 
 grant execute on function public.business_has_package_capability(text, text) to authenticated;
-grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb, integer, integer, integer, numeric, text, text, text, integer) to authenticated;
+grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb, integer, integer, integer, numeric, text, text, text, text, integer) to authenticated;
 grant execute on function public.delete_client_service(text) to authenticated;
 grant execute on function public.update_client_availability(text, text, text, jsonb) to authenticated;
 grant execute on function public.upsert_client_blocked_date(text, text, date, text) to authenticated;
