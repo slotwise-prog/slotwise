@@ -826,6 +826,19 @@ function resolveBusinessMediaUrl(value = "") {
   return `${supabaseUrl}/storage/v1/object/public/business-media/${next.replace(/^\/+/, "")}`;
 }
 
+function normalizeServiceLink(value = "") {
+  const next = String(value || "").trim();
+  if (!next) return "";
+  if (/^(https?:\/\/|mailto:|tel:|sms:)/i.test(next)) return next;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(next)) return "";
+  return `https://${next.replace(/^\/+/, "")}`;
+}
+
+function isDirectImageLink(value = "") {
+  const href = normalizeServiceLink(value);
+  return Boolean(href && /\.(png|jpe?g|webp|gif|svg|avif)(?:[?#].*)?$/i.test(href));
+}
+
 function validateBrandMediaFile(file) {
   if (!file) throw new Error("Please choose a file.");
   const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -2147,26 +2160,6 @@ function App() {
     return saveResult;
   };
 
-  const uploadSetupServiceImage = async (service, file) => {
-    validateBrandMediaFile(file);
-    const session = getStoredAdminSession();
-    if (!session?.access_token) throw new Error("Please sign in again before uploading service images.");
-    const slug = makeSlug(service?.businessSlug || service?.slug || service?.business_slug || service?.name || "client-business");
-    const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
-    const extension = getFileExtension(file);
-    const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
-    const url = await supabaseStorageUpload(path, file, session.access_token);
-    if (service?.id) {
-      await supabaseRequest("business_services", {
-        method: "PATCH",
-        query: `?id=eq.${encodeURIComponent(service.id)}&business_slug=eq.${encodeURIComponent(slug)}`,
-        body: { image_url: url },
-        accessToken: session.access_token,
-      });
-    }
-    return url;
-  };
-
   const saveAdminClient = async (client, originalSlug = "", accessToken = "") => {
     const slug = originalSlug || makeSlug(client.slug || client.businessName);
     const requestId = `ADMIN-${Date.now()}`;
@@ -3097,13 +3090,10 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
     setPaymentStatus("");
   }, [business.slug]);
 
-  const openPlanImage = (detail) => {
-    if (!detail?.imageUrl) return;
-    setSelectedPlanImage({
-      src: resolveBusinessMediaUrl(detail.imageUrl),
-      title: detail.imageTitle || detail.name || "Plan image",
-      caption: detail.imageCaption || detail.description || "",
-    });
+  const openServiceLink = (detail) => {
+    const href = normalizeServiceLink(detail?.imageUrl);
+    if (!href) return;
+    window.open(href, "_blank", "noopener,noreferrer");
   };
 
   const toggleService = (serviceName) => {
@@ -3310,14 +3300,15 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                 const ServiceIcon = resolveServiceIcon(item, business);
                 const isSelected = selectedServiceNames.includes(item);
                 const detail = getServiceDetail(item);
-                const mediaUrl = resolveBusinessMediaUrl(detail.imageUrl);
+                const serviceLink = normalizeServiceLink(detail.imageUrl);
+                const mediaUrl = isDirectImageLink(detail.imageUrl) ? serviceLink : "";
                 const planLabel = detail.price === null
                   ? "See Plan Details / Inquire for Pricing"
                   : formatServicePriceLabel(detail, detail.pricingType);
                 return (
                   isConsultant ? (
                     <article key={item} className={isSelected ? "premiumService active consultantPlanCard" : "premiumService consultantPlanCard"} aria-pressed={isSelected}>
-                      <button type="button" className="consultantPlanMedia" onClick={() => openPlanImage(detail)} disabled={!mediaUrl}>
+                      <button type="button" className="consultantPlanMedia" onClick={() => openServiceLink(detail)} disabled={!serviceLink}>
                         <span className="serviceIcon consultantPlanIcon">{mediaUrl ? <img src={mediaUrl} alt="" /> : <ServiceIcon size={22} />}</span>
                       </button>
                       <strong>{detail.imageTitle || item}</strong>
@@ -3326,7 +3317,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                       {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
                       {detail.description && <p className="serviceDescription">{detail.description}</p>}
                       <div className="consultantPlanActions">
-                        <button type="button" className="planActionButton" onClick={() => openPlanImage(detail)} disabled={!mediaUrl}>View Full Plan</button>
+                        <button type="button" className="planActionButton" onClick={() => openServiceLink(detail)} disabled={!serviceLink}>Open Plan / Service Link</button>
                         <button type="button" className="planActionButton" onClick={() => toggleService(item)}>I'm Interested</button>
                         {flags.bookingEnabled && <button type="button" className="planActionButton" onClick={() => toggleService(item)}>Book Consultation</button>}
                       </div>
@@ -3632,7 +3623,7 @@ class AppErrorBoundary extends React.Component {
   }
 }
 
-function StructuredServiceManager({ services, onChange, onDeleteService, onUploadImage, onUploadStateChange, bookingTemplate = "GENERAL", compact = false, photoManagement = false }) {
+function StructuredServiceManager({ services, onChange, onDeleteService, bookingTemplate = "GENERAL", compact = false, photoManagement = false }) {
   const copy = getServiceManagerCopy(bookingTemplate);
   const isTravel = normalizeBookingTemplate(bookingTemplate) === "TOURS_TRAVEL";
   const isAccommodation = normalizeBookingTemplate(bookingTemplate) === "STAYCATION_ACCOMMODATION";
@@ -3643,26 +3634,6 @@ function StructuredServiceManager({ services, onChange, onDeleteService, onUploa
   const toggleServiceStatus = (index) => {
     const service = services[index];
     updateService(index, { status: (service.status || "Active") === "Inactive" ? "Active" : "Inactive" });
-  };
-  const uploadServiceImage = async (index, event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    if (!onUploadImage) {
-      window.alert("Service image uploads are not available in this view yet.");
-      return;
-    }
-    try {
-      onUploadStateChange?.(true);
-      const service = services[index];
-      const imageUrl = await onUploadImage(service, file);
-      updateService(index, { imageUrl });
-    } catch (error) {
-      console.error("Service image upload failed", error);
-      window.alert(error.message || "Service image upload failed.");
-    } finally {
-      onUploadStateChange?.(false);
-    }
   };
   const removeService = async (index) => {
     const service = services[index];
@@ -3724,12 +3695,28 @@ function StructuredServiceManager({ services, onChange, onDeleteService, onUploa
                       <input type="number" min="0" value={service.extraGuestFee} onChange={(event) => updateService(index, { extraGuestFee: event.target.value })} placeholder="Extra guest fee / night" />
                       <input type="number" min="1" value={service.unitQuantity} onChange={(event) => updateService(index, { unitQuantity: event.target.value })} placeholder="Available quantity" />
                       <label className="serviceImageUpload">
-                        <span>Service photo</span>
-                        <input type="file" accept="image/*" onChange={(event) => uploadServiceImage(index, event)} />
+                        <span>Plan / Service Link</span>
+                        <input
+                          type="text"
+                          inputMode="url"
+                          value={service.imageUrl || ""}
+                          onChange={(event) => updateService(index, { imageUrl: event.target.value })}
+                          placeholder="Paste any link: website, Google Drive, Facebook, Canva, PDF, image, etc."
+                        />
                       </label>
-                      <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Photo title" />
-                      <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Photo caption" />
-                      {service.imageUrl && <img src={resolveBusinessMediaUrl(service.imageUrl)} alt={service.imageTitle || service.name || "Service photo"} className="serviceImagePreview" loading="lazy" />}
+                      <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Link title (optional)" />
+                      <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Link description (optional)" />
+                      {service.imageUrl && (
+                        <a
+                          className="planActionButton"
+                          href={normalizeServiceLink(service.imageUrl) || undefined}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(event) => { if (!normalizeServiceLink(service.imageUrl)) event.preventDefault(); }}
+                        >
+                          Test / Open Link
+                        </a>
+                      )}
                     </>
                   )}
                   {isAccommodation && !photoManagement && (
@@ -3739,12 +3726,28 @@ function StructuredServiceManager({ services, onChange, onDeleteService, onUploa
                       <input type="number" min="0" value={service.extraGuestFee} onChange={(event) => updateService(index, { extraGuestFee: event.target.value })} placeholder="Extra guest fee / night" />
                       <input type="number" min="1" value={service.unitQuantity} onChange={(event) => updateService(index, { unitQuantity: event.target.value })} placeholder="Available quantity" />
                       <label className="serviceImageUpload">
-                        <span>Service photo</span>
-                        <input type="file" accept="image/*" onChange={(event) => uploadServiceImage(index, event)} />
+                        <span>Plan / Service Link</span>
+                        <input
+                          type="text"
+                          inputMode="url"
+                          value={service.imageUrl || ""}
+                          onChange={(event) => updateService(index, { imageUrl: event.target.value })}
+                          placeholder="Paste any link: website, Google Drive, Facebook, Canva, PDF, image, etc."
+                        />
                       </label>
-                      <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Photo title" />
-                      <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Photo caption" />
-                      {service.imageUrl && <img src={resolveBusinessMediaUrl(service.imageUrl)} alt={service.imageTitle || service.name || "Service photo"} className="serviceImagePreview" loading="lazy" />}
+                      <input value={service.imageTitle} onChange={(event) => updateService(index, { imageTitle: event.target.value })} placeholder="Link title (optional)" />
+                      <input value={service.imageCaption} onChange={(event) => updateService(index, { imageCaption: event.target.value })} placeholder="Link description (optional)" />
+                      {service.imageUrl && (
+                        <a
+                          className="planActionButton"
+                          href={normalizeServiceLink(service.imageUrl) || undefined}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(event) => { if (!normalizeServiceLink(service.imageUrl)) event.preventDefault(); }}
+                        >
+                          Test / Open Link
+                        </a>
+                      )}
                     </>
                   )}
                   {isTravel && (
@@ -3953,7 +3956,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
               <p className="eyebrow">Step 2</p>
               <h2>{setupBookingTemplate === "PROFESSIONAL_SERVICES" ? "Plans and pricing" : "Services and prices"}</h2>
               <p>{setupBookingTemplate === "PROFESSIONAL_SERVICES" ? "Add each plan or product with its category, pricing label, and photo if needed. Blank slots will not be saved." : "Add each service with price and duration. Blank slots will not be saved."}</p>
-                <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} onUploadImage={uploadSetupServiceImage} onUploadStateChange={setServiceImageUploading} bookingTemplate={setupBookingTemplate} photoManagement={getPackageCapabilities(form.package, form.featureFlags).photoManagement} />
+                <StructuredServiceManager services={form.serviceEntries} onChange={updateSetupServices} bookingTemplate={setupBookingTemplate} photoManagement={getPackageCapabilities(form.package, form.featureFlags).photoManagement} />
             </div>
           )}
 
@@ -4591,25 +4594,6 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
     setForm((current) => ({ ...current, [kind]: url }));
     setStatusMessage(`${kind === "cover" ? "Cover image" : "Logo"} uploaded.`);
-    return url;
-  };
-
-  const uploadServiceImageAsset = async (service, file) => {
-    validateBrandMediaFile(file);
-    const slug = makeSlug(editingSlug || form.slug || form.businessName || "client-business");
-    const extension = getFileExtension(file);
-    const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
-    const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
-    const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
-    if (service?.id) {
-      await supabaseRequest("business_services", {
-        method: "PATCH",
-        query: `?id=eq.${encodeURIComponent(service.id)}&business_slug=eq.${encodeURIComponent(slug)}`,
-        body: { image_url: url },
-        accessToken: adminSession?.access_token,
-      });
-    }
-    setStatusMessage("Service photo uploaded.");
     return url;
   };
 
@@ -5833,7 +5817,7 @@ After login, you will only see the bookings and features assigned to your busine
             </div>
           </section>
           <label>Description<textarea name="rules" value={form.rules} onChange={updateForm} rows="3" /></label>
-           <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} onUploadImage={uploadServiceImageAsset} onUploadStateChange={setServiceImageUploading} bookingTemplate={form.bookingTemplate} photoManagement={getPackageCapabilities(form.business_package || form.package, form.feature_flags).photoManagement} />
+           <StructuredServiceManager services={form.serviceEntries} onChange={updateAdminServices} onDeleteService={deleteAdminService} bookingTemplate={form.bookingTemplate} photoManagement={getPackageCapabilities(form.business_package || form.package, form.feature_flags).photoManagement} />
           <div className="smmFlagGrid">
             {Object.keys(defaultFeatureFlags).map((flag) => (
               <label key={flag}>
@@ -5996,61 +5980,6 @@ function ClientDashboard({
     setBookingPayments(paymentRows || []);
     setAuthState("authorized");
     return true;
-  };
-
-  const uploadClientServiceImage = async (service, file) => {
-    validateBrandMediaFile(file);
-    if (!clientSession?.access_token) throw new Error("Please sign in again before uploading service images.");
-
-    const slug = makeSlug(service?.businessSlug || selectedBusinessSlug || clientBusiness?.slug || "client-business");
-    if (!service?.id) {
-      throw new Error("Save this service first, then upload its photo.");
-    }
-
-    const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
-    const extension = getFileExtension(file);
-    const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
-    const url = await supabaseStorageUpload(path, file, clientSession.access_token);
-
-    // IMPORTANT: client service rows are managed through the SECURITY DEFINER RPC.
-    // A direct PATCH to business_services can be silently filtered by RLS and return
-    // an empty result even though the Storage upload succeeded. Persist the new URL
-    // through the same RPC used by the normal service editor instead.
-    await onSaveService({
-      service_id: service.id,
-      target_slug: slug,
-      service_name: service.name || "Service",
-      service_description: service.description || "",
-      service_price: service.price === "" || service.price === undefined ? null : service.price,
-      service_duration: service.durationMinutes ?? service.duration_minutes ?? null,
-      service_status: service.status || "Active",
-      service_pricing_type: normalizePricingType(service.pricingType || service.pricing_type, service.pricingUnit || service.pricing_unit),
-      service_pricing_unit: normalizePricingUnit(service.pricingUnit || service.pricing_unit, service.pricingType || service.pricing_type),
-      service_pricing_tiers: normalizePricingTiers(service.pricingTiers || service.pricing_tiers),
-      service_display_order: service.displayOrder ?? service.display_order ?? 0,
-      service_max_guests: service.maxGuests === "" ? null : (service.maxGuests ?? service.max_guests ?? null),
-      service_included_guests: service.includedGuests === "" ? null : (service.includedGuests ?? service.included_guests ?? null),
-      service_extra_guest_fee: service.extraGuestFee === "" ? null : (service.extraGuestFee ?? service.extra_guest_fee ?? null),
-      service_category: service.serviceCategory || service.service_category || "",
-      service_image_url: url,
-      service_image_title: service.imageTitle || service.image_title || "",
-      service_image_caption: service.imageCaption || service.image_caption || "",
-      service_unit_quantity: service.unitQuantity ?? service.unit_quantity ?? 1,
-    }, clientSession.access_token);
-
-    // Read the row back from Supabase before telling the UI the upload succeeded.
-    const [confirmedService] = await supabaseRequest("business_services", {
-      query: `?select=id,image_url&business_slug=eq.${encodeURIComponent(slug)}&id=eq.${encodeURIComponent(service.id)}`,
-      accessToken: clientSession.access_token,
-    });
-    if (!confirmedService?.image_url || confirmedService.image_url !== url) {
-      throw new Error("Photo uploaded to Storage, but the service record did not save it.");
-    }
-
-    // Keep the loaded service row in sync so a later Save Services action cannot
-    // overwrite the freshly persisted URL with an older empty value.
-    setClientServices((current) => current.map((item) => item.id === service.id ? { ...item, image_url: url } : item));
-    return url;
   };
 
   useEffect(() => {
@@ -6265,7 +6194,7 @@ function ClientDashboard({
         accessToken: clientSession?.access_token,
       }).catch(() => []);
       if (payload.service_image_url && !(confirmedService?.image_url || "").trim()) {
-        throw new Error("Service saved, but photo did not persist.");
+        throw new Error("Service saved, but the link did not persist.");
       }
       const nextServices = serviceForm.id
         ? clientServices.map((service) => service.id === serviceForm.id ? {
@@ -6377,7 +6306,7 @@ function ClientDashboard({
         accessToken: clientSession?.access_token,
       });
       if (savableServices.some((service) => service.imageUrl) && !(refreshedAfterSave || []).some((row) => row.image_url)) {
-        throw new Error("Services saved, but photo upload did not persist.");
+        throw new Error("Services saved, but the service link did not persist.");
       }
       for (const oldService of clientServices) {
         if (currentIds.has(oldService.id) && !nextIds.has(oldService.id)) {
@@ -6783,7 +6712,7 @@ function ClientDashboard({
                 <h2>{isClientToursTravel ? "Manage tour packages" : "Manage services"}</h2>
               </div>
               <form onSubmit={submitStructuredServices}>
-                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} onUploadImage={uploadClientServiceImage} onUploadStateChange={setServiceImageUploading} bookingTemplate={clientBusiness?.bookingTemplate} compact photoManagement={capabilities.photoManagement} />
+                <StructuredServiceManager services={clientServiceEntries} onChange={setClientServiceEntries} onDeleteService={deleteStructuredService} bookingTemplate={clientBusiness?.bookingTemplate} compact photoManagement={capabilities.photoManagement} />
                 <button className="clientPrimaryButton" type="submit" disabled={serviceImageUploading}>{serviceImageUploading ? "Uploading photo..." : "Save Services"}</button>
               </form>
             </section>
