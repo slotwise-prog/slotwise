@@ -6019,6 +6019,13 @@ function ClientDashboard({
         service_unit_quantity: serviceForm.unitQuantity === "" ? 1 : Number(serviceForm.unitQuantity || 1),
       };
       await onSaveService(payload, clientSession?.access_token);
+      const [confirmedService] = await supabaseRequest("business_services", {
+        query: `?select=id,image_url,image_title,image_caption&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&id=eq.${encodeURIComponent(payload.service_id)}`,
+        accessToken: clientSession?.access_token,
+      }).catch(() => []);
+      if (payload.service_image_url && !(confirmedService?.image_url || "").trim()) {
+        throw new Error("Service saved, but photo did not persist.");
+      }
       const nextServices = serviceForm.id
         ? clientServices.map((service) => service.id === serviceForm.id ? {
           ...service,
@@ -6116,6 +6123,13 @@ function ClientDashboard({
           service_image_caption: service.imageCaption,
           service_unit_quantity: service.unitQuantity,
         }, clientSession?.access_token);
+      }
+      const refreshedAfterSave = await supabaseRequest("business_services", {
+        query: `?select=id,image_url,image_title,image_caption,business_slug&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
+        accessToken: clientSession?.access_token,
+      });
+      if (savableServices.some((service) => service.imageUrl) && !(refreshedAfterSave || []).some((row) => row.image_url)) {
+        throw new Error("Services saved, but photo upload did not persist.");
       }
       for (const oldService of clientServices) {
         if (currentIds.has(oldService.id) && !nextIds.has(oldService.id)) {
