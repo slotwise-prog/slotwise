@@ -2963,7 +2963,15 @@ function SmmOffersFeed({ offers = null, placement = "BOTH", compact = false, bus
   );
 }
 
-function BookingPrototype({ business, onBack, onSaveBooking, onSubmitPayment, smmOffers = null }) {
+function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, onSubmitPayment, smmOffers = null }) {
+  const business = useMemo(() => normalizeBusinessConfig({
+    ...(incomingBusiness || {}),
+    services: Array.isArray(incomingBusiness?.services) ? incomingBusiness.services : [],
+    serviceDetails: Array.isArray(incomingBusiness?.serviceDetails) ? incomingBusiness.serviceDetails : [],
+    forms: Array.isArray(incomingBusiness?.forms) && incomingBusiness.forms.length ? incomingBusiness.forms : undefined,
+    availability: incomingBusiness?.availability && typeof incomingBusiness.availability === "object" ? incomingBusiness.availability : {},
+    featureFlags: incomingBusiness?.featureFlags && typeof incomingBusiness.featureFlags === "object" ? incomingBusiness.featureFlags : {},
+  }), [incomingBusiness]);
   const [pickedService, setPickedService] = useState(business.services[0]);
   const [pickedServices, setPickedServices] = useState([business.services[0]].filter(Boolean));
   const [selectedPlanImage, setSelectedPlanImage] = useState(null);
