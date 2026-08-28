@@ -2101,7 +2101,8 @@ function App() {
     const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
     const extension = getFileExtension(file);
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
-    return supabaseStorageUpload(path, file, session.access_token);
+    const url = await supabaseStorageUpload(path, file, session.access_token);
+    return url;
   };
 
   const saveAdminClient = async (client, originalSlug = "", accessToken = "") => {
@@ -5837,7 +5838,8 @@ function ClientDashboard({
     const safeName = makeSlug(service?.name || file.name || "service-image") || "service-image";
     const extension = getFileExtension(file);
     const path = `services/${slug}/${safeName}-${Date.now()}.${extension}`;
-    return supabaseStorageUpload(path, file, clientSession.access_token);
+    const url = await supabaseStorageUpload(path, file, clientSession.access_token);
+    return url;
   };
 
   useEffect(() => {
