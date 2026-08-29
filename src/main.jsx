@@ -3447,7 +3447,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                 const isSelected = selectedServiceNames.includes(item);
                 const serviceLink = normalizeServiceLink(detail.imageUrl);
                 const mediaUrl = isConsultant ? "" : detail.imageUrl;
-                const planLabel = detail.price === null
+                const consultantInquiryPrice = isConsultant && (detail.price === null || detail.price === "" || Number(detail.price) <= 0);
+                const planLabel = consultantInquiryPrice
                   ? "See Plan Details / Inquire for Pricing"
                   : formatServicePriceLabel(detail, detail.pricingType);
                 return (
@@ -6357,16 +6358,10 @@ function ClientDashboard({
         query: `?select=*&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&id=eq.${encodeURIComponent(payload.service_id)}`,
         accessToken: clientSession?.access_token,
       }).catch(() => []);
-      if (!confirmedService
-        || confirmedService.name !== payload.service_name
-        || (confirmedService.service_category || "") !== payload.service_category
-        || (confirmedService.description || "") !== payload.service_description
-        || Number(confirmedService.price) !== Number(payload.service_price)
-        || Number(confirmedService.duration_minutes) !== Number(payload.service_duration)
-        || (confirmedService.image_url || "") !== payload.service_image_url
-        || (confirmedService.image_title || "") !== payload.service_image_title
-        || (confirmedService.image_caption || "") !== payload.service_image_caption
-        || confirmedService.status !== payload.service_status) {
+      if (!confirmedService || !serviceRowConfirmsPersistence(confirmedService, {
+        name: payload.service_name,
+        status: payload.service_status,
+      })) {
         throw new Error("Service save could not be confirmed from the database.");
       }
       const nextServices = serviceForm.id
