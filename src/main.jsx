@@ -13,6 +13,11 @@ import {
   MessageSquare,
   QrCode,
   Sparkles,
+  HeartPulse,
+  ShieldPlus,
+  Landmark,
+  BadgeDollarSign,
+  Scale,
   Users,
   User,
   Phone,
@@ -46,6 +51,7 @@ import {
   Truck,
   CircleDot,
   ShieldCheck,
+  LayoutGrid,
   Map as MapIcon,
   MapPinned,
   Ship,
@@ -269,6 +275,32 @@ function resolveServiceIcon(serviceName = "", business = {}) {
   if (hasKeyword(serviceText, ["consultation", "consult"])) return MessageSquare;
   if (hasKeyword(serviceText, ["laundry", "wash", "fold", "dry cleaning", "pickup", "pickup and delivery", "pick up and delivery"])) return WashingMachine;
   return isStaycationAccommodation ? BedDouble : isToursTravel ? MapPinned : CircleDot;
+}
+
+function resolveConsultantServiceIcon(detail = {}, business = {}) {
+  const text = `${detail.imageTitle || ""} ${detail.serviceCategory || ""} ${detail.description || ""} ${business.business || ""} ${business.industry || ""} ${business.businessType || ""}`.toLowerCase();
+  if (hasKeyword(text, ["hmo", "health plan", "medical", "health"])) return HeartPulse;
+  if (hasKeyword(text, ["insurance"])) return ShieldPlus;
+  if (hasKeyword(text, ["real estate", "property", "house", "home"])) return Building2;
+  if (hasKeyword(text, ["loan", "financing", "finance", "credit"])) return BadgeDollarSign;
+  if (hasKeyword(text, ["travel", "tour", "trip", "vacation"])) return Plane;
+  if (hasKeyword(text, ["education", "school", "training", "course", "class"])) return GraduationCap;
+  if (hasKeyword(text, ["legal", "law", "attorney", "consult"])) return Scale;
+  return BriefcaseBusiness;
+}
+
+function resolveTemplateSectionIcon(bookingTemplate = "GENERAL") {
+  const template = normalizeBookingTemplate(bookingTemplate);
+  if (template === "BEAUTY") return Sparkles;
+  if (template === "CLINIC") return Stethoscope;
+  if (template === "PROFESSIONAL_SERVICES") return BriefcaseBusiness;
+  if (template === "HOME_SERVICE") return Wrench;
+  if (template === "AUTO") return CarFront;
+  if (template === "CAR_WASH") return Droplets;
+  if (template === "LAUNDRY") return WashingMachine;
+  if (template === "TOURS_TRAVEL") return Plane;
+  if (template === "STAYCATION_ACCOMMODATION") return BedDouble;
+  return LayoutGrid;
 }
 
 function resolveBusinessTone(business = {}) {
@@ -903,6 +935,7 @@ function normalizeSetupRequest(row) {
     staff: row.staff || "",
     rules: row.rules || "",
     questions: row.questions || "",
+    serviceEntries: normalizeStructuredServices(row.serviceEntries || row.service_entries || [], 0),
     status: row.status || "Ready for review",
   };
 }
@@ -922,6 +955,7 @@ function setupRequestToDatabase(setup) {
     staff: setup.staff,
     rules: setup.rules,
     questions: setup.questions,
+    service_entries: normalizeStructuredServices(setup.serviceEntries || [], 0),
     status: setup.status,
   };
 }
@@ -3021,6 +3055,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Book Your Tour" : isLaundry ? "Book Laundry Pickup" : isConsultant ? "Plans & Services" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
   const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
   const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Tour Package" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
+  const ServiceStepIcon = resolveTemplateSectionIcon(business.bookingTemplate);
   const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Date" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
   const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : isLaundry ? "Pickup Time" : "";
   const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Guest Details" : isLaundry ? "Pickup Details" : isHomeService ? "Your contact details" : "Your details";
@@ -3294,41 +3329,48 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
 
           {flags.bookingEnabled && (
           <div className="bookingStep">
-            <div className="bookingStepTitle"><span>1</span><strong>{serviceStepLabel}</strong></div>
+            <div className="bookingStepTitle"><span>1</span><strong><ServiceStepIcon size={16} />{serviceStepLabel}</strong></div>
             <div className={isConsultant ? "premiumServiceGrid consultantServiceGrid" : "premiumServiceGrid"}>
               {business.services.map((item) => {
-                const ServiceIcon = resolveServiceIcon(item, business);
-                const isSelected = selectedServiceNames.includes(item);
                 const detail = getServiceDetail(item);
+                const ServiceIcon = resolveServiceIcon(item, business);
+                const ConsultantIcon = resolveConsultantServiceIcon(detail, business);
+                const isSelected = selectedServiceNames.includes(item);
                 const serviceLink = normalizeServiceLink(detail.imageUrl);
-                const mediaUrl = isDirectImageLink(detail.imageUrl) ? serviceLink : "";
                 const planLabel = detail.price === null
                   ? "See Plan Details / Inquire for Pricing"
                   : formatServicePriceLabel(detail, detail.pricingType);
                 return (
                   isConsultant ? (
-                    <article key={item} className={isSelected ? "premiumService active consultantPlanCard" : "premiumService consultantPlanCard"} aria-pressed={isSelected}>
-                      <button type="button" className="consultantPlanMedia" onClick={() => openServiceLink(detail)} disabled={!serviceLink}>
-                        <span className="serviceIcon consultantPlanIcon">{mediaUrl ? <img src={mediaUrl} alt="" /> : <ServiceIcon size={22} />}</span>
-                      </button>
+                    <article
+                      key={item}
+                      className={isSelected ? "premiumService active consultantPlanCard" : "premiumService consultantPlanCard"}
+                      aria-pressed={isSelected}
+                      onClick={() => toggleService(item)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          toggleService(item);
+                        }
+                      }}
+                    >
+                      <div className="consultantPlanHeader">
+                        <span className="serviceIcon consultantPlanIcon consultantPlanIconCompact"><ConsultantIcon size={21} /></span>
+                        {isSelected && <em><Check size={16} /></em>}
+                      </div>
                       <strong>{detail.imageTitle || item}</strong>
                       {detail.serviceCategory && <small className="serviceCategoryTag">{detail.serviceCategory}</small>}
                       <small className="servicePriceTag">{planLabel}</small>
-                      {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
                       {detail.description && <p className="serviceDescription">{detail.description}</p>}
                       <div className="consultantPlanActions">
                         {serviceLink && (
-                          <a
-                            className="planActionButton"
-                            href={serviceLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
+                          <a className="planActionButton" href={serviceLink} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>
                             Open Plan / Service Link
                           </a>
                         )}
                       </div>
-                      {isSelected && <em><Check size={16} /></em>}
                     </article>
                   ) : (
                     <button type="button" key={item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>

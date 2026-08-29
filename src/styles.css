@@ -2347,6 +2347,9 @@ h2 {
 }
 
 .bookingStepTitle strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
   letter-spacing: 0.08em;
 }
@@ -2476,40 +2479,24 @@ h2 {
 }
 
 .consultantServiceGrid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
 .consultantPlanCard {
-  padding: 20px;
-  gap: 14px;
+  padding: 16px;
+  gap: 10px;
   text-align: left;
   align-content: start;
   place-items: start;
   cursor: default;
+  min-height: 0;
+  box-shadow: 0 8px 22px rgba(49, 33, 37, 0.04);
 }
 
 .consultantPlanCard strong,
 .consultantPlanCard small,
 .consultantPlanCard p {
   width: 100%;
-}
-
-.consultantPlanMedia {
-  width: 100%;
-  min-height: 220px;
-  padding: 0;
-  border: 1px solid #eadde0;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #fff 0%, #faf7f8 100%);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  overflow: hidden;
-}
-
-.consultantPlanMedia:disabled {
-  cursor: default;
-  opacity: 0.75;
 }
 
 .consultantPlanIcon {
@@ -2524,6 +2511,47 @@ h2 {
   height: 100%;
   object-fit: cover;
   border-radius: inherit;
+}
+
+.consultantPlanHeader {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.consultantPlanIconCompact {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--booking-primary) 12%, #ffffff);
+  color: var(--booking-primary);
+  flex: 0 0 auto;
+}
+
+.consultantPlanIconCompact svg {
+  width: 20px;
+  height: 20px;
+}
+
+.consultantPlanCard em {
+  position: static;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+.consultantPlanCard strong {
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.consultantPlanCard .serviceDescription {
+  margin: 0;
+  color: #5b6779;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .serviceCategoryTag {
