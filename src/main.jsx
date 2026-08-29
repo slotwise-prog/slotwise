@@ -642,6 +642,12 @@ function hasValidPricingConfiguration(serviceDetail = {}) {
   return price !== null && !Number.isNaN(price);
 }
 
+function isPublishableServiceForTemplate(serviceDetail = {}, bookingTemplate = "GENERAL") {
+  const template = normalizeBookingTemplate(bookingTemplate);
+  if (template === "PROFESSIONAL_SERVICES") return Boolean(String(serviceDetail.name || "").trim());
+  return hasValidPricingConfiguration(serviceDetail);
+}
+
 function getPricingForGuests(serviceDetail, guestCount) {
   const pricingType = normalizePricingType(serviceDetail.pricingType, serviceDetail.pricingUnit);
   const price = serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
@@ -1068,8 +1074,8 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
       description: service.description || "",
       displayOrder: service.display_order || 0,
       status: service.status,
-    })).filter(hasValidPricingConfiguration),
-    activeServices.filter(hasValidPricingConfiguration).map((service) => service.name),
+    })).filter((service) => isPublishableServiceForTemplate(service, bookingTemplate)),
+    activeServices.filter((service) => isPublishableServiceForTemplate(service, bookingTemplate)).map((service) => service.name),
   );
   return {
     source: "database",
@@ -6308,12 +6314,13 @@ function ClientDashboard({
         setStatusMessage(tierValidation.message || "Add at least one valid pricing tier.");
         return;
       }
-      if (serviceForm.status !== "Inactive" && !hasValidPricingConfiguration({
-        pricingType: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? serviceForm.pricingType : "FIXED",
-        pricingUnit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? serviceForm.pricingUnit : "FLAT",
+      if (serviceForm.status !== "Inactive" && !isPublishableServiceForTemplate({
+        name: serviceForm.name,
+        pricingType: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? serviceForm.pricingType : "FIXED",
+        pricingUnit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? serviceForm.pricingUnit : "FLAT",
         price: serviceForm.price,
         pricingTiers: serviceForm.pricingTiers,
-      })) {
+      }, clientBusiness?.bookingTemplate)) {
         setStatusMessage("Pricing required before this service can be published.");
         return;
       }
@@ -6435,7 +6442,7 @@ function ClientDashboard({
           setStatusMessage(`Fix pricing tiers for ${service.name}.`);
           return;
         }
-        if (service.status !== "Inactive" && !hasValidPricingConfiguration(service)) {
+        if (service.status !== "Inactive" && !isPublishableServiceForTemplate(service, clientBusiness?.bookingTemplate)) {
           setStatusMessage(`Pricing required before ${service.name} can be published.`);
           return;
         }
