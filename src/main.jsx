@@ -6361,43 +6361,13 @@ function ClientDashboard({
       })) {
         throw new Error("Service save could not be confirmed from the database.");
       }
-      const nextServices = serviceForm.id
-        ? clientServices.map((service) => service.id === serviceForm.id ? {
-          ...service,
-          name: payload.service_name,
-          description: payload.service_description,
-          service_category: payload.service_category,
-          serviceCategory: payload.service_category,
-          price: payload.service_price,
-          duration_minutes: payload.service_duration,
-          pricing_type: payload.service_pricing_type,
-          pricing_unit: payload.service_pricing_unit,
-          pricing_tiers: payload.service_pricing_tiers,
-          image_url: payload.service_image_url,
-          image_title: payload.service_image_title,
-          image_caption: payload.service_image_caption,
-          unit_quantity: payload.service_unit_quantity,
-          status: payload.service_status,
-        } : service)
-        : [...clientServices, {
-          id: payload.service_id,
-          business_slug: selectedBusinessSlug,
-          name: payload.service_name,
-          description: payload.service_description,
-          service_category: payload.service_category,
-          serviceCategory: payload.service_category,
-          price: payload.service_price,
-          duration_minutes: payload.service_duration,
-          pricing_type: payload.service_pricing_type,
-          pricing_unit: payload.service_pricing_unit,
-          pricing_tiers: payload.service_pricing_tiers,
-          image_url: payload.service_image_url,
-          image_title: payload.service_image_title,
-          image_caption: payload.service_image_caption,
-          unit_quantity: payload.service_unit_quantity,
-          status: payload.service_status,
-        }];
+      const refreshedServiceRows = await supabaseRequest("business_services", {
+        query: `?select=*&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
+        accessToken: clientSession?.access_token,
+      });
+      const nextServices = filterLegacyToursSeedRows(refreshedServiceRows || [], clientBusiness?.bookingTemplate);
       setClientServices(nextServices);
+      setClientServiceEntries(normalizeStructuredServices(nextServices.map(serviceRowToStructured)));
       setClientBusiness((current) => normalizeBusinessConfig({
         ...current,
         serviceDetails: nextServices.map((service) => ({
