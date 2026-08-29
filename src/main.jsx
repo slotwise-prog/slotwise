@@ -1569,24 +1569,25 @@ function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
 }
 
 function serviceRowMatchesStructured(row = {}, service = {}) {
+  const sameText = (left, right) => String(left ?? "").trim() === String(right ?? "").trim();
   const sameNumber = (left, right) => (
     (left === null || left === "") && (right === null || right === "")
   ) || Number(left) === Number(right);
-  return row.name === service.name
-    && (row.service_category || "") === (service.serviceCategory || "")
-    && (row.description || "") === (service.description || "")
+  return sameText(row.name, service.name)
+    && sameText(row.service_category, service.serviceCategory)
+    && sameText(row.description, service.description)
     && sameNumber(row.price, service.price)
     && sameNumber(row.duration_minutes, service.durationMinutes)
-    && (row.pricing_type || "FIXED") === (service.pricingType || "FIXED")
-    && (row.pricing_unit || "FLAT") === (service.pricingUnit || "FLAT")
+    && normalizePricingType(row.pricing_type, row.pricing_unit) === normalizePricingType(service.pricingType, service.pricingUnit)
+    && normalizePricingUnit(row.pricing_unit) === normalizePricingUnit(service.pricingUnit)
     && sameNumber(row.max_guests, service.maxGuests)
     && sameNumber(row.included_guests, service.includedGuests)
     && sameNumber(row.extra_guest_fee, service.extraGuestFee)
-    && (row.image_url || "") === (service.imageUrl || "")
-    && (row.image_title || "") === (service.imageTitle || "")
-    && (row.image_caption || "") === (service.imageCaption || "")
+    && sameText(row.image_url, service.imageUrl)
+    && sameText(row.image_title, service.imageTitle)
+    && sameText(row.image_caption, service.imageCaption)
     && Number(row.display_order || 0) === Number(service.displayOrder || 0)
-    && row.status === service.status;
+    && String(row.status || "Active").toUpperCase() === String(service.status || "Active").toUpperCase();
 }
 
 function structuredServicesToLegacyText(services = [], bookingTemplate = "GENERAL") {
@@ -2384,7 +2385,8 @@ function App() {
       accessToken,
     });
     const unconfirmedService = serviceRows.find((service) => {
-      const confirmed = confirmedServiceRows.find((row) => row.id === service.id);
+      const confirmed = confirmedServiceRows.find((row) => row.id === service.id)
+        || confirmedServiceRows.find((row) => row.name === service.name);
       return !confirmed || !serviceRowMatchesStructured(confirmed, serviceRowToStructured(service));
     });
     if (unconfirmedService) {
