@@ -494,8 +494,83 @@ function normalizePackage(value) {
 }
 
 function normalizeBookingTemplate(value) {
-  const nextTemplate = (value || "GENERAL").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+  const normalizedValue = (value || "GENERAL").toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+  const templateAliases = {
+    CONSULTANT: "PROFESSIONAL_SERVICES",
+    PROFESSIONAL: "PROFESSIONAL_SERVICES",
+    PROFESSIONAL_SERVICE: "PROFESSIONAL_SERVICES",
+  };
+  const nextTemplate = templateAliases[normalizedValue] || normalizedValue;
   return bookingTemplateOptions.some((item) => item.value === nextTemplate) ? nextTemplate : "GENERAL";
+}
+
+const bookingTemplatePublicCopy = {
+  PROFESSIONAL_SERVICES: {
+    category: "Plans & Services",
+    tagline: ["Professional guidance.", "Simple online booking."],
+    trust: [["Explore plans", "Review available plans and services"], ["Send an inquiry", "Choose what fits your needs"], ["Simple and private", "Your details stay organized"]],
+  },
+  BEAUTY: {
+    category: "Beauty & Wellness",
+    tagline: ["Enhance your glow.", "Reveal your best self."],
+    trust: [["Easy online booking", "Book in less than a minute"], ["Appointment confirmation", "We'll confirm your appointment"], ["Simple and private", "Your details stay organized"]],
+  },
+  CLINIC: {
+    category: "Care & Wellness",
+    tagline: ["Quality care.", "Easy appointment booking."],
+    trust: [["Easy appointment booking", "Choose your preferred schedule"], ["Visit confirmation", "The clinic will confirm your appointment"], ["Simple and private", "Your details stay organized"]],
+  },
+  HOME_SERVICE: {
+    category: "Home Services",
+    tagline: ["Reliable service.", "Book at your convenience."],
+    trust: [["Easy Online Booking", "Choose your service and schedule"], ["Convenient Service Visit", "Select your preferred date and time"], ["Request Confirmation", "The business will confirm your schedule"]],
+  },
+  AUTO: {
+    category: "Auto Services",
+    tagline: ["Professional vehicle care.", "Book your service online."],
+    trust: [["Easy online booking", "Choose your vehicle service"], ["Schedule confirmation", "The business will confirm your time"], ["Simple and organized", "Your service details stay together"]],
+  },
+  CAR_WASH: {
+    category: "Auto Services",
+    tagline: ["Professional vehicle care.", "Book your service online."],
+    trust: [["Easy online booking", "Choose your wash or detailing service"], ["Schedule confirmation", "The business will confirm your time"], ["Simple and organized", "Your service details stay together"]],
+  },
+  LAUNDRY: {
+    category: "Laundry Shop",
+    tagline: ["Fresh, clean, convenient.", "Schedule your service."],
+    trust: [["Easy service request", "Choose pickup or shop service"], ["Schedule confirmation", "The shop will confirm your request"], ["Care instructions", "Keep your laundry notes organized"]],
+  },
+  TOURS_TRAVEL: {
+    category: "Tours & Travel",
+    tagline: ["Plan your next experience.", "Book with ease."],
+    trust: [["Explore packages", "Choose your preferred tour"], ["Reservation request", "The operator will confirm availability"], ["Guest details", "Keep trip information organized"]],
+  },
+  STAYCATION_ACCOMMODATION: {
+    category: "Staycation & Accommodation",
+    tagline: ["Your stay starts here.", "Reserve with ease."],
+    trust: [["Choose your stay", "Select a room or unit"], ["Reservation confirmation", "The host will confirm availability"], ["Guest details", "Keep stay information organized"]],
+  },
+  GENERAL: {
+    category: "Service Business",
+    tagline: ["Book your service.", "Quick and easy."],
+    trust: [["Easy online booking", "Choose the service you need"], ["Request confirmation", "The business will confirm your schedule"], ["Simple and private", "Your details stay organized"]],
+  },
+};
+
+function getBookingTemplateCopy(template, business = {}) {
+  const normalizedTemplate = normalizeBookingTemplate(template);
+  const fallback = bookingTemplatePublicCopy[normalizedTemplate] || bookingTemplatePublicCopy.GENERAL;
+  const genericDescriptions = new Set([
+    "Book online in less than a minute. Choose a service, pick a time, and get confirmation.",
+    "Book online in less than a minute. Choose a service, pick a time, and get confirmation without creating an account.",
+  ]);
+  const customCopy = (business.tagline || business.heroTagline || business.description || "").trim();
+  if (!customCopy || genericDescriptions.has(customCopy)) return fallback;
+  const sentences = customCopy.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((item) => item.trim()).filter(Boolean) || [customCopy];
+  return {
+    ...fallback,
+    tagline: sentences.length > 1 ? [sentences[0], sentences.slice(1).join(" ")] : [sentences[0], ""],
+  };
 }
 
 function getBookingTemplateTone(bookingTemplate) {
@@ -1446,7 +1521,7 @@ function serviceRowToStructured(service = {}, index = 0) {
     imageTitle: service.image_title || service.imageTitle || "",
     imageCaption: service.image_caption || service.imageCaption || "",
     unitQuantity: service.unit_quantity ?? service.unitQuantity ?? 1,
-    expanded: index < 3,
+    expanded: service.expanded ?? index < 3,
   };
 }
 
@@ -3068,24 +3143,9 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const isHomeService = bookingTone === "home-service";
   const isConsultant = bookingTone === "professional-services";
   const brandInitial = (business.business || "S").trim().charAt(0).toUpperCase();
-  const brandCategory = isAccommodation ? "Staycation & Accommodation" : isToursTravel ? "Tours & Travel" : isLaundry ? "Laundry Shop" : isClinic ? "Care & Wellness" : isConsultant ? "Plans & Services" : isTravel ? "Stay & Travel" : isHomeService ? "Aircon Services" : bookingTone === "auto" ? "Auto Services" : bookingTone === "general" ? "Service Business" : "Beauty & Wellness";
-  const brandLine = isClinic
-    ? ["Your visit, booked with care.", "Private details. Clear schedule."]
-    : isAccommodation
-      ? ["Reserve your stay with ease.", "Choose your unit, dates, and guests."]
-    : isToursTravel
-      ? ["Tour packages, transfers, and reservations.", "Send your request in less than a minute."]
-      : isLaundry
-      ? ["Wash, dry, fold, and delivery.", "Book a pickup that fits your schedule."]
-      : isTravel
-      ? ["Reserve your date.", "Plan your visit with ease."]
-      : isHomeService
-        ? ["Aircon Cleaning • Repair • Installation", "Professional service for homes and businesses."]
-        : bookingTone === "auto"
-          ? ["Book a wash, detail, or service.", "Choose your preferred schedule."]
-          : bookingTone === "general"
-            ? ["Book the service you need.", "Choose a schedule that works for you."]
-            : ["Enhance your glow.", "Reveal your best self."];
+  const templateCopy = getBookingTemplateCopy(business.bookingTemplate, business);
+  const brandCategory = templateCopy.category;
+  const brandLine = templateCopy.tagline;
   const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Book Your Tour" : isLaundry ? "Book Laundry Pickup" : isConsultant ? "Plans & Services" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
   const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
   const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Tour Package" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
@@ -3327,12 +3387,12 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
             <span>{brandCategory}</span>
             <h1>{business.business}</h1>
             <i />
-            <p>{brandLine[0]}<br />{brandLine[1]}</p>
+            <p>{brandLine[0]}{brandLine[1] && <><br />{brandLine[1]}</>}</p>
           </div>
           <div className="bookingTrustCard">
-            <div><CalendarDays size={22} /><span><strong>{isHomeService ? "Easy Online Booking" : "Easy online booking"}</strong><small>{isHomeService ? "Choose your service and schedule" : "Book in less than a minute"}</small></span></div>
-            <div><Check size={22} /><span><strong>{isHomeService ? "Convenient Service Visit" : "Instant confirmation"}</strong><small>{isHomeService ? "Select your preferred date and time" : "We'll confirm your appointment"}</small></span></div>
-            <div><Sparkles size={22} /><span><strong>{isHomeService ? "Request Confirmation" : "Simple and private"}</strong><small>{isHomeService ? "The business will confirm your schedule" : "Your details stay organized"}</small></span></div>
+            <div><CalendarDays size={22} /><span><strong>{templateCopy.trust[0][0]}</strong><small>{templateCopy.trust[0][1]}</small></span></div>
+            <div><Check size={22} /><span><strong>{templateCopy.trust[1][0]}</strong><small>{templateCopy.trust[1][1]}</small></span></div>
+            <div><Sparkles size={22} /><span><strong>{templateCopy.trust[2][0]}</strong><small>{templateCopy.trust[2][1]}</small></span></div>
           </div>
         </aside>
 
@@ -3371,6 +3431,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                 const ConsultantIcon = resolveConsultantServiceIcon(detail, business);
                 const isSelected = selectedServiceNames.includes(item);
                 const serviceLink = normalizeServiceLink(detail.imageUrl);
+                const mediaUrl = isConsultant ? "" : detail.imageUrl;
                 const planLabel = detail.price === null
                   ? "See Plan Details / Inquire for Pricing"
                   : formatServicePriceLabel(detail, detail.pricingType);
