@@ -643,9 +643,7 @@ function hasValidPricingConfiguration(serviceDetail = {}) {
 }
 
 function isPublishableServiceForTemplate(serviceDetail = {}, bookingTemplate = "GENERAL") {
-  const template = normalizeBookingTemplate(bookingTemplate);
-  if (template === "PROFESSIONAL_SERVICES") return Boolean(String(serviceDetail.name || "").trim());
-  return hasValidPricingConfiguration(serviceDetail);
+  return Boolean(String(serviceDetail.name || "").trim());
 }
 
 function getPricingForGuests(serviceDetail, guestCount) {
@@ -3474,7 +3472,6 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                       <strong>{detail.imageTitle || item}</strong>
                       {detail.serviceCategory && <small className="serviceCategoryTag">{detail.serviceCategory}</small>}
                       <small className="servicePriceTag">{planLabel}</small>
-                      {detail.description && <p className="serviceDescription">{detail.description}</p>}
                       <div className="consultantPlanActions">
                         {serviceLink && (
                           <a className="planActionButton" href={serviceLink} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>
@@ -3838,7 +3835,7 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
             <article className={expanded ? "structuredServiceCard expanded" : "structuredServiceCard"} key={service.id || `new-${index}`}>
               <button type="button" className="structuredServiceSummary" onClick={() => updateService(index, { expanded: !expanded })}>
                 <strong>{service.name || `${copy.single} ${index + 1}`}</strong>
-                <span>{hasValidPricingConfiguration(service) ? formatPeso(normalizePricingType(service.pricingType, service.pricingUnit) === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers)[0]?.price : service.price) : "Pricing required"}</span>
+                <span>{hasValidPricingConfiguration(service) ? formatPeso(normalizePricingType(service.pricingType, service.pricingUnit) === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers)[0]?.price : service.price) : "No price"}</span>
                 <em>{isConsultant ? ((service.status || "Active") === "Inactive" ? "Disabled" : "Enabled") : (service.status || "Active")}</em>
               </button>
               {expanded && (
@@ -6329,7 +6326,7 @@ function ClientDashboard({
         price: serviceForm.price,
         pricingTiers: serviceForm.pricingTiers,
       }, clientBusiness?.bookingTemplate)) {
-        setStatusMessage("Pricing required before this service can be published.");
+        setStatusMessage("Service name required before this can be published.");
         return;
       }
       const payload = {
@@ -6445,7 +6442,7 @@ function ClientDashboard({
           return;
         }
         if (service.status !== "Inactive" && !isPublishableServiceForTemplate(service, clientBusiness?.bookingTemplate)) {
-          setStatusMessage(`Pricing required before ${service.name} can be published.`);
+          setStatusMessage(`Service name required before this can be published.`);
           return;
         }
       }
