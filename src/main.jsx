@@ -1596,6 +1596,13 @@ function serviceRowMatchesStructured(row = {}, service = {}) {
     && String(row.status || "Active").toUpperCase() === String(service.status || "Active").toUpperCase();
 }
 
+function serviceRowConfirmsPersistence(row = {}, service = {}) {
+  const sameText = (left, right) => String(left ?? "").trim() === String(right ?? "").trim();
+  const savedStatus = String(row.status || "Active").toUpperCase();
+  const expectedStatus = String(service.status || "Active").toUpperCase();
+  return sameText(row.name, service.name) && savedStatus === expectedStatus;
+}
+
 function structuredServicesToLegacyText(services = [], bookingTemplate = "GENERAL") {
   return getSavableStructuredServices(services, bookingTemplate)
     .map((service) => {
@@ -2393,7 +2400,7 @@ function App() {
     const unconfirmedService = serviceRows.find((service) => {
       const confirmed = confirmedServiceRows.find((row) => row.id === service.id)
         || confirmedServiceRows.find((row) => row.name === service.name);
-      return !confirmed || !serviceRowMatchesStructured(confirmed, serviceRowToStructured(service));
+      return !confirmed || !serviceRowConfirmsPersistence(confirmed, serviceRowToStructured(service));
     });
     if (unconfirmedService) {
       throw new Error(`Service save could not be confirmed from the database: ${unconfirmedService.name}.`);
@@ -6478,7 +6485,7 @@ function ClientDashboard({
       });
       const unconfirmedService = savableServices.find((service) => {
         const confirmed = (refreshedAfterSave || []).find((row) => row.id === service.id || row.name === service.name);
-        return !confirmed || !serviceRowMatchesStructured(confirmed, service);
+        return !confirmed || !serviceRowConfirmsPersistence(confirmed, service);
       });
       if (unconfirmedService) {
         throw new Error(`Service save could not be confirmed from the database: ${unconfirmedService.name}.`);
