@@ -985,6 +985,7 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
       maxGuests: service.max_guests ?? service.maxGuests ?? "",
       includedGuests: service.included_guests ?? service.includedGuests ?? "",
       extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
+      serviceCategory: service.service_category || service.serviceCategory || "",
       imageUrl: service.image_url || service.imageUrl || "",
       imageTitle: service.image_title || service.imageTitle || "",
       imageCaption: service.image_caption || service.imageCaption || "",
@@ -1429,7 +1430,7 @@ function serviceRowToStructured(service = {}, index = 0) {
   return {
     id: service.id || "",
     name: service.name || "",
-    serviceCategory: service.service_category || service.serviceCategory || service.image_caption || "",
+    serviceCategory: service.service_category || service.serviceCategory || "",
     description: service.description || "",
     price: service.price ?? "",
     durationMinutes: service.duration_minutes ?? service.durationMinutes ?? "",
@@ -1490,6 +1491,27 @@ function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
         unitQuantity: service.unitQuantity === "" ? 1 : Number(service.unitQuantity || 1),
       };
     });
+}
+
+function serviceRowMatchesStructured(row = {}, service = {}) {
+  const sameNumber = (left, right) => (
+    (left === null || left === "") && (right === null || right === "")
+  ) || Number(left) === Number(right);
+  return row.name === service.name
+    && (row.service_category || "") === (service.serviceCategory || "")
+    && (row.description || "") === (service.description || "")
+    && sameNumber(row.price, service.price)
+    && sameNumber(row.duration_minutes, service.durationMinutes)
+    && (row.pricing_type || "FIXED") === (service.pricingType || "FIXED")
+    && (row.pricing_unit || "FLAT") === (service.pricingUnit || "FLAT")
+    && sameNumber(row.max_guests, service.maxGuests)
+    && sameNumber(row.included_guests, service.includedGuests)
+    && sameNumber(row.extra_guest_fee, service.extraGuestFee)
+    && (row.image_url || "") === (service.imageUrl || "")
+    && (row.image_title || "") === (service.imageTitle || "")
+    && (row.image_caption || "") === (service.imageCaption || "")
+    && Number(row.display_order || 0) === Number(service.displayOrder || 0)
+    && row.status === service.status;
 }
 
 function structuredServicesToLegacyText(services = [], bookingTemplate = "GENERAL") {
@@ -1616,6 +1638,7 @@ function setupToServiceRows(setup, slug, requestId) {
     max_guests: service.maxGuests,
     included_guests: service.includedGuests,
     extra_guest_fee: service.extraGuestFee,
+    service_category: service.serviceCategory || "",
     image_url: service.imageUrl,
     image_title: service.imageTitle || "",
     image_caption: service.imageCaption || "",
@@ -2280,6 +2303,17 @@ function App() {
         body: serviceRows,
         accessToken,
       });
+    }
+    const confirmedServiceRows = await supabaseRequest("business_services", {
+      query: `?select=*&business_slug=eq.${encodeURIComponent(slug)}&order=display_order.asc`,
+      accessToken,
+    });
+    const unconfirmedService = serviceRows.find((service) => {
+      const confirmed = confirmedServiceRows.find((row) => row.id === service.id);
+      return !confirmed || !serviceRowMatchesStructured(confirmed, serviceRowToStructured(service));
+    });
+    if (unconfirmedService) {
+      throw new Error(`Service save could not be confirmed from the database: ${unconfirmedService.name}.`);
     }
     await supabaseRequest("business_availability", {
       method: "POST",
@@ -5945,7 +5979,7 @@ function ClientDashboard({
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(getTodayDateValue());
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const emptyServiceForm = { id: "", name: "", serviceCategory: "", description: "", price: "", durationMinutes: 60, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [], imageUrl: "", imageTitle: "", imageCaption: "" };
+  const emptyServiceForm = { id: "", name: "", serviceCategory: "", description: "", price: "", durationMinutes: 60, displayOrder: 0, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [], imageUrl: "", imageTitle: "", imageCaption: "" };
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [clientServiceEntries, setClientServiceEntries] = useState(emptyStructuredServices());
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
@@ -6180,6 +6214,7 @@ function ClientDashboard({
         description: service.description || "",
         price: service.price ?? "",
       durationMinutes: service.duration_minutes || 60,
+      displayOrder: service.display_order ?? 0,
       pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
       pricingUnit: normalizePricingUnit(service.pricing_unit),
       pricingTiers: normalizePricingTiers(service.pricing_tiers),
@@ -6196,7 +6231,7 @@ function ClientDashboard({
 
   const submitService = async (event) => {
     event.preventDefault();
-    setStatusMessage("");
+    setStatusMessage("Saving...");
     try {
       if (serviceImageUploading) {
         setStatusMessage("Please wait for the service photo upload to finish.");
@@ -6204,6 +6239,7 @@ function ClientDashboard({
       }
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
       const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
+      const isClientConsultant = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "PROFESSIONAL_SERVICES";
       const tierValidation = validatePricingTiers(serviceForm.pricingTiers);
       if (isClientToursTravel && serviceForm.pricingType === "GROUP_TIER" && (!tierValidation.ok || tierValidation.tiers.length === 0)) {
         setStatusMessage(tierValidation.message || "Add at least one valid pricing tier.");
@@ -6226,12 +6262,14 @@ function ClientDashboard({
         service_price: serviceForm.price === "" ? null : Number(serviceForm.price),
         service_duration: isClientAccommodation ? null : Number(serviceForm.durationMinutes) || 60,
         service_status: serviceForm.status,
-        service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingType(serviceForm.pricingType) : "FIXED",
-        service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingUnit(serviceForm.pricingUnit, serviceForm.pricingType) : "FLAT",
-        service_pricing_tiers: isClientToursTravel ? tierValidation.tiers : [],
+        service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? normalizePricingType(serviceForm.pricingType) : "FIXED",
+        service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? normalizePricingUnit(serviceForm.pricingUnit, serviceForm.pricingType) : "FLAT",
+        service_pricing_tiers: isClientToursTravel || isClientConsultant ? tierValidation.tiers : [],
+        service_display_order: serviceForm.displayOrder || 0,
         service_max_guests: serviceForm.maxGuests === "" ? null : Number(serviceForm.maxGuests),
         service_included_guests: serviceForm.includedGuests === "" ? null : Number(serviceForm.includedGuests),
         service_extra_guest_fee: serviceForm.extraGuestFee === "" ? null : Number(serviceForm.extraGuestFee),
+        service_category: serviceForm.serviceCategory || "",
         service_image_url: serviceForm.imageUrl || "",
         service_image_title: serviceForm.imageTitle || "",
         service_image_caption: serviceForm.imageCaption || "",
@@ -6239,18 +6277,28 @@ function ClientDashboard({
       };
       await onSaveService(payload, clientSession?.access_token);
       const [confirmedService] = await supabaseRequest("business_services", {
-        query: `?select=id,image_url,image_title,image_caption&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&id=eq.${encodeURIComponent(payload.service_id)}`,
+        query: `?select=*&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&id=eq.${encodeURIComponent(payload.service_id)}`,
         accessToken: clientSession?.access_token,
       }).catch(() => []);
-      if (payload.service_image_url && !(confirmedService?.image_url || "").trim()) {
-        throw new Error("Service saved, but the link did not persist.");
+      if (!confirmedService
+        || confirmedService.name !== payload.service_name
+        || (confirmedService.service_category || "") !== payload.service_category
+        || (confirmedService.description || "") !== payload.service_description
+        || Number(confirmedService.price) !== Number(payload.service_price)
+        || Number(confirmedService.duration_minutes) !== Number(payload.service_duration)
+        || (confirmedService.image_url || "") !== payload.service_image_url
+        || (confirmedService.image_title || "") !== payload.service_image_title
+        || (confirmedService.image_caption || "") !== payload.service_image_caption
+        || confirmedService.status !== payload.service_status) {
+        throw new Error("Service save could not be confirmed from the database.");
       }
       const nextServices = serviceForm.id
         ? clientServices.map((service) => service.id === serviceForm.id ? {
           ...service,
           name: payload.service_name,
           description: payload.service_description,
-          serviceCategory: serviceForm.serviceCategory || service.image_caption || "",
+          service_category: payload.service_category,
+          serviceCategory: payload.service_category,
           price: payload.service_price,
           duration_minutes: payload.service_duration,
           pricing_type: payload.service_pricing_type,
@@ -6267,7 +6315,8 @@ function ClientDashboard({
           business_slug: selectedBusinessSlug,
           name: payload.service_name,
           description: payload.service_description,
-          serviceCategory: serviceForm.serviceCategory || "",
+          service_category: payload.service_category,
+          serviceCategory: payload.service_category,
           price: payload.service_price,
           duration_minutes: payload.service_duration,
           pricing_type: payload.service_pricing_type,
@@ -6289,7 +6338,7 @@ function ClientDashboard({
           pricingType: service.pricing_type,
           pricingUnit: service.pricing_unit,
           pricingTiers: service.pricing_tiers,
-          serviceCategory: service.image_caption || service.serviceCategory || "",
+          serviceCategory: service.service_category || service.serviceCategory || "",
           description: service.description || "",
           imageUrl: service.image_url || "",
           imageTitle: service.image_title || "",
@@ -6299,16 +6348,16 @@ function ClientDashboard({
         services: nextServices.filter((service) => service.status !== "Inactive").map((service) => service.name),
       }));
       editService();
-      setStatusMessage("Service saved.");
+      setStatusMessage("Saved ✓");
     } catch (error) {
-      console.error("Client blocked date update failed", error);
-      setStatusMessage("Unable to save changes. Please try again.");
+      console.error("Client service save failed", error);
+      setStatusMessage(error.message || "Unable to save changes. Please try again.");
     }
   };
 
   const submitStructuredServices = async (event) => {
     event.preventDefault();
-    setStatusMessage("");
+    setStatusMessage("Saving...");
     try {
       if (serviceImageUploading) {
         setStatusMessage("Please wait for the service photo upload to finish.");
@@ -6316,6 +6365,7 @@ function ClientDashboard({
       }
       const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
       const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
+      const isClientConsultant = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "PROFESSIONAL_SERVICES";
       const savableServices = getSavableStructuredServices(clientServiceEntries, clientBusiness?.bookingTemplate);
       for (const service of savableServices) {
         if (isClientToursTravel && service.pricingType === "GROUP_TIER" && !validatePricingTiers(service.pricingTiers).ok) {
@@ -6338,12 +6388,14 @@ function ClientDashboard({
           service_price: service.price,
           service_duration: service.durationMinutes,
           service_status: service.status,
-          service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingType(service.pricingType) : "FIXED",
-          service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
-          service_pricing_tiers: isClientToursTravel ? service.pricingTiers : [],
+          service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? normalizePricingType(service.pricingType) : "FIXED",
+          service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
+          service_pricing_tiers: isClientToursTravel || isClientConsultant ? service.pricingTiers : [],
+          service_display_order: service.displayOrder,
           service_max_guests: service.maxGuests,
           service_included_guests: service.includedGuests,
           service_extra_guest_fee: service.extraGuestFee,
+          service_category: service.serviceCategory || "",
           service_image_url: service.imageUrl,
           service_image_title: service.imageTitle,
           service_image_caption: service.imageCaption,
@@ -6351,11 +6403,15 @@ function ClientDashboard({
         }, clientSession?.access_token);
       }
       const refreshedAfterSave = await supabaseRequest("business_services", {
-        query: `?select=id,image_url,image_title,image_caption,business_slug&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
+        query: `?select=*&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
         accessToken: clientSession?.access_token,
       });
-      if (savableServices.some((service) => service.imageUrl) && !(refreshedAfterSave || []).some((row) => row.image_url)) {
-        throw new Error("Services saved, but the service link did not persist.");
+      const unconfirmedService = savableServices.find((service) => {
+        const confirmed = (refreshedAfterSave || []).find((row) => row.id === service.id || row.name === service.name);
+        return !confirmed || !serviceRowMatchesStructured(confirmed, service);
+      });
+      if (unconfirmedService) {
+        throw new Error(`Service save could not be confirmed from the database: ${unconfirmedService.name}.`);
       }
       for (const oldService of clientServices) {
         if (currentIds.has(oldService.id) && !nextIds.has(oldService.id)) {
@@ -6410,10 +6466,10 @@ function ClientDashboard({
         slots: clientAvailability.slots,
         blocked_dates: blockedDates,
       }, paymentSettings || null, paymentMethods || [])));
-      setStatusMessage("Services saved.");
+      setStatusMessage("Saved ✓");
     } catch (error) {
       console.error("Client service save failed", error);
-      setStatusMessage("Unable to save services. Please try again.");
+      setStatusMessage(error.message || "Unable to save services. Please try again.");
     }
   };
 
