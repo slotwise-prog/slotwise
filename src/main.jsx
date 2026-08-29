@@ -1405,7 +1405,7 @@ function parseServiceDetails(value) {
 
 function emptyStructuredServices(count = 3) {
   return Array.from({ length: count }, (_, index) => ({
-    id: "",
+    id: `svc-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 10)}`,
     name: "",
     description: "",
     price: "",
@@ -3377,7 +3377,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                 return (
                   isConsultant ? (
                     <article
-                      key={item}
+                      key={detail.id || item}
                       className={isSelected ? "premiumService active consultantPlanCard" : "premiumService consultantPlanCard"}
                       aria-pressed={isSelected}
                       onClick={() => toggleService(item)}
@@ -3407,7 +3407,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                       </div>
                     </article>
                   ) : (
-                    <button type="button" key={item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
+                    <button type="button" key={detail.id || item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
                       <span className={isConsultant ? "serviceIcon consultantPlanIcon" : "serviceIcon"}>{mediaUrl ? <img src={mediaUrl} alt="" /> : <ServiceIcon size={22} />}</span>
                       <strong>{detail.imageTitle || item}</strong>
                       {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
@@ -3758,7 +3758,7 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
         {services.map((service, index) => {
           const expanded = service.expanded !== false;
           return (
-            <article className={expanded ? "structuredServiceCard expanded" : "structuredServiceCard"} key={`${service.id || "new"}-${index}`}>
+            <article className={expanded ? "structuredServiceCard expanded" : "structuredServiceCard"} key={service.id || `new-${index}`}>
               <button type="button" className="structuredServiceSummary" onClick={() => updateService(index, { expanded: !expanded })}>
                 <strong>{service.name || `${copy.single} ${index + 1}`}</strong>
                 <span>{hasValidPricingConfiguration(service) ? formatPeso(normalizePricingType(service.pricingType, service.pricingUnit) === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers)[0]?.price : service.price) : "Pricing required"}</span>
