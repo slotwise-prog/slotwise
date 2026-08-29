@@ -3426,8 +3426,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
               <p>{headerSubtext}</p>
               {(business.phone || business.address) && (
                 <div className="bookingContactLine">
-                  {business.phone && <span>{business.phone}</span>}
-                  {business.address && <span>{business.address}</span>}
+                  {business.phone && <span><Phone size={13} /><strong>Phone</strong>{business.phone}</span>}
+                  {business.address && <span><MapPinned size={13} /><strong>Address</strong>{business.address}</span>}
                 </div>
               )}
             </div>

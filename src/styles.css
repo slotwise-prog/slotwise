@@ -2309,11 +2309,22 @@ h2 {
 
 .bookingContactLine span {
   border-radius: 999px;
-  padding: 7px 10px;
+  padding: 7px 11px;
   color: #6b4a55;
   background: #fff7f8;
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 650;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.bookingContactLine strong {
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .bookingFormHeader > span {
