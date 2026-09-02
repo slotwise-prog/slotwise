@@ -340,8 +340,16 @@ begin
     else 1
   end;
 
-  if service_row.price is null and new.pricing_type_snapshot <> 'GROUP_TIER' then
+  if service_row.price is null
+     and new.pricing_type_snapshot not in ('GROUP_TIER', 'CUSTOM_INQUIRY', 'IMAGE_BASED_PRICING') then
     raise exception 'Selected service has incomplete pricing.';
+  end if;
+
+  if new.pricing_type_snapshot in ('CUSTOM_INQUIRY', 'IMAGE_BASED_PRICING') then
+    new.unit_price_snapshot := null;
+    new.line_total := null;
+    new.quantity := 1;
+    return new;
   end if;
 
   if new.pricing_type_snapshot = 'GROUP_TIER' then
@@ -576,11 +584,13 @@ create table if not exists setup_requests (
   staff text,
   rules text,
   questions text,
+  service_entries jsonb not null default '[]'::jsonb,
   status text not null default 'Ready for review',
   created_at timestamptz not null default now()
 );
 
 alter table setup_requests add column if not exists business_slug text;
+alter table setup_requests add column if not exists service_entries jsonb not null default '[]'::jsonb;
 
 create table if not exists admin_users (
   user_id uuid primary key references auth.users(id) on delete cascade,

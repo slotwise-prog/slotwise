@@ -353,7 +353,7 @@ function resolveBusinessTone(business = {}) {
 
 function getToneThemeDefaults(tone) {
   if (tone === "staycation-accommodation") return { primaryColor: "#7a4f2f", accentColor: "#f8efe6", pageBackgroundColor: "#F4EFE8" };
-  if (tone === "tours-travel") return { primaryColor: "#0f766e", accentColor: "#e6f7f1", pageBackgroundColor: "#F6F2E5" };
+  if (tone === "tours-travel") return { primaryColor: "#C99718", accentColor: "#FBF7EA", pageBackgroundColor: "#FCFBF7" };
   if (tone === "professional-services") return { primaryColor: "#334155", accentColor: "#e8eef7", pageBackgroundColor: "#F4F7FB" };
   if (tone === "carwash") return { primaryColor: "#1f2937", accentColor: "#eef2f7", pageBackgroundColor: "#F3F6FA" };
   if (tone === "laundry") return { primaryColor: "#2d5b87", accentColor: "#e7f1fb", pageBackgroundColor: "#F2F7FB" };
@@ -396,7 +396,7 @@ function getBusinessPageBackgroundStyle(business = {}, tone = "general") {
 function getTemplateFallbackCover(tone = "beauty") {
   const tones = {
     "staycation-accommodation": { title: "STAYCATION", subtitle: "Relax • Sleep • Stay", start: "#4b2f23", end: "#b7794b" },
-    "tours-travel": { title: "TRAVEL", subtitle: "Explore • Discover • Go", start: "#0b525b", end: "#f59e0b" },
+    "tours-travel": { title: "TRAVEL", subtitle: "Explore • Discover • Go", start: "#063E91", end: "#C99718" },
     "professional-services": { title: "CONSULTING", subtitle: "Plan • Guide • Deliver", start: "#0f172a", end: "#64748b" },
     carwash: { title: "CAR WASH", subtitle: "Wash • Shine • Drive", start: "#111827", end: "#60a5fa" },
     laundry: { title: "LAUNDRY", subtitle: "Wash • Dry • Fold", start: "#2d5b87", end: "#7cc4ff" },
@@ -673,6 +673,21 @@ function normalizeDepartureDates(value) {
     }))
     .filter((item) => Number.isFinite(item.price) && item.price >= 0)
     .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.displayOrder - b.displayOrder);
+}
+
+function getEditableDepartureDates(value) {
+  return (Array.isArray(value) ? value : []).map((item, index) => ({
+    id: item.id || `departure-${index}`,
+    startDate: item.startDate || item.departureStart || item.departure_start || "",
+    endDate: item.endDate || item.departureEnd || item.departure_end || "",
+    price: item.price === "" || item.price === null || item.price === undefined
+      ? ""
+      : Number(item.price ?? item.departurePrice ?? item.departure_price),
+    pricingUnit: normalizePricingUnit(item.pricingUnit || item.departurePricingUnit || item.departure_pricing_unit, "PER_PAX"),
+    status: String(item.status || item.departureStatus || item.departure_status || "AVAILABLE").toUpperCase(),
+    notes: item.notes || item.departureNotes || item.departure_notes || "",
+    displayOrder: Number(item.displayOrder ?? item.departureOrder ?? item.departure_order ?? index),
+  }));
 }
 
 function getUpcomingDepartures(value) {
@@ -4109,7 +4124,7 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
     });
   };
   const updateDeparture = (serviceIndex, departureIndex, updates) => {
-    const departures = normalizeDepartureDates(services[serviceIndex].departureDates);
+    const departures = getEditableDepartureDates(services[serviceIndex].departureDates);
     updateService(serviceIndex, {
       departureDates: departures.map((departure, itemIndex) => itemIndex === departureIndex ? { ...departure, ...updates } : departure),
     });
@@ -4224,8 +4239,8 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
                       </select>
                       <div className="departureDateEditor">
                         <strong>Available Dates &amp; Rates</strong>
-                        {!normalizeDepartureDates(service.departureDates).length && <span className="departureDateEmpty">No departure schedules added yet.</span>}
-                        {normalizeDepartureDates(service.departureDates).map((departure, departureIndex) => (
+                        {!getEditableDepartureDates(service.departureDates).length && <span className="departureDateEmpty">No departure schedules added yet.</span>}
+                        {getEditableDepartureDates(service.departureDates).map((departure, departureIndex) => (
                           <div className="departureDateRow" key={departure.id}>
                             <input type="date" value={departure.startDate} onChange={(event) => updateDeparture(index, departureIndex, { startDate: event.target.value })} aria-label="Departure start date" />
                             <input type="date" value={departure.endDate} onChange={(event) => updateDeparture(index, departureIndex, { endDate: event.target.value })} aria-label="Departure end date" />
@@ -4233,10 +4248,13 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
                             <select value={departure.pricingUnit} onChange={(event) => updateDeparture(index, departureIndex, { pricingUnit: event.target.value })} aria-label="Departure pricing unit"><option value="PER_PAX">Per pax</option><option value="PER_GROUP">Per group</option><option value="PER_TRIP">Per trip</option></select>
                             <select value={departure.status} onChange={(event) => updateDeparture(index, departureIndex, { status: event.target.value })} aria-label="Departure availability"><option value="AVAILABLE">Available</option><option value="SOLD_OUT">Sold out</option><option value="UNAVAILABLE">Unavailable</option></select>
                             <input value={departure.notes} onChange={(event) => updateDeparture(index, departureIndex, { notes: event.target.value })} placeholder="Optional notes" aria-label="Departure notes" />
-                            <button type="button" onClick={() => updateService(index, { departureDates: normalizeDepartureDates(service.departureDates).filter((_, itemIndex) => itemIndex !== departureIndex) })}>Delete Departure</button>
+                            <button type="button" onClick={() => updateService(index, { departureDates: getEditableDepartureDates(service.departureDates).filter((_, itemIndex) => itemIndex !== departureIndex) })}>Delete Departure</button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => updateService(index, { departureDates: [...normalizeDepartureDates(service.departureDates), { id: `departure-${Date.now()}`, startDate: "", endDate: "", price: 0, pricingUnit: "PER_PAX", status: "AVAILABLE", notes: "", displayOrder: normalizeDepartureDates(service.departureDates).length }] })}>+ Add Departure</button>
+                        <button type="button" onClick={() => {
+                          const departures = getEditableDepartureDates(service.departureDates);
+                          updateService(index, { departureDates: [...departures, { id: `departure-${Date.now()}-${departures.length}`, startDate: "", endDate: "", price: "", pricingUnit: "PER_PAX", status: "AVAILABLE", notes: "", displayOrder: departures.length }] });
+                        }}>+ Add Departure</button>
                       </div>
                     </>
                   )}
