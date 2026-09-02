@@ -4868,14 +4868,40 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     }));
   };
 
+  const getFreshAdminSession = async () => {
+    const currentSession = getStoredAdminSession() || adminSession;
+    if (!currentSession?.refresh_token) {
+      throw new Error("Your admin session expired. Please sign in again before uploading.");
+    }
+    try {
+      const refreshed = await supabaseAuthRequest("token?grant_type=refresh_token", {
+        refresh_token: currentSession.refresh_token,
+      });
+      const nextSession = {
+        ...currentSession,
+        ...refreshed,
+        refresh_token: refreshed.refresh_token || currentSession.refresh_token,
+      };
+      storeAdminSession(nextSession);
+      setAdminSession(nextSession);
+      return nextSession;
+    } catch {
+      clearAdminSession();
+      setAdminSession(null);
+      setAuthState("login");
+      throw new Error("Your admin session expired. Please sign in again, then upload the image.");
+    }
+  };
+
   const uploadBrandAsset = async (kind, file) => {
     validateBrandMediaFile(file);
+    const freshSession = await getFreshAdminSession();
     const slug = makeSlug(editingSlug || form.slug || form.businessName || "client-business");
     const extension = getFileExtension(file);
     const stamp = Date.now();
     const folder = kind === "cover" ? "covers" : "logos";
     const path = `${folder}/${slug}/${kind}-${stamp}.${extension}`;
-    const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
+    const url = await supabaseStorageUpload(path, file, freshSession.access_token);
     setForm((current) => ({ ...current, [kind]: url }));
     setStatusMessage(`${kind === "cover" ? "Cover image" : "Logo"} uploaded.`);
     return url;
@@ -4883,11 +4909,12 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
 
   const uploadAnnouncementAsset = async (file) => {
     validateAnnouncementMediaFile(file);
+    const freshSession = await getFreshAdminSession();
     const slug = makeSlug(editingSlug || form.slug || form.businessName || "client-business");
     const extension = getFileExtension(file);
     const stamp = Date.now();
     const path = `announcements/${slug}/announcement-${stamp}.${extension}`;
-    const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
+    const url = await supabaseStorageUpload(path, file, freshSession.access_token);
     setAnnouncementForm((current) => ({ ...current, image_url: url }));
     setStatusMessage("Announcement image uploaded.");
     return url;
@@ -4909,11 +4936,12 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
 
   const uploadSmmOfferAsset = async (kind, file) => {
     validateBrandMediaFile(file);
+    const freshSession = await getFreshAdminSession();
     const extension = getFileExtension(file);
     const stamp = Date.now();
     const folder = kind === "offer_two_image_url" ? "offer-two" : "offer-one";
     const path = `smm-offers/global/${folder}-${stamp}.${extension}`;
-    const url = await supabaseStorageUpload(path, file, adminSession?.access_token);
+    const url = await supabaseStorageUpload(path, file, freshSession.access_token);
     setSmmOffers((current) => ({ ...current, [kind]: url }));
     setStatusMessage(`${kind === "offer_two_image_url" ? "Second offer" : "First offer"} image uploaded.`);
     return url;
