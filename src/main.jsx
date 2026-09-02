@@ -663,16 +663,16 @@ function normalizePricingTiers(value) {
 
 function normalizeDepartureDates(value) {
   return (Array.isArray(value) ? value : [])
-    .filter((item) => item?.kind === "DEPARTURE" || item?.departureStart || item?.departure_start)
+    .filter((item) => item?.kind === "DEPARTURE" || item?.startDate || item?.start_date || item?.departureStart || item?.departure_start)
     .map((item, index) => ({
       id: item.id || `departure-${index}`,
-      startDate: item.departureStart || item.departure_start || "",
-      endDate: item.departureEnd || item.departure_end || "",
-      price: Number(item.departurePrice ?? item.departure_price),
-      pricingUnit: normalizePricingUnit(item.departurePricingUnit || item.departure_pricing_unit, "PER_PAX"),
-      status: String(item.departureStatus || item.departure_status || "AVAILABLE").toUpperCase(),
-      notes: item.departureNotes || item.departure_notes || "",
-      displayOrder: Number(item.departureOrder ?? item.departure_order ?? index),
+      startDate: item.startDate || item.start_date || item.departureStart || item.departure_start || "",
+      endDate: item.endDate || item.end_date || item.departureEnd || item.departure_end || "",
+      price: Number(item.price ?? item.departurePrice ?? item.departure_price),
+      pricingUnit: normalizePricingUnit(item.pricingUnit || item.pricing_unit || item.departurePricingUnit || item.departure_pricing_unit, "PER_PAX"),
+      status: String(item.status || item.departureStatus || item.departure_status || "AVAILABLE").toUpperCase(),
+      notes: item.notes || item.departureNotes || item.departure_notes || "",
+      displayOrder: Number(item.displayOrder ?? item.display_order ?? item.departureOrder ?? item.departure_order ?? index),
     }))
     .filter((item) => Number.isFinite(item.price) && item.price >= 0)
     .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.displayOrder - b.displayOrder);
@@ -700,6 +700,11 @@ function getUpcomingDepartures(value) {
 
 function getSavableDepartureDates(value) {
   return normalizeDepartureDates(value).filter((item) => item.startDate && Number.isFinite(item.price) && item.price >= 0);
+}
+
+function departureListsMatch(left, right) {
+  const comparable = (value) => getSavableDepartureDates(value).map(({ id, displayOrder, ...item }) => item);
+  return JSON.stringify(comparable(left)) === JSON.stringify(comparable(right));
 }
 
 function departureDateLabel(departure = {}) {
@@ -950,7 +955,7 @@ function getTravelServiceKind(serviceName = "") {
 }
 
 function getTravelPriceLabel(detail = {}) {
-  const departures = getUpcomingDepartures(detail.pricingTiers);
+  const departures = getUpcomingDepartures(detail.departureDates || detail.pricingTiers);
   if (departures.length) {
     const lowestDeparture = departures.reduce((lowest, item) => item.price < lowest.price ? item : lowest, departures[0]);
     return `From ${formatPeso(lowestDeparture.price)} / ${lowestDeparture.pricingUnit === "PER_PAX" ? "pax" : lowestDeparture.pricingUnit.replace("PER_", "").toLowerCase()}`;
@@ -1197,7 +1202,8 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
       price: service.price,
       pricingUnit: normalizePricingUnit(service.pricing_unit),
       pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
-      pricingTiers: [...normalizePricingTiers(service.pricing_tiers), ...normalizeDepartureDates(service.pricing_tiers).map(departureRecord)],
+      pricingTiers: normalizePricingTiers(service.pricing_tiers),
+      departureDates: normalizeDepartureDates(service.departures || service.pricing_tiers),
       maxGuests: service.max_guests ?? service.maxGuests ?? "",
       includedGuests: service.included_guests ?? service.includedGuests ?? "",
       extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
@@ -1664,7 +1670,7 @@ function serviceRowToStructured(service = {}, index = 0) {
     pricingType: normalizePricingType(service.pricing_type || service.pricingType, service.pricing_unit || service.pricingUnit),
     pricingUnit: normalizePricingUnit(service.pricing_unit || service.pricingUnit),
     pricingTiers: normalizePricingTiers(service.pricing_tiers || service.pricingTiers),
-    departureDates: normalizeDepartureDates(service.pricing_tiers || service.pricingTiers),
+    departureDates: normalizeDepartureDates(service.departures || service.departureDates || service.pricing_tiers || service.pricingTiers),
     maxGuests: service.max_guests ?? service.maxGuests ?? "",
     includedGuests: service.included_guests ?? service.includedGuests ?? "",
     extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
@@ -1738,6 +1744,7 @@ function serviceRowMatchesStructured(row = {}, service = {}) {
     && sameText(row.image_url, service.imageUrl)
     && sameText(row.image_title, service.imageTitle)
     && sameText(row.image_caption, service.imageCaption)
+    && departureListsMatch(row.departures, service.departureDates)
     && Number(row.display_order || 0) === Number(service.displayOrder || 0)
     && String(row.status || "Active").toUpperCase() === String(service.status || "Active").toUpperCase();
 }
@@ -1746,7 +1753,9 @@ function serviceRowConfirmsPersistence(row = {}, service = {}) {
   const sameText = (left, right) => String(left ?? "").trim() === String(right ?? "").trim();
   const savedStatus = String(row.status || "Active").toUpperCase();
   const expectedStatus = String(service.status || "Active").toUpperCase();
-  return sameText(row.name, service.name) && savedStatus === expectedStatus;
+  return sameText(row.name, service.name)
+    && savedStatus === expectedStatus
+    && (service.departureDates === undefined || departureListsMatch(row.departures, service.departureDates));
 }
 
 function structuredServicesToLegacyText(services = [], bookingTemplate = "GENERAL") {
@@ -1878,8 +1887,9 @@ function setupToServiceRows(setup, slug, requestId) {
     pricing_unit: normalizePricingUnit(service.pricingUnit),
     pricing_type: normalizePricingType(service.pricingType, service.pricingUnit),
     pricing_tiers: bookingTemplate === "TOURS_TRAVEL"
-      ? [...normalizePricingTiers(service.pricingTiers), ...getSavableDepartureDates(service.departureDates).map(departureRecord)]
+      ? normalizePricingTiers(service.pricingTiers)
       : normalizePricingTiers(service.pricingTiers),
+    departures: bookingTemplate === "TOURS_TRAVEL" ? getSavableDepartureDates(service.departureDates) : [],
     max_guests: service.maxGuests,
     included_guests: service.includedGuests,
     extra_guest_fee: service.extraGuestFee,
@@ -3350,6 +3360,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const bookingTone = resolveBusinessTone(business);
   const isClinic = bookingTone === "clinic";
   const isToursTravel = bookingTone === "tours-travel";
+  const isPhisavong = business.slug === "phisavong-world-travel-and-tours";
   const travelSeasonalNoticeTitle = String(
     business.featureFlags?.seasonalRatesNoticeTitle || "Seasonal Rates & Packages",
   ).trim();
@@ -3392,9 +3403,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       pricingType: isToursTravel && !hasTravelRate && storedPricingType !== "GROUP_TIER" ? "CUSTOM_INQUIRY" : storedPricingType,
       pricingTiers: [
         ...normalizePricingTiers(detail?.pricingTiers),
-        ...normalizeDepartureDates(detail?.pricingTiers).map(departureRecord),
       ],
-      departureDates: normalizeDepartureDates(detail?.pricingTiers),
+      departureDates: normalizeDepartureDates(detail?.departureDates || detail?.departures || detail?.pricingTiers),
       maxGuests: detail?.maxGuests ?? null,
       includedGuests: detail?.includedGuests ?? null,
       extraGuestFee: detail?.extraGuestFee ?? null,
@@ -3407,7 +3417,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const selectedServiceNames = allowMultipleServices ? pickedServices : [pickedService].filter(Boolean);
   const selectedServiceDetails = selectedServiceNames.map(getServiceDetail);
   const pickedServiceDetail = getServiceDetail(pickedService);
-  const savedDepartures = isToursTravel ? getUpcomingDepartures(pickedServiceDetail.pricingTiers) : [];
+  const savedDepartures = isToursTravel ? getUpcomingDepartures(pickedServiceDetail.departureDates) : [];
   const hasSavedDepartures = savedDepartures.length > 0;
   const travelServiceKind = isToursTravel ? getTravelServiceKind(pickedService) : "";
   const stayNights = getNightCount(selectedBookingDate, selectedCheckoutDate);
@@ -3684,7 +3694,15 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                 </div>
               )}
             </div>
-            <span><ServiceStepIcon size={22} /></span>
+            <div className="bookingHeaderMarks">
+              {isToursTravel && isPhisavong && (
+                <div className="dotAccreditation" aria-label="DOT Accredited, DOT-R03-TTA-01952-2024">
+                  <img src="/dot-accreditation.png" alt="Department of Tourism Quality Seal" />
+                  <span><strong>DOT Accredited</strong><small>DOT-R03-TTA-01952-2024</small></span>
+                </div>
+              )}
+              <span className="bookingHeaderIcon"><ServiceStepIcon size={22} /></span>
+            </div>
           </div>
 
           {isToursTravel && (
@@ -3712,7 +3730,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                 const isSelected = selectedServiceNames.includes(item);
                 const serviceLink = normalizeServiceLink(detail.imageUrl);
                 const mediaUrl = isConsultant || isToursTravel || !isDirectImageLink(detail.imageUrl) ? "" : normalizeServiceLink(detail.imageUrl);
-                const departures = isToursTravel ? getUpcomingDepartures(detail.pricingTiers) : [];
+                const departures = isToursTravel ? getUpcomingDepartures(detail.departureDates) : [];
                 const consultantInquiryPrice = isConsultant && (detail.price === null || detail.price === "" || Number(detail.price) <= 0);
                 const planLabel = consultantInquiryPrice
                   ? "See Plan Details / Inquire for Pricing"
@@ -6448,7 +6466,7 @@ function ClientDashboard({
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(getTodayDateValue());
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
-  const emptyServiceForm = { id: "", name: "", serviceCategory: "", description: "", price: "", durationMinutes: 60, displayOrder: 0, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [], imageUrl: "", imageTitle: "", imageCaption: "" };
+  const emptyServiceForm = { id: "", name: "", serviceCategory: "", description: "", price: "", durationMinutes: 60, displayOrder: 0, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [], departureDates: [], imageUrl: "", imageTitle: "", imageCaption: "" };
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [clientServiceEntries, setClientServiceEntries] = useState(emptyStructuredServices());
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
@@ -6716,6 +6734,7 @@ function ClientDashboard({
       pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
       pricingUnit: normalizePricingUnit(service.pricing_unit),
       pricingTiers: normalizePricingTiers(service.pricing_tiers),
+      departureDates: normalizeDepartureDates(service.departures || service.pricing_tiers),
       maxGuests: service.max_guests ?? "",
       includedGuests: service.included_guests ?? "",
       extraGuestFee: service.extra_guest_fee ?? "",
@@ -6764,6 +6783,7 @@ function ClientDashboard({
         service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? normalizePricingType(serviceForm.pricingType) : "FIXED",
         service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? normalizePricingUnit(serviceForm.pricingUnit, serviceForm.pricingType) : "FLAT",
         service_pricing_tiers: isClientToursTravel || isClientConsultant ? tierValidation.tiers : [],
+        service_departures: isClientToursTravel ? getSavableDepartureDates(serviceForm.departureDates) : [],
         service_display_order: serviceForm.displayOrder || 0,
         service_max_guests: serviceForm.maxGuests === "" ? null : Number(serviceForm.maxGuests),
         service_included_guests: serviceForm.includedGuests === "" ? null : Number(serviceForm.includedGuests),
@@ -6782,8 +6802,9 @@ function ClientDashboard({
       if (!confirmedService || !serviceRowConfirmsPersistence(confirmedService, {
         name: payload.service_name,
         status: payload.service_status,
+        departureDates: payload.service_departures,
       })) {
-        throw new Error("Service save could not be confirmed from the database.");
+        throw new Error(isClientToursTravel ? "Service details saved, but departure dates/rates did not persist." : "Service save could not be confirmed from the database.");
       }
       const refreshedServiceRows = await supabaseRequest("business_services", {
         query: `?select=*&business_slug=eq.${encodeURIComponent(selectedBusinessSlug)}&order=display_order.asc`,
@@ -6801,6 +6822,7 @@ function ClientDashboard({
           pricingType: service.pricing_type,
           pricingUnit: service.pricing_unit,
           pricingTiers: service.pricing_tiers,
+          departureDates: service.departures,
           serviceCategory: service.service_category || service.serviceCategory || "",
           description: service.description || "",
           imageUrl: service.image_url || "",
@@ -6854,8 +6876,9 @@ function ClientDashboard({
           service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? normalizePricingType(service.pricingType) : "FIXED",
           service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
           service_pricing_tiers: isClientToursTravel
-            ? [...service.pricingTiers, ...getSavableDepartureDates(service.departureDates).map(departureRecord)]
+            ? service.pricingTiers
             : isClientConsultant ? service.pricingTiers : [],
+          service_departures: isClientToursTravel ? service.departureDates : [],
           service_display_order: service.displayOrder,
           service_max_guests: service.maxGuests,
           service_included_guests: service.includedGuests,
@@ -6876,7 +6899,9 @@ function ClientDashboard({
         return !confirmed || !serviceRowConfirmsPersistence(confirmed, service);
       });
       if (unconfirmedService) {
-        throw new Error(`Service save could not be confirmed from the database: ${unconfirmedService.name}.`);
+        throw new Error(isClientToursTravel
+          ? `Service details saved, but departure dates/rates did not persist: ${unconfirmedService.name}.`
+          : `Service save could not be confirmed from the database: ${unconfirmedService.name}.`);
       }
       for (const oldService of clientServices) {
         if (currentIds.has(oldService.id) && !nextIds.has(oldService.id)) {
@@ -6891,6 +6916,7 @@ function ClientDashboard({
           service_pricing_type: oldService.pricing_type || "FIXED",
           service_pricing_unit: oldService.pricing_unit || "FLAT",
           service_pricing_tiers: oldService.pricing_tiers || [],
+          service_departures: oldService.departures || [],
           service_image_url: oldService.image_url || "",
           service_image_title: oldService.image_title || "",
           service_image_caption: oldService.image_caption || "",

@@ -182,6 +182,7 @@ create table if not exists business_services (
   pricing_type text not null default 'FIXED',
   pricing_unit text not null default 'FLAT',
   pricing_tiers jsonb not null default '[]'::jsonb,
+  departures jsonb not null default '[]'::jsonb,
   max_guests integer,
   included_guests integer,
   extra_guest_fee numeric,
@@ -199,6 +200,7 @@ create table if not exists business_services (
 alter table business_services add column if not exists pricing_type text not null default 'FIXED';
 alter table business_services add column if not exists pricing_unit text not null default 'FLAT';
 alter table business_services add column if not exists pricing_tiers jsonb not null default '[]'::jsonb;
+alter table business_services add column if not exists departures jsonb not null default '[]'::jsonb;
 alter table business_services add column if not exists max_guests integer;
 alter table business_services add column if not exists included_guests integer;
 alter table business_services add column if not exists extra_guest_fee numeric;
@@ -848,7 +850,21 @@ as $$
     );
 $$;
 
-create or replace function public.upsert_client_service(
+do $$
+declare
+  function_signature text;
+begin
+  for function_signature in
+    select p.oid::regprocedure::text
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'upsert_client_service'
+  loop
+    execute format('drop function %s', function_signature);
+  end loop;
+end $$;
+
+create function public.upsert_client_service(
   service_id text,
   target_slug text,
   service_name text,
@@ -867,7 +883,8 @@ create or replace function public.upsert_client_service(
   service_image_url text default '',
   service_image_title text default '',
   service_image_caption text default '',
-  service_unit_quantity integer default 1
+  service_unit_quantity integer default 1,
+  service_departures jsonb default '[]'::jsonb
 )
 returns void
 language plpgsql
@@ -888,6 +905,7 @@ begin
     pricing_type,
     pricing_unit,
     pricing_tiers,
+    departures,
     max_guests,
     included_guests,
     extra_guest_fee,
@@ -909,6 +927,7 @@ begin
     coalesce(service_pricing_type, 'FIXED'),
     coalesce(service_pricing_unit, 'FLAT'),
     coalesce(service_pricing_tiers, '[]'::jsonb),
+    coalesce(service_departures, '[]'::jsonb),
     service_max_guests,
     service_included_guests,
     service_extra_guest_fee,
@@ -929,6 +948,7 @@ begin
     pricing_type = excluded.pricing_type,
     pricing_unit = excluded.pricing_unit,
     pricing_tiers = excluded.pricing_tiers,
+    departures = excluded.departures,
     max_guests = excluded.max_guests,
     included_guests = excluded.included_guests,
     extra_guest_fee = excluded.extra_guest_fee,
@@ -1307,7 +1327,7 @@ $$;
 
 grant execute on function public.business_has_package_capability(text, text) to authenticated;
 grant execute on function public.delete_client_booking(text) to authenticated;
-grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb, integer, integer, integer, numeric, text, text, text, text, integer) to authenticated;
+grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb, integer, integer, integer, numeric, text, text, text, text, integer, jsonb) to authenticated;
 grant execute on function public.delete_client_service(text) to authenticated;
 grant execute on function public.update_client_availability(text, text, text, jsonb) to authenticated;
 grant execute on function public.upsert_client_blocked_date(text, text, date, text) to authenticated;
