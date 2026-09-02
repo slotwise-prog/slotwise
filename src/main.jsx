@@ -3390,7 +3390,10 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       price: detail?.price ?? null,
       pricingUnit: normalizePricingUnit(detail?.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT"),
       pricingType: isToursTravel && !hasTravelRate && storedPricingType !== "GROUP_TIER" ? "CUSTOM_INQUIRY" : storedPricingType,
-      pricingTiers: normalizePricingTiers(detail?.pricingTiers),
+      pricingTiers: [
+        ...normalizePricingTiers(detail?.pricingTiers),
+        ...normalizeDepartureDates(detail?.pricingTiers).map(departureRecord),
+      ],
       departureDates: normalizeDepartureDates(detail?.pricingTiers),
       maxGuests: detail?.maxGuests ?? null,
       includedGuests: detail?.includedGuests ?? null,
