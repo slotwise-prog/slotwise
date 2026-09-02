@@ -67,6 +67,17 @@ import {
   Moon,
   Shirt,
   WashingMachine,
+  Luggage,
+  Palmtree,
+  Binoculars,
+  Leaf,
+  FileCheck,
+  BusFront,
+  CircleHelp,
+  Globe,
+  Mail,
+  Smartphone,
+  MessageCircle,
 } from "lucide-react";
 import "./styles.css";
 
@@ -219,6 +230,19 @@ function resolveServiceIcon(serviceName = "", business = {}) {
   const isHomeService = hasKeyword(businessText, ["aircon", "air con", "hvac", "home", "cleaning", "repair", "maintenance", "plumbing", "electrical", "appliance"]);
   const isAuto = hasKeyword(businessText, ["car", "auto", "wash", "detailing", "motorcycle", "vehicle"]);
 
+  if (isToursTravel && hasKeyword(serviceText, ["airline", "flight", "ticketing"])) return Plane;
+  if (isToursTravel && hasKeyword(serviceText, ["holiday", "vacation"])) return Palmtree;
+  if (isToursTravel && hasKeyword(serviceText, ["group tour", "f.i.t", "fit tour"])) return Users;
+  if (isToursTravel && hasKeyword(serviceText, ["series tour"])) return MapIcon;
+  if (isToursTravel && hasKeyword(serviceText, ["sightseeing"])) return Binoculars;
+  if (isToursTravel && hasKeyword(serviceText, ["eco", "agro"])) return Leaf;
+  if (isToursTravel && hasKeyword(serviceText, ["educational"])) return GraduationCap;
+  if (isToursTravel && hasKeyword(serviceText, ["health", "wellness"])) return HeartPulse;
+  if (isToursTravel && hasKeyword(serviceText, ["cruise", "ferry"])) return Ship;
+  if (isToursTravel && hasKeyword(serviceText, ["visa"])) return FileCheck;
+  if (isToursTravel && hasKeyword(serviceText, ["insurance"])) return ShieldCheck;
+  if (isToursTravel && hasKeyword(serviceText, ["transport", "bus", "shuttle"])) return BusFront;
+  if (isToursTravel && hasKeyword(serviceText, ["other", "inquiry"])) return CircleHelp;
   if (hasKeyword(serviceText, ["city tour"])) return MapPinned;
   if (hasKeyword(serviceText, ["island hopping", "island", "boat", "ferry"])) return Ship;
   if (hasKeyword(serviceText, ["van rental", "van service", "private van"])) return Van;
@@ -229,7 +253,7 @@ function resolveServiceIcon(serviceName = "", business = {}) {
   if (hasKeyword(serviceText, ["adventure", "hiking", "trek", "mountain"])) return Mountain;
   if (hasKeyword(serviceText, ["photography", "photo"])) return Camera;
   if (hasKeyword(serviceText, ["food tour", "food crawl", "culinary"])) return Utensils;
-  if (hasKeyword(serviceText, ["tour", "travel", "package", "trip"])) return MapIcon;
+  if (hasKeyword(serviceText, ["tour", "travel", "package", "trip"])) return isToursTravel ? Luggage : MapIcon;
 
   if (hasKeyword(serviceText, ["villa", "cabin", "house"])) return House;
   if (hasKeyword(serviceText, ["room", "suite", "bed"])) return BedDouble;
@@ -834,6 +858,23 @@ function formatServicePriceLabel(detail = {}, fallbackPricingType = "FIXED") {
   return base;
 }
 
+function getTravelServiceKind(serviceName = "") {
+  const value = serviceName.toLowerCase();
+  if (hasKeyword(value, ["airline", "flight", "ticketing"])) return "AIRLINE";
+  if (hasKeyword(value, ["visa"])) return "VISA";
+  if (hasKeyword(value, ["insurance"])) return "INSURANCE";
+  if (hasKeyword(value, ["transport", "transfer", "shuttle", "van", "car rental"])) return "TRANSPORT";
+  if (hasKeyword(value, ["cruise", "ferry"])) return "ROUTE";
+  return "TOUR";
+}
+
+function getTravelPriceLabel(detail = {}) {
+  const hasPrice = detail.price !== null && detail.price !== "" && detail.price !== undefined && Number(detail.price) > 0;
+  const hasTiers = normalizePricingTiers(detail.pricingTiers).length > 0;
+  if (!hasPrice && !hasTiers) return "Contact for Rate";
+  return formatServicePriceLabel(detail, detail.pricingType || "FIXED");
+}
+
 function getPackageCapabilities(value, featureFlags = {}) {
   const packageKey = normalizePackage(value);
   const base = packageCapabilityMap[packageKey];
@@ -1087,6 +1128,10 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     pageBackgroundType: (row.page_background_type || row.pageBackgroundType || "SOLID").toUpperCase(),
     phone: row.phone || "",
     messengerLink: row.messenger_link || "",
+    mobileNumbers: row.feature_flags?.mobileNumbers || "",
+    primaryEmail: row.feature_flags?.primaryEmail || "",
+    additionalEmails: row.feature_flags?.additionalEmails || "",
+    website: row.feature_flags?.website || "",
     address: row.address || "",
     description: row.description || "",
     businessType: row.business_type || row.industry || "Service business",
@@ -1207,6 +1252,10 @@ function normalizeBusinessConfig(business) {
     pageBackgroundColor2: normalizeHexColor(business.pageBackgroundColor2 || business.page_background_color_2, ""),
     phone: business.phone || "",
     messengerLink: business.messengerLink || "",
+    mobileNumbers: business.mobileNumbers || business.featureFlags?.mobileNumbers || "",
+    primaryEmail: business.primaryEmail || business.featureFlags?.primaryEmail || "",
+    additionalEmails: business.additionalEmails || business.featureFlags?.additionalEmails || "",
+    website: business.website || business.featureFlags?.website || "",
     address: business.address || "",
     description: business.description || (tone === "home-service"
       ? "Professional service for homes and businesses."
@@ -1630,7 +1679,7 @@ function parseServicesToStructured(value, bookingTemplate = "GENERAL") {
 
 function getServiceManagerCopy(bookingTemplate = "GENERAL") {
   const template = normalizeBookingTemplate(bookingTemplate);
-  if (template === "TOURS_TRAVEL") return { title: "Tour Packages", single: "Tour package", add: "Add Another Package" };
+  if (template === "TOURS_TRAVEL") return { title: "Travel Services & Packages", single: "Travel service / package", add: "Add Another Service / Package" };
   if (template === "STAYCATION_ACCOMMODATION") return { title: "Rooms / Units", single: "Room / unit", add: "Add Room / Unit" };
   if (template === "PROFESSIONAL_SERVICES") return { title: "Plans & Services", single: "Plan / product", add: "Add Another Plan" };
   if (template === "CAR_WASH") return { title: "Car Wash Services", single: "Car wash service", add: "Add Another Service" };
@@ -1703,7 +1752,14 @@ function setupToBusinessDatabase(setup, slug) {
     booking_mode: setup.bookingMode || "booking",
     booking_template: normalizeBookingTemplate(setup.bookingTemplate),
     business_package: normalizePackage(setup.package),
-    feature_flags: { ...defaultFeatureFlags, ...(setup.featureFlags || {}) },
+    feature_flags: {
+      ...defaultFeatureFlags,
+      ...(setup.featureFlags || {}),
+      mobileNumbers: setup.mobileNumbers || "",
+      primaryEmail: setup.primaryEmail || "",
+      additionalEmails: setup.additionalEmails || "",
+      website: setup.website || "",
+    },
     status: (setup.status || "DEMO").toUpperCase(),
     demo_started_at: setup.demoStartedAt || null,
     demo_expires_at: setup.demoExpiresAt || null,
@@ -2487,6 +2543,10 @@ function App() {
     await supabaseRpcRequest("update_client_availability", availabilityData, accessToken);
   };
 
+  const saveClientBusinessProfile = async (profileData, accessToken = "") => {
+    await supabaseRpcRequest("update_client_business_profile", profileData, accessToken);
+  };
+
   const saveClientBlockedDate = async (blockedDateData, accessToken = "") => {
     await supabaseRpcRequest("upsert_client_blocked_date", blockedDateData, accessToken);
   };
@@ -2634,6 +2694,7 @@ function App() {
         onSaveService={saveClientService}
         onDeleteService={deleteClientService}
         onSaveAvailability={saveClientAvailability}
+        onSaveBusinessProfile={saveClientBusinessProfile}
         onSaveBlockedDate={saveClientBlockedDate}
         onSetBlockedDateActive={setClientBlockedDateActive}
         onSavePaymentSettings={saveClientPaymentSettings}
@@ -3132,6 +3193,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const [guestCount, setGuestCount] = useState(2);
   const [adultCount, setAdultCount] = useState(2);
   const [childCount, setChildCount] = useState(0);
+  const [infantCount, setInfantCount] = useState(0);
+  const [travelDetails, setTravelDetails] = useState({ tripType: "ROUND_TRIP", origin: "", destination: "", returnDate: "", applicants: 1, pickupLocation: "" });
   const [confirmed, setConfirmed] = useState(null);
   const [bookingError, setBookingError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -3159,28 +3222,30 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const templateCopy = getBookingTemplateCopy(business.bookingTemplate, business);
   const brandCategory = templateCopy.category;
   const brandLine = templateCopy.tagline;
-  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Book Your Tour" : isLaundry ? "Book Laundry Pickup" : isConsultant ? "Plans & Services" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
-  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Choose your tour package and preferred travel date.") : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
-  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Tour Package" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
+  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Plan Your Trip" : isLaundry ? "Book Laundry Pickup" : isConsultant ? "Plans & Services" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
+  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Explore more. Travel with confidence.") : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
+  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Travel Services" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
   const ServiceStepIcon = resolveTemplateSectionIcon(business.bookingTemplate);
   const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Date" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
   const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : isLaundry ? "Pickup Time" : "";
-  const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Guest Details" : isLaundry ? "Pickup Details" : isHomeService ? "Your contact details" : "Your details";
+  const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Traveler Information" : isLaundry ? "Pickup Details" : isHomeService ? "Your contact details" : "Your details";
   const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isLaundry ? "Laundry notes" : isConsultant ? "Inquiry / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
   const notePlaceholder = isAccommodation ? "Arrival notes, requests, or questions for the host" : isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isLaundry ? "Fabric care, folding instructions, delivery notes, or special requests" : isConsultant ? "Tell us which plan you need, coverage questions, or who should contact you." : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
-  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Reservation Request" : isLaundry ? "Submit Pickup Request" : isConsultant ? "Send Inquiry" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
+  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Travel Inquiry" : isLaundry ? "Submit Pickup Request" : isConsultant ? "Send Inquiry" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
   const paymentSettings = business.paymentSettings || {};
   const paymentMethods = (business.paymentMethods || []).filter((method) => method.active !== false);
   const allowMultipleServices = Boolean(flags.allowMultipleServices);
   const getServiceDetail = (serviceName) => {
     const detail = business.serviceDetails?.find((item) => item.name === serviceName);
+    const hasTravelRate = detail?.price !== null && detail?.price !== "" && detail?.price !== undefined;
+    const storedPricingType = normalizePricingType(detail?.pricingType, isAccommodation ? "PER_NIGHT" : isToursTravel ? detail?.pricingUnit || "FIXED" : "FIXED");
     return {
       id: detail?.id || null,
       name: serviceName,
       durationMinutes: detail?.durationMinutes ?? null,
       price: detail?.price ?? null,
       pricingUnit: normalizePricingUnit(detail?.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT"),
-      pricingType: normalizePricingType(detail?.pricingType, isAccommodation ? "PER_NIGHT" : isToursTravel ? detail?.pricingUnit || "PER_PAX" : "FIXED"),
+      pricingType: isToursTravel && !hasTravelRate && storedPricingType !== "GROUP_TIER" ? "CUSTOM_INQUIRY" : storedPricingType,
       pricingTiers: normalizePricingTiers(detail?.pricingTiers),
       maxGuests: detail?.maxGuests ?? null,
       includedGuests: detail?.includedGuests ?? null,
@@ -3194,6 +3259,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const selectedServiceNames = allowMultipleServices ? pickedServices : [pickedService].filter(Boolean);
   const selectedServiceDetails = selectedServiceNames.map(getServiceDetail);
   const pickedServiceDetail = getServiceDetail(pickedService);
+  const travelServiceKind = isToursTravel ? getTravelServiceKind(pickedService) : "";
   const stayNights = getNightCount(selectedBookingDate, selectedCheckoutDate);
   const accommodationGuests = adultCount + childCount;
   const needsGuestCount = isAccommodation || selectedServiceDetails.some((detail) => ["PER_PAX", "GROUP_TIER"].includes(normalizePricingType(detail.pricingType, detail.pricingUnit)));
@@ -3201,6 +3267,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const pickedPricing = bookingCalculation.lineItems[0] || calculateLineItem(pickedServiceDetail, { pax: guestCount, nights: stayNights || 1, totalGuests: accommodationGuests });
   const pickedPricingUnit = normalizePricingUnit(pickedServiceDetail.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT");
   const estimatedTotal = bookingCalculation.estimatedTotal;
+  const isQuoteOnlySelection = bookingCalculation.lineItems.length > 0 && bookingCalculation.lineItems.every((item) => isInquiryPricingType(item.pricingType));
   const primaryServiceLabel = selectedServiceNames.length > 1 ? `${selectedServiceNames.length} Services` : selectedServiceNames[0] || pickedService;
   const servicePriceLabel = (detail) => {
     return formatServicePriceLabel(detail, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FIXED");
@@ -3226,6 +3293,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
     setGuestCount(2);
     setAdultCount(2);
     setChildCount(0);
+    setInfantCount(0);
+    setTravelDetails({ tripType: "ROUND_TRIP", origin: "", destination: "", returnDate: "", applicants: 1, pickupLocation: "" });
     setConfirmed(null);
     setBookingError("");
     setPaymentOpen(false);
@@ -3299,6 +3368,15 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
         line_items: submittedCalculation.lineItems,
         allow_multiple_services: allowMultipleServices,
         pickup_location: pickupLocation,
+        traveler_email: isToursTravel ? String(data.get("email") || "").trim() : undefined,
+        travel_service_kind: isToursTravel ? travelServiceKind : undefined,
+        trip_type: isToursTravel && travelServiceKind === "AIRLINE" ? travelDetails.tripType : undefined,
+        origin: isToursTravel && travelServiceKind === "AIRLINE" ? String(data.get("origin") || "").trim() : undefined,
+        destination: isToursTravel ? String(data.get("destination") || "").trim() : undefined,
+        return_date: isToursTravel ? String(data.get("returnDate") || "").trim() : undefined,
+        child_count: isToursTravel && travelServiceKind === "AIRLINE" ? childCount : undefined,
+        infant_count: isToursTravel && travelServiceKind === "AIRLINE" ? infantCount : undefined,
+        applicant_count: isToursTravel && travelServiceKind === "VISA" ? Math.max(1, Number(data.get("applicantCount") || 1)) : undefined,
       },
       bookingItems: submittedCalculation.lineItems,
     };
@@ -3424,14 +3502,18 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
             <div>
               <h2>{headingText}</h2>
               <p>{headerSubtext}</p>
-              {(business.phone || business.address) && (
+              {(business.phone || business.mobileNumbers || business.primaryEmail || business.website || business.address) && (
                 <div className="bookingContactLine">
-                  {business.phone && <span><Phone size={13} /><strong>Phone</strong>{business.phone}</span>}
+                  {business.phone && <span><Phone size={13} /><strong>Office</strong>{business.phone}</span>}
+                  {business.mobileNumbers && <span><Smartphone size={13} /><strong>Mobile</strong>{business.mobileNumbers}</span>}
+                  {business.primaryEmail && <span><Mail size={13} /><strong>Email</strong>{business.primaryEmail}</span>}
+                  {business.website && <a href={normalizeServiceLink(business.website)} target="_blank" rel="noopener noreferrer"><Globe size={13} /><strong>Visit Website</strong></a>}
+                  {business.messengerLink && <a href={normalizeServiceLink(business.messengerLink)} target="_blank" rel="noopener noreferrer"><MessageCircle size={13} /><strong>Messenger</strong></a>}
                   {business.address && <span><MapPinned size={13} /><strong>Address</strong>{business.address}</span>}
                 </div>
               )}
             </div>
-            <span>{isToursTravel ? <MapPinned size={22} /> : <Sparkles size={22} />}</span>
+            <span><ServiceStepIcon size={22} /></span>
           </div>
 
           {flags.bookingEnabled && (
@@ -3480,6 +3562,18 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                         )}
                       </div>
                     </article>
+                  ) : isToursTravel ? (
+                    <article key={detail.id || item} className={isSelected ? "premiumService active travelServiceCard" : "premiumService travelServiceCard"}>
+                      <button type="button" className="travelServiceSelect" onClick={() => toggleService(item)} aria-pressed={isSelected}>
+                        <span className="serviceIcon">{mediaUrl ? <img src={mediaUrl} alt="" /> : <ServiceIcon size={22} />}</span>
+                        <strong>{detail.imageTitle || item}</strong>
+                        {detail.description && <p className="serviceDescription">{detail.description}</p>}
+                        <small>{getTravelPriceLabel(detail)}</small>
+                        <span className="travelSelectLabel">{isSelected ? "Selected" : "Select"}</span>
+                        {isSelected && <em><Check size={16} /></em>}
+                      </button>
+                      {serviceLink && <a className="travelDetailsLink" href={serviceLink} target="_blank" rel="noopener noreferrer">View Package Details <ExternalLink size={15} /></a>}
+                    </article>
                   ) : (
                     <button type="button" key={detail.id || item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
                       <span className={isConsultant ? "serviceIcon consultantPlanIcon" : "serviceIcon"}>{mediaUrl ? <img src={mediaUrl} alt="" /> : <ServiceIcon size={22} />}</span>
@@ -3497,9 +3591,33 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
           </div>
           )}
 
+          {isToursTravel && (
+            <div className="bookingStep travelDetailsStep">
+              <div className="bookingStepTitle"><span>2</span><strong><MapPinned size={16} />Travel Details</strong></div>
+              {travelServiceKind === "AIRLINE" && (
+                <>
+                  <label className="premiumInput"><Plane size={20} /><span>Trip Type<select name="tripType" value={travelDetails.tripType} onChange={(event) => setTravelDetails((current) => ({ ...current, tripType: event.target.value }))}><option value="ONE_WAY">One Way</option><option value="ROUND_TRIP">Round Trip</option></select></span></label>
+                  <label className="premiumInput"><PlaneLanding size={20} /><span>Origin / From<input name="origin" value={travelDetails.origin} onChange={(event) => setTravelDetails((current) => ({ ...current, origin: event.target.value }))} required placeholder="Departure city or airport" /></span></label>
+                </>
+              )}
+              <label className="premiumInput"><MapPin size={20} /><span>{travelServiceKind === "VISA" ? "Destination Country" : travelServiceKind === "TRANSPORT" ? "Destination" : travelServiceKind === "ROUTE" ? "Destination / Route" : "Destination"}<input name="destination" value={travelDetails.destination} onChange={(event) => setTravelDetails((current) => ({ ...current, destination: event.target.value }))} required placeholder="Where do you want to go?" /></span></label>
+              {(travelServiceKind === "AIRLINE" && travelDetails.tripType === "ROUND_TRIP" || travelServiceKind === "INSURANCE") && <label className="premiumInput"><CalendarDays size={20} /><span>Return Date<input name="returnDate" type="date" min={selectedBookingDate || getTodayDateValue()} value={travelDetails.returnDate} onChange={(event) => setTravelDetails((current) => ({ ...current, returnDate: event.target.value }))} required /></span></label>}
+              {travelServiceKind === "AIRLINE" && (
+                <div className="travelPassengerGrid">
+                  <label>Adults<input name="guestCount" type="number" min="1" value={guestCount} onChange={(event) => setGuestCount(Math.max(1, Number(event.target.value) || 1))} /></label>
+                  <label>Children<input name="childCount" type="number" min="0" value={childCount} onChange={(event) => setChildCount(Math.max(0, Number(event.target.value) || 0))} /></label>
+                  <label>Infants<input name="infantCount" type="number" min="0" value={infantCount} onChange={(event) => setInfantCount(Math.max(0, Number(event.target.value) || 0))} /></label>
+                </div>
+              )}
+              {travelServiceKind === "VISA" && <label className="premiumInput"><Users size={20} /><span>Number of Applicants<input name="applicantCount" type="number" min="1" value={travelDetails.applicants} onChange={(event) => setTravelDetails((current) => ({ ...current, applicants: Math.max(1, Number(event.target.value) || 1) }))} required /></span></label>}
+              {travelServiceKind === "TRANSPORT" && <label className="premiumInput"><MapPinned size={20} /><span>Pickup Location<input name="address" value={travelDetails.pickupLocation} onChange={(event) => setTravelDetails((current) => ({ ...current, pickupLocation: event.target.value }))} required placeholder="Pickup address or landmark" /></span></label>}
+              {!['AIRLINE', 'VISA'].includes(travelServiceKind) && <label className="premiumInput"><Users size={20} /><span>Number of Travelers<input name="guestCount" type="number" min="1" value={guestCount} onChange={(event) => setGuestCount(Math.max(1, Number(event.target.value) || 1))} required /></span></label>}
+            </div>
+          )}
+
           {(flags.requireTime || isAccommodation) && (
           <div className="bookingStep">
-            <div className="bookingStepTitle"><span>2</span><strong>{timeStepLabel}</strong></div>
+            <div className="bookingStepTitle"><span>{isToursTravel ? 3 : 2}</span><strong>{timeStepLabel}</strong></div>
             {isBlockedDate && (
               <div className="clientStatusNotice unpaid">
                 <strong>Date unavailable</strong>
@@ -3544,9 +3662,10 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
           )}
 
           <div className="bookingStep">
-            <div className="bookingStepTitle"><span>3</span><strong>{detailsStepLabel}</strong></div>
+            <div className="bookingStepTitle"><span>{isToursTravel ? 4 : 3}</span><strong>{detailsStepLabel}</strong></div>
             <label className="premiumInput"><User size={20} /><span>{isAccommodation ? "Full Name" : "Your name"}<input name="customer" required placeholder="Maria Santos" /></span></label>
             <label className="premiumInput"><Phone size={20} /><span>{isAccommodation ? "Mobile Number" : "Phone or contact number"}<input name="contact" required placeholder="0912 345 6789" /></span></label>
+            {isToursTravel && <label className="premiumInput"><Mail size={20} /><span>Email (optional)<input name="email" type="email" placeholder="name@example.com" /></span></label>}
             {isAccommodation ? (
               <div className="accommodationGuestGrid">
                 <label className="guestStepper">
@@ -3566,7 +3685,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                   </div>
                 </label>
               </div>
-            ) : needsGuestCount && (
+            ) : needsGuestCount && !isToursTravel && (
               <label className="guestStepper">
                 <span>{isToursTravel ? "Total guests" : "Quantity / pax"}</span>
                 <div>
@@ -3576,25 +3695,25 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                 </div>
               </label>
             )}
-            {flags.requireAddress && <label className="premiumInput"><House size={20} /><span>{isToursTravel ? "Pickup Location / Hotel" : isHomeService ? "Service address" : "Address"}<input name="address" required placeholder={isToursTravel ? "Hotel, airport, pier, or pickup area" : "Street, barangay, city"} /></span></label>}
+            {flags.requireAddress && !isToursTravel && <label className="premiumInput"><House size={20} /><span>{isHomeService ? "Service address" : "Address"}<input name="address" required placeholder="Street, barangay, city" /></span></label>}
             <label className="premiumInput"><FileText size={20} /><span>{noteLabel}<textarea name="note" placeholder={notePlaceholder} rows="3" /></span></label>
           </div>
 
           {(isToursTravel || allowMultipleServices || flags.showPrices) && (
             <div className="reservationSummary">
-              <span>Booking Summary</span>
+              <span>{isToursTravel ? "Travel Inquiry Summary" : "Booking Summary"}</span>
               <strong>{primaryServiceLabel}</strong>
               <p>{selectedDateLabel} {flags.requireTime ? `at ${pickedSlot}` : ""}{needsGuestCount ? ` • ${guestCount} ${isToursTravel ? "guest" : "pax"}${guestCount > 1 ? "s" : ""}` : ""}</p>
               <div className="bookingLineItems">
                 {bookingCalculation.lineItems.map((item) => (
                   <div key={item.serviceName}>
                     <span>{item.serviceName}<small>{item.lineLabel}</small></span>
-                    <strong>{item.lineTotal === null ? "Pricing unavailable" : formatPeso(item.lineTotal)}</strong>
+                    <strong>{item.lineTotal === null ? (isToursTravel ? "Request Quote" : "Pricing unavailable") : formatPeso(item.lineTotal)}</strong>
                   </div>
                 ))}
               </div>
               {!bookingCalculation.totalAvailable && <em>This booking option needs pricing configured before it can be submitted.</em>}
-              {flags.showPrices && bookingCalculation.totalAvailable && <em>Estimated total: {formatPeso(estimatedTotal)}</em>}
+              {flags.showPrices && bookingCalculation.totalAvailable && !isQuoteOnlySelection && <em>Estimated total: {formatPeso(estimatedTotal)}</em>}
             </div>
           )}
 
@@ -3841,7 +3960,7 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
               {expanded && (
                 <div className="structuredServiceFields">
                   <input value={service.name} onChange={(event) => updateService(index, { name: event.target.value })} placeholder={`${copy.single} name`} />
-                  {normalizeBookingTemplate(bookingTemplate) === "PROFESSIONAL_SERVICES" && <input value={service.serviceCategory || ""} onChange={(event) => updateService(index, { serviceCategory: event.target.value })} placeholder="Category / label" />}
+                  {(isConsultant || isTravel) && <input value={service.serviceCategory || ""} onChange={(event) => updateService(index, { serviceCategory: event.target.value })} placeholder="Category / label" />}
                   <input value={service.description} onChange={(event) => updateService(index, { description: event.target.value })} placeholder="Description" />
                   <input type="number" min="0" value={service.price} onChange={(event) => updateService(index, { price: event.target.value })} placeholder={isAccommodation ? "Price per night" : "Price"} />
                   {!isAccommodation && <input type="number" min="0" value={service.durationMinutes} onChange={(event) => updateService(index, { durationMinutes: event.target.value })} placeholder="Duration in minutes" />}
@@ -4392,6 +4511,10 @@ function emptyAdminClient() {
     demoExpiresAt: null,
     contact: "",
     facebookPage: "",
+    mobileNumbers: "",
+    primaryEmail: "",
+    additionalEmails: "",
+    website: "",
     address: "",
     rules: "Book online in less than a minute. Choose a service, pick a time, and get confirmation.",
     logo: "",
@@ -4430,6 +4553,10 @@ function businessToAdminClient(business) {
     demoExpiresAt: business.demoExpiresAt || null,
     contact: business.phone || "",
     facebookPage: business.messengerLink || "",
+    mobileNumbers: business.mobileNumbers || "",
+    primaryEmail: business.primaryEmail || "",
+    additionalEmails: business.additionalEmails || "",
+    website: business.website || "",
     address: business.address || "",
     rules: business.description || "",
     logo: business.logo || "",
@@ -5455,6 +5582,10 @@ After login, you will only see the bookings and features assigned to your busine
               <option value="booking-inquiry">Booking + Inquiry</option>
             </select></label>
             <label>Phone/contact<input name="contact" value={form.contact} onChange={updateForm} /></label>
+            <label>Mobile numbers<input name="mobileNumbers" value={form.mobileNumbers} onChange={updateForm} placeholder="One or more mobile numbers" /></label>
+            <label>Primary email<input name="primaryEmail" type="email" value={form.primaryEmail} onChange={updateForm} /></label>
+            <label>Additional emails<input name="additionalEmails" value={form.additionalEmails} onChange={updateForm} placeholder="Comma-separated" /></label>
+            <label>Official website<input name="website" type="url" value={form.website} onChange={updateForm} placeholder="https://example.com" /></label>
             <label>Messenger/contact link<input name="facebookPage" value={form.facebookPage} onChange={updateForm} /></label>
             <label>Address<input name="address" value={form.address} onChange={updateForm} /></label>
             <label>Primary color<input name="primaryColor" type="color" value={form.primaryColor} onChange={updateForm} /></label>
@@ -6025,6 +6156,7 @@ function ClientDashboard({
   onSaveService,
   onDeleteService,
   onSaveAvailability,
+  onSaveBusinessProfile,
   onSaveBlockedDate,
   onSetBlockedDateActive,
   onSavePaymentSettings,
@@ -6057,6 +6189,7 @@ function ClientDashboard({
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [clientServiceEntries, setClientServiceEntries] = useState(emptyStructuredServices());
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
+  const [profileForm, setProfileForm] = useState({ businessName: "", description: "", phone: "", mobileNumbers: "", primaryEmail: "", additionalEmails: "", website: "", messengerLink: "", logo: "", primaryColor: "#b68a2c", accentColor: "#f6e8ba" });
   const [blockedDateForm, setBlockedDateForm] = useState({ blockedDate: "", reason: "" });
   const [paymentMethodForm, setPaymentMethodForm] = useState({ method_type: "GCASH", method_name: "GCash", account_name: "", account_number: "", instructions: "", active: true });
   const [serviceImageUploading, setServiceImageUploading] = useState(false);
@@ -6117,10 +6250,24 @@ function ClientDashboard({
 
     setBusinessUsers(mappings);
     setSelectedBusinessSlug(chosenSlug);
-    setClientBusiness(normalizeBusinessConfig(normalizeDatabaseBusiness(businessRow, serviceRows, {
+    const normalizedClientBusiness = normalizeBusinessConfig(normalizeDatabaseBusiness(businessRow, serviceRows, {
       ...(availabilityRow || {}),
       blocked_dates: blockedDateRows || [],
-    }, paymentSettingsRow || null, paymentMethodRows || [])));
+    }, paymentSettingsRow || null, paymentMethodRows || []));
+    setClientBusiness(normalizedClientBusiness);
+    setProfileForm({
+      businessName: normalizedClientBusiness.business || "",
+      description: normalizedClientBusiness.description || "",
+      phone: normalizedClientBusiness.phone || "",
+      mobileNumbers: normalizedClientBusiness.mobileNumbers || "",
+      primaryEmail: normalizedClientBusiness.primaryEmail || "",
+      additionalEmails: normalizedClientBusiness.additionalEmails || "",
+      website: normalizedClientBusiness.website || "",
+      messengerLink: normalizedClientBusiness.messengerLink || "",
+      logo: normalizedClientBusiness.logo || "",
+      primaryColor: normalizedClientBusiness.primaryColor || "#b68a2c",
+      accentColor: normalizedClientBusiness.accentColor || "#f6e8ba",
+    });
     const visibleServiceRows = filterLegacyToursSeedRows(serviceRows || [], businessRow?.booking_template);
     setClientBookings(attachBookingItems(bookingRows || [], bookingItemRows || []));
     setClientServices(visibleServiceRows);
@@ -6542,6 +6689,31 @@ function ClientDashboard({
       setStatusMessage("Schedule saved.");
     } catch (error) {
       setStatusMessage(error.message);
+    }
+  };
+
+  const submitBusinessProfile = async (event) => {
+    event.preventDefault();
+    setStatusMessage("Saving business details...");
+    try {
+      await onSaveBusinessProfile({
+        target_slug: selectedBusinessSlug,
+        business_name_value: profileForm.businessName,
+        description_value: profileForm.description,
+        phone_value: profileForm.phone,
+        mobile_numbers_value: profileForm.mobileNumbers,
+        primary_email_value: profileForm.primaryEmail,
+        additional_emails_value: profileForm.additionalEmails,
+        website_value: profileForm.website,
+        messenger_link_value: profileForm.messengerLink,
+        logo_url_value: profileForm.logo,
+        primary_color_value: profileForm.primaryColor,
+        accent_color_value: profileForm.accentColor,
+      }, clientSession?.access_token);
+      await loadClientData(clientSession);
+      setStatusMessage("Business details saved.");
+    } catch (error) {
+      setStatusMessage(error.message || "Business details could not be saved.");
     }
   };
 
@@ -6981,6 +7153,20 @@ function ClientDashboard({
             <section className="clientAccountPanel">
               <p className="eyebrow">Account</p>
               <h2>{clientBusiness?.business}</h2>
+              <form className="clientManagementForm" onSubmit={submitBusinessProfile}>
+                <input value={profileForm.businessName} onChange={(event) => setProfileForm((current) => ({ ...current, businessName: event.target.value }))} placeholder="Business name" required />
+                <textarea value={profileForm.description} onChange={(event) => setProfileForm((current) => ({ ...current, description: event.target.value }))} placeholder="Business description or tagline" rows="3" />
+                <input value={profileForm.phone} onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))} placeholder="Office phone" />
+                <input value={profileForm.mobileNumbers} onChange={(event) => setProfileForm((current) => ({ ...current, mobileNumbers: event.target.value }))} placeholder="Mobile numbers" />
+                <input type="email" value={profileForm.primaryEmail} onChange={(event) => setProfileForm((current) => ({ ...current, primaryEmail: event.target.value }))} placeholder="Primary business email" />
+                <input value={profileForm.additionalEmails} onChange={(event) => setProfileForm((current) => ({ ...current, additionalEmails: event.target.value }))} placeholder="Additional emails" />
+                <input type="url" value={profileForm.website} onChange={(event) => setProfileForm((current) => ({ ...current, website: event.target.value }))} placeholder="Official website" />
+                <input value={profileForm.messengerLink} onChange={(event) => setProfileForm((current) => ({ ...current, messengerLink: event.target.value }))} placeholder="Messenger link" />
+                <input type="url" value={profileForm.logo} onChange={(event) => setProfileForm((current) => ({ ...current, logo: event.target.value }))} placeholder="Logo URL" />
+                <label>Primary color<input type="color" value={profileForm.primaryColor} onChange={(event) => setProfileForm((current) => ({ ...current, primaryColor: event.target.value }))} /></label>
+                <label>Accent color<input type="color" value={profileForm.accentColor} onChange={(event) => setProfileForm((current) => ({ ...current, accentColor: event.target.value }))} /></label>
+                <button type="submit">Save business details</button>
+              </form>
               <p><strong>Email:</strong> {clientSession?.user?.email}</p>
               <p><strong>Role:</strong> {currentRole}</p>
               <p><strong>Package:</strong> {packageOptions.find((item) => item.value === capabilities.packageKey)?.label || "Starter"}</p>
