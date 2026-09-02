@@ -3492,6 +3492,16 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
     });
   };
 
+  const selectTravelDeparture = (serviceName, detail, departure) => {
+    setPickedService(serviceName);
+    setPickedServices((current) => current.includes(serviceName) ? current : [...current, serviceName]);
+    setSelectedDeparture({ ...departure, serviceId: detail.id, serviceName });
+    setSelectedBookingDate(departure.startDate);
+    setSelectedCheckoutDate(departure.endDate || "");
+    setDeparturePanelService(detail.id);
+    setTravelActiveStep(2);
+  };
+
   const submitBooking = async (event) => {
     event.preventDefault();
     const bookingForm = event.currentTarget;
@@ -3792,7 +3802,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                               {departures.map((departure) => (
                                 <div className="travelDepartureRow" key={departure.id}>
                                   <span><b>{departureDateLabel(departure)}</b><small>{formatPeso(departure.price)} / {departure.pricingUnit === "PER_PAX" ? "pax" : departure.pricingUnit.replace("PER_", "").toLowerCase()}</small></span>
-                                  {departure.status === "AVAILABLE" ? <button type="button" onClick={() => { toggleService(item); setSelectedDeparture({ ...departure, serviceId: detail.id }); setSelectedBookingDate(departure.startDate); if (departure.endDate) setSelectedCheckoutDate(departure.endDate); setDeparturePanelService(detail.id); }}>Select</button> : <em>{departure.status === "SOLD_OUT" ? "Sold out" : "Unavailable"}</em>}
+                                  {departure.status === "AVAILABLE" ? <button type="button" className={activeDeparture?.id === departure.id ? "selected" : ""} onClick={() => selectTravelDeparture(item, detail, departure)}>{activeDeparture?.id === departure.id ? "Selected ✓" : "Select"}</button> : <em>{departure.status === "SOLD_OUT" ? "Sold out" : "Unavailable"}</em>}
                                 </div>
                               ))}
                             </div>

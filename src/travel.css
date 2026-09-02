@@ -566,6 +566,12 @@
   font-weight: 700;
 }
 
+.premiumBookingPage.tours-travel .travelDepartureRow button.selected {
+  background: #c99726;
+  color: #fff;
+  border-color: #c99726;
+}
+
 .premiumBookingPage.tours-travel .travelDepartureRow em {
   color: #8a5a39;
   font-size: 11px;
