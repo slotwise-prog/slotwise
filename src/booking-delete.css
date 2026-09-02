@@ -1,0 +1,25 @@
+.clientDeleteBookingButton {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #e7b7b7;
+  background: #fff;
+  color: #a32929;
+}
+
+.departureDateEditor { margin-top: 12px; }
+.departureDateRow { padding: 14px; border: 1px solid #dbe3ee; border-radius: 12px; background: #f8fafc; }
+.departureEditorTitle { grid-column: 1 / -1; color: #17213f; font-size: 14px; font-weight: 700; }
+.departureDateRow input, .departureDateRow select { min-height: 42px; min-width: 0; border: 1px solid #d7dfeb; border-radius: 9px; background: #fff; }
+.departureDateRow button, .departureAddButton { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 7px; border-radius: 11px; font-weight: 600; cursor: pointer; }
+.departureDeleteButton { border: 1px solid #e3b8b8; background: #fff; color: #a32929; }
+.departureDeleteButton:hover { background: #fff5f5; }
+.departureAddButton { margin-top: 8px; padding: 0 16px; border: 1px solid #3567b7; background: #fff; color: #24559e; font-size: 14px; }
+.departureAddButton:hover { background: #f2f6ff; }
+.departureDateRow button:focus-visible, .departureAddButton:focus-visible { outline: 3px solid rgba(53, 103, 183, 0.22); outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .departureDateRow { grid-template-columns: minmax(0, 1fr); }
+  .departureDateRow button, .departureAddButton { width: 100%; }
+}

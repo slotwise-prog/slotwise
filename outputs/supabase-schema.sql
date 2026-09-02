@@ -153,6 +153,26 @@ on booking_items (booking_id);
 create index if not exists booking_items_business_slug_idx
 on booking_items (business_slug);
 
+create or replace function public.delete_client_booking(booking_id_value text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_slug text;
+begin
+  select business_slug into target_slug from bookings where id = booking_id_value;
+  if target_slug is null then
+    raise exception 'Booking was not found.';
+  end if;
+  if not public.can_manage_business(target_slug) then
+    raise exception 'You are not authorized to delete this booking.';
+  end if;
+  delete from bookings where id = booking_id_value and business_slug = target_slug;
+end;
+$$;
+
 create table if not exists business_services (
   id text primary key,
   business_slug text not null references businesses(slug) on delete cascade,
@@ -1286,6 +1306,7 @@ end;
 $$;
 
 grant execute on function public.business_has_package_capability(text, text) to authenticated;
+grant execute on function public.delete_client_booking(text) to authenticated;
 grant execute on function public.upsert_client_service(text, text, text, text, numeric, integer, text, text, text, jsonb, integer, integer, integer, numeric, text, text, text, text, integer) to authenticated;
 grant execute on function public.delete_client_service(text) to authenticated;
 grant execute on function public.update_client_availability(text, text, text, jsonb) to authenticated;

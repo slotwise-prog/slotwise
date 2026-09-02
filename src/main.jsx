@@ -59,6 +59,8 @@ import {
   CarFront,
   PlaneLanding,
   MapPin,
+  Plus,
+  Trash2,
   Waves,
   Mountain,
   Utensils,
@@ -82,6 +84,7 @@ import {
 } from "lucide-react";
 import "./styles.css";
 import "./travel.css";
+import "./booking-delete.css";
 import travelCoverFallback from "./assets/travel-cover-fallback.png";
 
 const services = [
@@ -947,6 +950,11 @@ function getTravelServiceKind(serviceName = "") {
 }
 
 function getTravelPriceLabel(detail = {}) {
+  const departures = getUpcomingDepartures(detail.pricingTiers);
+  if (departures.length) {
+    const lowestDeparture = departures.reduce((lowest, item) => item.price < lowest.price ? item : lowest, departures[0]);
+    return `From ${formatPeso(lowestDeparture.price)} / ${lowestDeparture.pricingUnit === "PER_PAX" ? "pax" : lowestDeparture.pricingUnit.replace("PER_", "").toLowerCase()}`;
+  }
   const hasPrice = detail.price !== null && detail.price !== "" && detail.price !== undefined && Number(detail.price) > 0;
   const hasTiers = normalizePricingTiers(detail.pricingTiers).length > 0;
   if (!hasPrice && !hasTiers) return "Contact for Rate";
@@ -2625,6 +2633,10 @@ function App() {
     }, accessToken);
   };
 
+  const deleteBooking = async (bookingId, accessToken = "") => {
+    await supabaseRpcRequest("delete_client_booking", { booking_id_value: bookingId }, accessToken);
+  };
+
   const saveClientService = async (serviceData, accessToken = "") => {
     await supabaseRpcRequest("upsert_client_service", serviceData, accessToken);
   };
@@ -2785,6 +2797,7 @@ function App() {
         initialView={page === "clientLogin" ? "login" : "dashboard"}
         onBack={() => setPage("home")}
         onUpdateBookingStatus={updateBookingStatus}
+        onDeleteBooking={deleteBooking}
         onSaveService={saveClientService}
         onDeleteService={deleteClientService}
         onSaveAvailability={saveClientAvailability}
@@ -3391,11 +3404,14 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const selectedServiceNames = allowMultipleServices ? pickedServices : [pickedService].filter(Boolean);
   const selectedServiceDetails = selectedServiceNames.map(getServiceDetail);
   const pickedServiceDetail = getServiceDetail(pickedService);
+  const savedDepartures = isToursTravel ? getUpcomingDepartures(pickedServiceDetail.pricingTiers) : [];
+  const hasSavedDepartures = savedDepartures.length > 0;
   const travelServiceKind = isToursTravel ? getTravelServiceKind(pickedService) : "";
   const stayNights = getNightCount(selectedBookingDate, selectedCheckoutDate);
   const accommodationGuests = adultCount + childCount;
   const needsGuestCount = isAccommodation || selectedServiceDetails.some((detail) => ["PER_PAX", "GROUP_TIER"].includes(normalizePricingType(detail.pricingType, detail.pricingUnit)));
   const activeDeparture = selectedDeparture?.serviceId === pickedServiceDetail.id ? selectedDeparture : null;
+  const hasSelectedDeparture = Boolean(activeDeparture);
   const bookingCalculation = calculateBookingTotal(selectedServiceDetails, { pax: isAccommodation ? accommodationGuests : guestCount, totalGuests: accommodationGuests, nights: stayNights || 1, selectedDeparture: activeDeparture });
   const pickedPricing = bookingCalculation.lineItems[0] || calculateLineItem(pickedServiceDetail, { pax: guestCount, nights: stayNights || 1, totalGuests: accommodationGuests, selectedDeparture: activeDeparture });
   const pickedPricingUnit = normalizePricingUnit(pickedServiceDetail.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT");
@@ -3522,7 +3538,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       },
       bookingItems: submittedCalculation.lineItems,
     };
-    if (!booking.customer || !booking.contact || !booking.business_slug || !selectedServiceNames.length || !booking.slot || (flags.requireDate && !booking.booking_date) || (needsGuestCount && currentTotalGuests < 1)) {
+    if (!booking.customer || !booking.contact || !booking.business_slug || !selectedServiceNames.length || !booking.slot || (flags.requireDate && !booking.booking_date) || (hasSavedDepartures && !hasSelectedDeparture) || (needsGuestCount && currentTotalGuests < 1)) {
       setBookingError("Please complete the required booking details before submitting.");
       setSubmitting(false);
       return;
@@ -3825,16 +3841,16 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
               <div className="selectedDateCard">
                 <CalendarDays size={26} />
                 <span>{isAccommodation ? "Stay dates" : isToursTravel ? "Travel date" : "Selected"}</span>
-                <strong>{isAccommodation ? `${stayNights || 0} Night${stayNights === 1 ? "" : "s"}` : selectedDateLabel}</strong>
-                <small>{isAccommodation ? `${formatBookingDate(selectedBookingDate)} to ${formatBookingDate(selectedCheckoutDate)}` : selectedWeekdayLabel}</small>
-                <input
+                <strong>{isAccommodation ? `${stayNights || 0} Night${stayNights === 1 ? "" : "s"}` : hasSavedDepartures && !hasSelectedDeparture ? "Choose a departure" : selectedDateLabel}</strong>
+                <small>{isAccommodation ? `${formatBookingDate(selectedBookingDate)} to ${formatBookingDate(selectedCheckoutDate)}` : hasSavedDepartures && hasSelectedDeparture ? `${formatPeso(activeDeparture.price)} / ${activeDeparture.pricingUnit === "PER_PAX" ? "pax" : activeDeparture.pricingUnit.replace("PER_", "").toLowerCase()}` : hasSavedDepartures ? "Select a saved date above" : selectedWeekdayLabel}</small>
+                {!hasSavedDepartures && <input
                   aria-label={isAccommodation ? "Select check-in date" : "Select booking date"}
                   type="date"
                   value={selectedBookingDate}
                   min={getTodayDateValue()}
                   onChange={(event) => setSelectedBookingDate(event.target.value)}
                   required={flags.requireDate}
-                />
+                />}
                 {isAccommodation && (
                   <input
                     aria-label="Select check-out date"
@@ -4242,19 +4258,20 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
                         {!getEditableDepartureDates(service.departureDates).length && <span className="departureDateEmpty">No departure schedules added yet.</span>}
                         {getEditableDepartureDates(service.departureDates).map((departure, departureIndex) => (
                           <div className="departureDateRow" key={departure.id}>
+                            <strong className="departureEditorTitle">Departure {departureIndex + 1}</strong>
                             <input type="date" value={departure.startDate} onChange={(event) => updateDeparture(index, departureIndex, { startDate: event.target.value })} aria-label="Departure start date" />
                             <input type="date" value={departure.endDate} onChange={(event) => updateDeparture(index, departureIndex, { endDate: event.target.value })} aria-label="Departure end date" />
                             <input type="number" min="0" value={departure.price} onChange={(event) => updateDeparture(index, departureIndex, { price: Number(event.target.value) })} placeholder="Price" aria-label="Departure price" />
                             <select value={departure.pricingUnit} onChange={(event) => updateDeparture(index, departureIndex, { pricingUnit: event.target.value })} aria-label="Departure pricing unit"><option value="PER_PAX">Per pax</option><option value="PER_GROUP">Per group</option><option value="PER_TRIP">Per trip</option></select>
                             <select value={departure.status} onChange={(event) => updateDeparture(index, departureIndex, { status: event.target.value })} aria-label="Departure availability"><option value="AVAILABLE">Available</option><option value="SOLD_OUT">Sold out</option><option value="UNAVAILABLE">Unavailable</option></select>
                             <input value={departure.notes} onChange={(event) => updateDeparture(index, departureIndex, { notes: event.target.value })} placeholder="Optional notes" aria-label="Departure notes" />
-                            <button type="button" onClick={() => updateService(index, { departureDates: getEditableDepartureDates(service.departureDates).filter((_, itemIndex) => itemIndex !== departureIndex) })}>Delete Departure</button>
+                            <button type="button" className="departureDeleteButton" onClick={() => updateService(index, { departureDates: getEditableDepartureDates(service.departureDates).filter((_, itemIndex) => itemIndex !== departureIndex) })}><Trash2 size={16} /> Delete Departure</button>
                           </div>
                         ))}
                         <button type="button" onClick={() => {
                           const departures = getEditableDepartureDates(service.departureDates);
                           updateService(index, { departureDates: [...departures, { id: `departure-${Date.now()}-${departures.length}`, startDate: "", endDate: "", price: "", pricingUnit: "PER_PAX", status: "AVAILABLE", notes: "", displayOrder: departures.length }] });
-                        }}>+ Add Departure</button>
+                        }} className="departureAddButton"><Plus size={17} /> Add Departure</button>
                       </div>
                     </>
                   )}
@@ -6395,6 +6412,7 @@ function ClientDashboard({
   initialView,
   onBack,
   onUpdateBookingStatus,
+  onDeleteBooking,
   onSaveService,
   onDeleteService,
   onSaveAvailability,
@@ -6666,6 +6684,20 @@ function ClientDashboard({
     } catch (error) {
       console.error("Client blocked date save failed", error);
       setStatusMessage("Unable to save changes. Please try again.");
+    }
+  };
+
+  const deleteBooking = async (booking) => {
+    if (!booking?.id || !window.confirm("Delete this booking/request?\n\nThis action cannot be undone.")) return;
+    setStatusMessage("Deleting booking...");
+    try {
+      await onDeleteBooking(booking.id, clientSession?.access_token);
+      setSelectedBooking(null);
+      await loadClientData(clientSession);
+      setStatusMessage("Booking deleted.");
+    } catch (error) {
+      console.error("Client booking delete failed", { operation: "delete booking", table: "bookings", code: error.code, message: error.message });
+      setStatusMessage("Unable to delete booking. Please try again.");
     }
   };
 
@@ -7219,7 +7251,7 @@ function ClientDashboard({
                 {capabilities.paymentVerification && <article><span>Pending Payment Verification</span><strong>{pendingPaymentCount}</strong></article>}
                 {capabilities.paymentVerification && <article><span>Verified Payments</span><strong>{verifiedPaymentCount}</strong></article>}
               </div>
-              <BookingList bookings={clientBookings.slice(0, 6)} onSelect={setSelectedBooking} onStatusChange={updateStatus} />
+              <BookingList bookings={clientBookings.slice(0, 6)} onSelect={setSelectedBooking} onStatusChange={updateStatus} onDelete={deleteBooking} />
             </>
           )}
 
@@ -7234,7 +7266,7 @@ function ClientDashboard({
                   <button className={filter === item ? "active" : ""} onClick={() => setFilter(item)} key={item}>{item}</button>
                 ))}
               </div>
-              <BookingList bookings={filteredBookings} onSelect={setSelectedBooking} onStatusChange={updateStatus} />
+              <BookingList bookings={filteredBookings} onSelect={setSelectedBooking} onStatusChange={updateStatus} onDelete={deleteBooking} />
             </>
           )}
 
@@ -7630,7 +7662,7 @@ function ReservationCalendar({
   );
 }
 
-function BookingList({ bookings, onSelect, onStatusChange }) {
+function BookingList({ bookings, onSelect, onStatusChange, onDelete }) {
   if (!bookings.length) return <div className="clientEmptyState"><strong>No bookings yet.</strong><span>New bookings will appear here when customers submit through your booking page.</span></div>;
   return (
     <div className="clientBookingList">
@@ -7649,6 +7681,7 @@ function BookingList({ bookings, onSelect, onStatusChange }) {
               {["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map((item) => <option key={item}>{item}</option>)}
             </select>
             <button onClick={() => onSelect(booking)}>View Details</button>
+            <button type="button" className="clientDeleteBookingButton" onClick={() => onDelete(booking)}><Trash2 size={15} /> Delete</button>
           </div>
         </article>
       ))}
