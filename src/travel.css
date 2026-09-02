@@ -580,6 +580,19 @@
   white-space: nowrap;
 }
 
+.premiumBookingPage.tours-travel .travelEndDateField {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  color: #765711;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.premiumBookingPage.tours-travel .travelEndDateField input {
+  min-height: 44px;
+}
+
 .premiumBookingPage.tours-travel .departureDateEditor {
   display: grid;
   grid-column: 1 / -1;

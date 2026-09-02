@@ -3381,7 +3381,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? "Choose a travel service to get started." : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
   const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Travel Service" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
   const ServiceStepIcon = resolveTemplateSectionIcon(business.bookingTemplate);
-  const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Date" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
+  const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Dates" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
   const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : isLaundry ? "Pickup Time" : "";
   const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Traveler Information" : isLaundry ? "Pickup Details" : isHomeService ? "Your contact details" : "Your details";
   const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isLaundry ? "Laundry notes" : isConsultant ? "Inquiry / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
@@ -3513,6 +3513,11 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
     const currentChildren = Math.max(0, Number(data.get("childCount") || childCount) || 0);
     const currentTotalGuests = isAccommodation ? currentAdults + currentChildren : currentGuestCount;
     const currentNights = isAccommodation ? getNightCount(selectedBookingDate, selectedCheckoutDate) : 1;
+    if (isToursTravel && selectedCheckoutDate && selectedBookingDate && selectedCheckoutDate < selectedBookingDate) {
+      setBookingError("Return / End of Desired Tour cannot be earlier than the Start Date.");
+      setSubmitting(false);
+      return;
+    }
     const submittedCalculation = calculateBookingTotal(selectedServiceDetails, {
       pax: isAccommodation ? currentTotalGuests : currentGuestCount,
       totalGuests: currentTotalGuests,
@@ -3555,6 +3560,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
         origin: isToursTravel && travelServiceKind === "AIRLINE" ? String(data.get("origin") || "").trim() : undefined,
         destination: isToursTravel ? String(data.get("destination") || "").trim() : undefined,
         return_date: isToursTravel ? String(data.get("returnDate") || "").trim() : undefined,
+        travel_start_date: isToursTravel ? selectedBookingDate : undefined,
+        travel_end_date: isToursTravel ? selectedCheckoutDate : undefined,
         child_count: isToursTravel && travelServiceKind === "AIRLINE" ? childCount : undefined,
         infant_count: isToursTravel && travelServiceKind === "AIRLINE" ? infantCount : undefined,
         applicant_count: isToursTravel && travelServiceKind === "VISA" ? Math.max(1, Number(data.get("applicantCount") || 1)) : undefined,
@@ -3871,17 +3878,20 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
               )}
               <div className="selectedDateCard">
                 <CalendarDays size={26} />
-                <span>{isAccommodation ? "Stay dates" : isToursTravel ? "Travel date" : "Selected"}</span>
+                <span>{isAccommodation ? "Stay dates" : isToursTravel ? "Travel dates" : "Selected"}</span>
                 <strong>{isAccommodation ? `${stayNights || 0} Night${stayNights === 1 ? "" : "s"}` : hasSavedDepartures && !hasSelectedDeparture ? "Choose a departure" : selectedDateLabel}</strong>
                 <small>{isAccommodation ? `${formatBookingDate(selectedBookingDate)} to ${formatBookingDate(selectedCheckoutDate)}` : hasSavedDepartures && hasSelectedDeparture ? `${formatPeso(activeDeparture.price)} / ${activeDeparture.pricingUnit === "PER_PAX" ? "pax" : activeDeparture.pricingUnit.replace("PER_", "").toLowerCase()}` : hasSavedDepartures ? "Select a saved date above" : selectedWeekdayLabel}</small>
                 {!hasSavedDepartures && <input
-                  aria-label={isAccommodation ? "Select check-in date" : "Select booking date"}
+                  aria-label={isAccommodation ? "Select check-in date" : isToursTravel ? "Desired tour start date" : "Select booking date"}
                   type="date"
                   value={selectedBookingDate}
                   min={getTodayDateValue()}
-                  onChange={(event) => setSelectedBookingDate(event.target.value)}
+                  onChange={(event) => { const next = event.target.value; setSelectedBookingDate(next); if (isToursTravel && selectedCheckoutDate && selectedCheckoutDate < next) setSelectedCheckoutDate(""); }}
                   required={flags.requireDate}
                 />}
+                {isToursTravel && (
+                  <label className="travelEndDateField"><span>Return / End of Desired Tour</span><input aria-label="Return or end of desired tour" type="date" value={selectedCheckoutDate} min={selectedBookingDate || getTodayDateValue()} onChange={(event) => setSelectedCheckoutDate(event.target.value)} required={flags.requireDate} readOnly={hasSelectedDeparture} /></label>
+                )}
                 {isAccommodation && (
                   <input
                     aria-label="Select check-out date"
@@ -3983,7 +3993,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
               <dl>
                 <div><dt>Business</dt><dd>{business.business}</dd></div>
                 <div><dt>{selectedServiceNames.length > 1 ? "Services" : isAccommodation ? "Room / Unit" : isToursTravel ? "Tour Package" : "Service"}</dt><dd>{confirmed.service}</dd></div>
-                <div><dt>{isAccommodation ? "Check-in" : isToursTravel ? "Travel Date" : "Date"}</dt><dd>{confirmed.booking_date ? formatBookingDate(confirmed.booking_date) : "Not required"}</dd></div>
+                <div><dt>{isAccommodation ? "Check-in" : isToursTravel ? "Desired Tour Start" : "Date"}</dt><dd>{confirmed.booking_date ? formatBookingDate(confirmed.booking_date) : "Not required"}</dd></div>
+                {isToursTravel && confirmed.metadata?.travel_end_date && <div><dt>Return / End of Tour</dt><dd>{formatBookingDate(confirmed.metadata.travel_end_date)}</dd></div>}
                 {isAccommodation && <div><dt>Check-out</dt><dd>{formatBookingDate(confirmed.metadata?.check_out)}</dd></div>}
                 {isAccommodation && <div><dt>Nights</dt><dd>{confirmed.metadata?.number_of_nights || stayNights}</dd></div>}
                 <div><dt>{isAccommodation ? "Stay" : isToursTravel ? "Preferred Time" : "Time"}</dt><dd>{confirmed.slot}</dd></div>
@@ -7509,6 +7520,7 @@ function ClientDashboard({
               </div>
               <p><strong>{isClientAccommodation ? "Check-in" : isClientToursTravel ? "Travel Date" : "Date"}:</strong> {isClientAccommodation ? formatBookingDate(selectedBooking.metadata?.check_in || selectedBooking.booking_date) : selectedBooking.booking_date || "Not required"}</p>
               {isClientAccommodation && <p><strong>Check-out:</strong> {formatBookingDate(selectedBooking.metadata?.check_out)}</p>}
+              {isClientToursTravel && selectedBooking.metadata?.travel_end_date && <p><strong>Return / End of Desired Tour:</strong> {formatBookingDate(selectedBooking.metadata.travel_end_date)}</p>}
               {isClientAccommodation && <p><strong>Nights:</strong> {selectedBooking.metadata?.number_of_nights || "Not saved"}</p>}
               <p><strong>{isClientAccommodation ? "Stay" : isClientToursTravel ? "Preferred Time" : "Time"}:</strong> {selectedBooking.slot || "Inquiry only"}</p>
               {(isClientToursTravel || isClientAccommodation) && <p><strong>Guests:</strong> {selectedBooking.metadata?.guest_count || "Not provided"}</p>}
