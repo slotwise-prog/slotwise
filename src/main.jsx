@@ -75,11 +75,14 @@ import {
   BusFront,
   CircleHelp,
   Globe,
+  Info,
   Mail,
   Smartphone,
   MessageCircle,
 } from "lucide-react";
 import "./styles.css";
+import "./travel.css";
+import travelCoverFallback from "./assets/travel-cover-fallback.png";
 
 const services = [
   { name: "Salon appointment", length: "60 min", price: "PHP 350", fields: ["Preferred stylist", "Hair length"] },
@@ -433,6 +436,16 @@ function isBeautyDefaultColor(value = "") {
 
 function getBusinessCoverStyle(business = {}, tone = "beauty") {
   const cover = business.cover || "";
+  if (tone === "tours-travel") {
+    const cleanCover = cover.split("?")[0].toLowerCase();
+    const isPhotoCover = /^data:image\/(jpeg|webp|avif)/.test(cleanCover)
+      || /\.(jpe?g|webp|avif)$/.test(cleanCover)
+      || business.featureFlags?.travelCoverIsScenery === true;
+    return {
+      backgroundImage: `url(${cover && isPhotoCover ? cover : travelCoverFallback})`,
+      backgroundPosition: business.coverPosition || "center",
+    };
+  }
   if (cover) {
     return {
       backgroundImage: `linear-gradient(180deg, rgba(22, 37, 48, 0.2), rgba(22, 37, 48, 0.78)), url(${cover})`,
@@ -645,6 +658,51 @@ function normalizePricingTiers(value) {
     .sort((a, b) => a.minGuests - b.minGuests);
 }
 
+function normalizeDepartureDates(value) {
+  return (Array.isArray(value) ? value : [])
+    .filter((item) => item?.kind === "DEPARTURE" || item?.departureStart || item?.departure_start)
+    .map((item, index) => ({
+      id: item.id || `departure-${index}`,
+      startDate: item.departureStart || item.departure_start || "",
+      endDate: item.departureEnd || item.departure_end || "",
+      price: Number(item.departurePrice ?? item.departure_price),
+      pricingUnit: normalizePricingUnit(item.departurePricingUnit || item.departure_pricing_unit, "PER_PAX"),
+      status: String(item.departureStatus || item.departure_status || "AVAILABLE").toUpperCase(),
+      notes: item.departureNotes || item.departure_notes || "",
+      displayOrder: Number(item.departureOrder ?? item.departure_order ?? index),
+    }))
+    .filter((item) => Number.isFinite(item.price) && item.price >= 0)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.displayOrder - b.displayOrder);
+}
+
+function getUpcomingDepartures(value) {
+  const today = getTodayDateValue();
+  return normalizeDepartureDates(value).filter((item) => item.startDate && item.startDate >= today);
+}
+
+function getSavableDepartureDates(value) {
+  return normalizeDepartureDates(value).filter((item) => item.startDate && Number.isFinite(item.price) && item.price >= 0);
+}
+
+function departureDateLabel(departure = {}) {
+  const format = (value) => value ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(`${value}T00:00:00`)) : "Date pending";
+  return departure.endDate ? `${format(departure.startDate)}–${format(departure.endDate)}` : format(departure.startDate);
+}
+
+function departureRecord(departure = {}, index = 0) {
+  return {
+    kind: "DEPARTURE",
+    id: departure.id || `departure-${Date.now()}-${index}`,
+    departureStart: departure.startDate || "",
+    departureEnd: departure.endDate || "",
+    departurePrice: Number(departure.price || 0),
+    departurePricingUnit: departure.pricingUnit || "PER_PAX",
+    departureStatus: departure.status || "AVAILABLE",
+    departureNotes: departure.notes || "",
+    departureOrder: index,
+  };
+}
+
 function validatePricingTiers(tiers) {
   const normalized = normalizePricingTiers(tiers);
   for (let index = 1; index < normalized.length; index += 1) {
@@ -670,7 +728,12 @@ function isPublishableServiceForTemplate(serviceDetail = {}, bookingTemplate = "
   return Boolean(String(serviceDetail.name || "").trim());
 }
 
-function getPricingForGuests(serviceDetail, guestCount) {
+function getPricingForGuests(serviceDetail, guestCount, selectedDeparture = null) {
+  if (selectedDeparture) {
+    const pricingType = selectedDeparture.pricingUnit === "PER_PAX" ? "PER_PAX" : "FIXED";
+    const unitPrice = Number(selectedDeparture.price);
+    return { pricingType, unitPrice, selectedTier: null, estimatedTotal: pricingType === "PER_PAX" ? unitPrice * guestCount : unitPrice, totalAvailable: Number.isFinite(unitPrice) };
+  }
   const pricingType = normalizePricingType(serviceDetail.pricingType, serviceDetail.pricingUnit);
   const price = serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
   if (isInquiryPricingType(pricingType)) {
@@ -701,11 +764,11 @@ function getPricingForGuests(serviceDetail, guestCount) {
 
 function calculateLineItem(serviceDetail = {}, context = {}) {
   const quantity = Math.max(1, Number(context.pax || context.days || context.nights || 1) || 1);
-  const pricing = getPricingForGuests(serviceDetail, quantity);
+  const pricing = getPricingForGuests(serviceDetail, quantity, context.selectedDeparture);
   const pricingType = pricing.pricingType;
   const serviceName = serviceDetail.name || serviceDetail.service || "Selected service";
   const serviceId = serviceDetail.id || null;
-  const basePrice = serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
+  const basePrice = context.selectedDeparture ? Number(context.selectedDeparture.price) : serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
   let lineTotal = pricing.estimatedTotal;
   let lineLabel = basePrice === null ? "Pricing unavailable" : formatPeso(basePrice);
   let snapshotQuantity = 1;
@@ -986,6 +1049,16 @@ function normalizeServiceLink(value = "") {
   return `https://${next.replace(/^\/+/, "")}`;
 }
 
+function normalizePhoneLink(value = "") {
+  const phone = String(value || "").trim();
+  if (!phone) return "";
+  return `tel:${phone.replace(/[^+\d]/g, "")}`;
+}
+
+function splitContactValues(value = "") {
+  return String(value || "").split(/\r?\n|[,;]+/).map((item) => item.trim()).filter(Boolean);
+}
+
 function isDirectImageLink(value = "") {
   const href = normalizeServiceLink(value);
   return Boolean(href && /\.(png|jpe?g|webp|gif|svg|avif)(?:[?#].*)?$/i.test(href));
@@ -1101,7 +1174,7 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
       price: service.price,
       pricingUnit: normalizePricingUnit(service.pricing_unit),
       pricingType: normalizePricingType(service.pricing_type, service.pricing_unit),
-      pricingTiers: normalizePricingTiers(service.pricing_tiers),
+      pricingTiers: [...normalizePricingTiers(service.pricing_tiers), ...normalizeDepartureDates(service.pricing_tiers).map(departureRecord)],
       maxGuests: service.max_guests ?? service.maxGuests ?? "",
       includedGuests: service.included_guests ?? service.includedGuests ?? "",
       extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
@@ -1543,6 +1616,7 @@ function emptyStructuredServices(count = 3) {
     pricingType: "FIXED",
     pricingUnit: "FLAT",
     pricingTiers: [],
+    departureDates: [],
     maxGuests: "",
     includedGuests: "",
     extraGuestFee: "",
@@ -1567,6 +1641,7 @@ function serviceRowToStructured(service = {}, index = 0) {
     pricingType: normalizePricingType(service.pricing_type || service.pricingType, service.pricing_unit || service.pricingUnit),
     pricingUnit: normalizePricingUnit(service.pricing_unit || service.pricingUnit),
     pricingTiers: normalizePricingTiers(service.pricing_tiers || service.pricingTiers),
+    departureDates: normalizeDepartureDates(service.pricing_tiers || service.pricingTiers),
     maxGuests: service.max_guests ?? service.maxGuests ?? "",
     includedGuests: service.included_guests ?? service.includedGuests ?? "",
     extraGuestFee: service.extra_guest_fee ?? service.extraGuestFee ?? "",
@@ -1610,6 +1685,7 @@ function getSavableStructuredServices(value, bookingTemplate = "GENERAL") {
         pricingType,
         pricingUnit: isAccommodation ? "PER_NIGHT" : isTravel || isConsultant ? normalizePricingUnit(service.pricingUnit, pricingType) : "FLAT",
         pricingTiers: (isTravel || isConsultant) && pricingType === "GROUP_TIER" ? normalizePricingTiers(service.pricingTiers) : [],
+        departureDates: isTravel ? getSavableDepartureDates(service.departureDates) : [],
         maxGuests: service.maxGuests === "" ? null : Number(service.maxGuests),
         includedGuests: service.includedGuests === "" ? null : Number(service.includedGuests),
         extraGuestFee: service.extraGuestFee === "" ? null : Number(service.extraGuestFee),
@@ -1767,6 +1843,7 @@ function setupToBusinessDatabase(setup, slug) {
 }
 
 function setupToServiceRows(setup, slug, requestId) {
+  const bookingTemplate = normalizeBookingTemplate(setup.bookingTemplate || inferBookingTemplateFromIndustry(setup.industry));
   const sourceServices = getSavableStructuredServices(setup.serviceEntries, setup.bookingTemplate || inferBookingTemplateFromIndustry(setup.industry));
   const servicesToSave = sourceServices.length ? sourceServices : (setup.services?.trim() ? parseServiceDetails(setup.services) : []);
   return servicesToSave.map((service, index) => ({
@@ -1777,7 +1854,9 @@ function setupToServiceRows(setup, slug, requestId) {
     price: service.price,
     pricing_unit: normalizePricingUnit(service.pricingUnit),
     pricing_type: normalizePricingType(service.pricingType, service.pricingUnit),
-    pricing_tiers: normalizePricingTiers(service.pricingTiers),
+    pricing_tiers: bookingTemplate === "TOURS_TRAVEL"
+      ? [...normalizePricingTiers(service.pricingTiers), ...getSavableDepartureDates(service.departureDates).map(departureRecord)]
+      : normalizePricingTiers(service.pricingTiers),
     max_guests: service.maxGuests,
     included_guests: service.includedGuests,
     extra_guest_fee: service.extraGuestFee,
@@ -3170,6 +3249,33 @@ function SmmOffersFeed({ offers = null, placement = "BOTH", compact = false, bus
   );
 }
 
+function TravelBusinessInfo({ business }) {
+  const additionalEmails = splitContactValues(business.additionalEmails)
+    .filter((email) => email && email.toLowerCase() !== business.primaryEmail?.toLowerCase());
+  const content = (
+    <div className="travelBusinessInfoList">
+      <h2>Contact &amp; Information</h2>
+      <div><Clock size={17} /><span><strong>Business Hours</strong><small>{business.availability?.days || "Schedule available on request"}{business.availability?.hours ? ` · ${business.availability.hours}` : ""}</small></span></div>
+      {business.phone && <a href={normalizePhoneLink(business.phone)}><Phone size={17} /><span><strong>Office</strong><small>{business.phone}</small></span></a>}
+      {business.mobileNumbers && <div><Smartphone size={17} /><span><strong>Mobile</strong>{splitContactValues(business.mobileNumbers).map((number) => <small key={number}><a href={normalizePhoneLink(number)}>{number}</a></small>)}</span></div>}
+      {business.primaryEmail && <a href={`mailto:${business.primaryEmail}`}><Mail size={17} /><span><strong>Email</strong><small>{business.primaryEmail}</small></span></a>}
+      {additionalEmails.length > 0 && <div><Mail size={17} /><span><strong>Other Emails</strong>{additionalEmails.map((email) => <small key={email}><a href={`mailto:${email}`}>{email}</a></small>)}</span></div>}
+      {business.messengerLink && <a href={normalizeServiceLink(business.messengerLink)} target="_blank" rel="noopener noreferrer"><MessageCircle size={17} /><span><strong>Messenger</strong><small>Open Messenger <ExternalLink size={12} /></small></span></a>}
+      {business.website && <a href={normalizeServiceLink(business.website)} target="_blank" rel="noopener noreferrer"><Globe size={17} /><span><strong>Website</strong><small>{business.website.replace(/^https?:\/\//i, "").replace(/\/$/, "")} <ExternalLink size={12} /></small></span></a>}
+    </div>
+  );
+
+  return (
+    <>
+      <div className="travelBusinessInfo travelBusinessInfoDesktop">{content}</div>
+      <details className="travelBusinessInfo travelBusinessInfoMobile">
+        <summary>Contact &amp; Information <ChevronRight size={16} /></summary>
+        {content}
+      </details>
+    </>
+  );
+}
+
 function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, onSubmitPayment, smmOffers = null }) {
   const business = useMemo(() => normalizeBusinessConfig({
     ...(incomingBusiness || {}),
@@ -3182,6 +3288,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const [pickedService, setPickedService] = useState(business.services[0]);
   const [pickedServices, setPickedServices] = useState([business.services[0]].filter(Boolean));
   const [selectedPlanImage, setSelectedPlanImage] = useState(null);
+  const [selectedDeparture, setSelectedDeparture] = useState(null);
+  const [departurePanelService, setDeparturePanelService] = useState(null);
   const availableSlots = business.availability?.slots?.length ? business.availability.slots : slots;
   const [pickedSlot, setPickedSlot] = useState(availableSlots[1] || availableSlots[0] || "10:15 AM");
   const [selectedBookingDate, setSelectedBookingDate] = useState(getTodayDateValue());
@@ -3200,6 +3308,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const [submitting, setSubmitting] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState("");
+  const [travelActiveStep, setTravelActiveStep] = useState(1);
   const flags = { ...defaultFeatureFlags, ...(business.featureFlags || {}) };
   const clientStatus = (business.status || "ACTIVE").toUpperCase();
   const isProductionActive = clientStatus === "ACTIVE";
@@ -3213,6 +3322,13 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const bookingTone = resolveBusinessTone(business);
   const isClinic = bookingTone === "clinic";
   const isToursTravel = bookingTone === "tours-travel";
+  const travelSeasonalNoticeTitle = String(
+    business.featureFlags?.seasonalRatesNoticeTitle || "Seasonal Rates & Packages",
+  ).trim();
+  const travelSeasonalNotice = String(
+    business.featureFlags?.seasonalRatesNotice
+      || "Rates, package inclusions, and availability may vary depending on season and travel dates. Final rates will be confirmed upon inquiry or reservation.",
+  ).trim();
   const isAccommodation = normalizeBookingTemplate(business.bookingTemplate) === "STAYCATION_ACCOMMODATION";
   const isLaundry = normalizeBookingTemplate(business.bookingTemplate) === "LAUNDRY";
   const isTravel = bookingTone === "travel" || isToursTravel;
@@ -3223,8 +3339,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const brandCategory = templateCopy.category;
   const brandLine = templateCopy.tagline;
   const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Plan Your Trip" : isLaundry ? "Book Laundry Pickup" : isConsultant ? "Plans & Services" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
-  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? (business.description || "Explore more. Travel with confidence.") : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
-  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Travel Services" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
+  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? "Choose a travel service to get started." : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
+  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Travel Service" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
   const ServiceStepIcon = resolveTemplateSectionIcon(business.bookingTemplate);
   const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Date" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
   const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : isLaundry ? "Pickup Time" : "";
@@ -3247,6 +3363,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       pricingUnit: normalizePricingUnit(detail?.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT"),
       pricingType: isToursTravel && !hasTravelRate && storedPricingType !== "GROUP_TIER" ? "CUSTOM_INQUIRY" : storedPricingType,
       pricingTiers: normalizePricingTiers(detail?.pricingTiers),
+      departureDates: normalizeDepartureDates(detail?.pricingTiers),
       maxGuests: detail?.maxGuests ?? null,
       includedGuests: detail?.includedGuests ?? null,
       extraGuestFee: detail?.extraGuestFee ?? null,
@@ -3263,8 +3380,9 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const stayNights = getNightCount(selectedBookingDate, selectedCheckoutDate);
   const accommodationGuests = adultCount + childCount;
   const needsGuestCount = isAccommodation || selectedServiceDetails.some((detail) => ["PER_PAX", "GROUP_TIER"].includes(normalizePricingType(detail.pricingType, detail.pricingUnit)));
-  const bookingCalculation = calculateBookingTotal(selectedServiceDetails, { pax: isAccommodation ? accommodationGuests : guestCount, totalGuests: accommodationGuests, nights: stayNights || 1 });
-  const pickedPricing = bookingCalculation.lineItems[0] || calculateLineItem(pickedServiceDetail, { pax: guestCount, nights: stayNights || 1, totalGuests: accommodationGuests });
+  const activeDeparture = selectedDeparture?.serviceId === pickedServiceDetail.id ? selectedDeparture : null;
+  const bookingCalculation = calculateBookingTotal(selectedServiceDetails, { pax: isAccommodation ? accommodationGuests : guestCount, totalGuests: accommodationGuests, nights: stayNights || 1, selectedDeparture: activeDeparture });
+  const pickedPricing = bookingCalculation.lineItems[0] || calculateLineItem(pickedServiceDetail, { pax: guestCount, nights: stayNights || 1, totalGuests: accommodationGuests, selectedDeparture: activeDeparture });
   const pickedPricingUnit = normalizePricingUnit(pickedServiceDetail.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT");
   const estimatedTotal = bookingCalculation.estimatedTotal;
   const isQuoteOnlySelection = bookingCalculation.lineItems.length > 0 && bookingCalculation.lineItems.every((item) => isInquiryPricingType(item.pricingType));
@@ -3299,6 +3417,9 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
     setBookingError("");
     setPaymentOpen(false);
     setPaymentStatus("");
+    setTravelActiveStep(1);
+    setSelectedDeparture(null);
+    setDeparturePanelService(null);
   }, [business.slug]);
 
   const openServiceLink = (detail) => {
@@ -3311,9 +3432,13 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
     if (!allowMultipleServices) {
       setPickedService(serviceName);
       setPickedServices([serviceName]);
+      setSelectedDeparture(null);
+      setDeparturePanelService(null);
       return;
     }
     setPickedService(serviceName);
+    setSelectedDeparture(null);
+    setDeparturePanelService(null);
     setPickedServices((current) => {
       if (current.includes(serviceName)) {
         const next = current.filter((item) => item !== serviceName);
@@ -3338,6 +3463,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       pax: isAccommodation ? currentTotalGuests : currentGuestCount,
       totalGuests: currentTotalGuests,
       nights: currentNights || 1,
+      selectedDeparture: activeDeparture,
     });
     const pickupLocation = String(data.get("address") || "").trim();
     const booking = {
@@ -3364,6 +3490,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
         pricing_type: pickedPricing.pricingType,
         unit_price: pickedPricing.unitPrice,
         selected_tier: pickedPricing.selectedTier,
+        selected_departure: activeDeparture,
         estimated_total: submittedCalculation.estimatedTotal,
         line_items: submittedCalculation.lineItems,
         allow_multiple_services: allowMultipleServices,
@@ -3485,6 +3612,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
             <div><Check size={22} /><span><strong>{templateCopy.trust[1][0]}</strong><small>{templateCopy.trust[1][1]}</small></span></div>
             <div><Sparkles size={22} /><span><strong>{templateCopy.trust[2][0]}</strong><small>{templateCopy.trust[2][1]}</small></span></div>
           </div>
+          {isToursTravel && <TravelBusinessInfo business={business} />}
         </aside>
 
         <form className="publicForm premiumPublicForm" onSubmit={submitBooking}>
@@ -3502,7 +3630,16 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
             <div>
               <h2>{headingText}</h2>
               <p>{headerSubtext}</p>
-              {(business.phone || business.mobileNumbers || business.primaryEmail || business.website || business.address) && (
+              {isToursTravel && travelSeasonalNotice && (
+                <aside className="travelSeasonalNotice" aria-label={travelSeasonalNoticeTitle}>
+                  <Info size={17} aria-hidden="true" />
+                  <span>
+                    <strong>{travelSeasonalNoticeTitle}</strong>
+                    <small>{travelSeasonalNotice}</small>
+                  </span>
+                </aside>
+              )}
+              {!isToursTravel && (business.phone || business.mobileNumbers || business.primaryEmail || business.website || business.address) && (
                 <div className="bookingContactLine">
                   {business.phone && <span><Phone size={13} /><strong>Office</strong>{business.phone}</span>}
                   {business.mobileNumbers && <span><Smartphone size={13} /><strong>Mobile</strong>{business.mobileNumbers}</span>}
@@ -3516,8 +3653,22 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
             <span><ServiceStepIcon size={22} /></span>
           </div>
 
+          {isToursTravel && (
+            <nav className="travelBookingProgress" aria-label="Booking progress" style={{ "--travel-progress": `${travelActiveStep * 20}%` }}>
+              <em className="travelProgressCount">Step {travelActiveStep} of 5</em>
+              {["Travel Services", "Travel Details", "Preferred Schedule", "Your Information", "Review & Submit"].map((label, index) => (
+                <React.Fragment key={label}>
+                  <span className={index + 1 === travelActiveStep ? "active" : index + 1 < travelActiveStep ? "completed" : "upcoming"} aria-current={index + 1 === travelActiveStep ? "step" : undefined}>
+                    <i>{index + 1 < travelActiveStep ? <Check size={15} /> : index + 1}</i><small>{label}</small>
+                  </span>
+                  {index < 4 && <b className={index + 1 < travelActiveStep ? "completed" : "upcoming"} aria-hidden="true" />}
+                </React.Fragment>
+              ))}
+            </nav>
+          )}
+
           {flags.bookingEnabled && (
-          <div className="bookingStep">
+          <div className="bookingStep" onFocusCapture={() => isToursTravel && setTravelActiveStep(1)}>
             <div className="bookingStepTitle"><span>1</span><strong><ServiceStepIcon size={16} />{serviceStepLabel}</strong></div>
             <div className={isConsultant ? "premiumServiceGrid consultantServiceGrid" : "premiumServiceGrid"}>
               {business.services.map((item) => {
@@ -3526,7 +3677,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                 const ConsultantIcon = resolveConsultantServiceIcon(detail, business);
                 const isSelected = selectedServiceNames.includes(item);
                 const serviceLink = normalizeServiceLink(detail.imageUrl);
-                const mediaUrl = isConsultant ? "" : detail.imageUrl;
+                const mediaUrl = isConsultant || isToursTravel || !isDirectImageLink(detail.imageUrl) ? "" : normalizeServiceLink(detail.imageUrl);
+                const departures = isToursTravel ? getUpcomingDepartures(detail.pricingTiers) : [];
                 const consultantInquiryPrice = isConsultant && (detail.price === null || detail.price === "" || Number(detail.price) <= 0);
                 const planLabel = consultantInquiryPrice
                   ? "See Plan Details / Inquire for Pricing"
@@ -3566,13 +3718,35 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                     <article key={detail.id || item} className={isSelected ? "premiumService active travelServiceCard" : "premiumService travelServiceCard"}>
                       <button type="button" className="travelServiceSelect" onClick={() => toggleService(item)} aria-pressed={isSelected}>
                         <span className="serviceIcon">{mediaUrl ? <img src={mediaUrl} alt="" /> : <ServiceIcon size={22} />}</span>
-                        <strong>{detail.imageTitle || item}</strong>
-                        {detail.description && <p className="serviceDescription">{detail.description}</p>}
-                        <small>{getTravelPriceLabel(detail)}</small>
-                        <span className="travelSelectLabel">{isSelected ? "Selected" : "Select"}</span>
-                        {isSelected && <em><Check size={16} /></em>}
+                        <span className="travelServiceCopy">
+                          {getTravelPriceLabel(detail) !== "Contact for Rate" && <small className="travelPackageLabel">Package</small>}
+                          <strong>{detail.imageTitle || item}</strong>
+                          {detail.description && <p className="serviceDescription">{detail.description}</p>}
+                        </span>
+                        <span className="travelCardState">{isSelected ? <Check size={15} /> : <ChevronRight size={17} />}</span>
                       </button>
-                      {serviceLink && <a className="travelDetailsLink" href={serviceLink} target="_blank" rel="noopener noreferrer">View Package Details <ExternalLink size={15} /></a>}
+                      <div className="travelCardMeta">
+                        <strong>{getTravelPriceLabel(detail)}</strong>
+                        {serviceLink && <a className="travelDetailsLink" href={serviceLink} target="_blank" rel="noopener noreferrer">View Details <ExternalLink size={13} /></a>}
+                      </div>
+                      {departures.length > 0 && (
+                        <>
+                          <button type="button" className="travelDepartureToggle" onClick={() => setDeparturePanelService((current) => current === detail.id ? null : detail.id)}>
+                            View Dates &amp; Rates <span>{departures.length} available</span> <ChevronRight size={14} />
+                          </button>
+                          {departurePanelService === detail.id && (
+                            <div className="travelDeparturePanel">
+                              <strong>Available Departures</strong>
+                              {departures.map((departure) => (
+                                <div className="travelDepartureRow" key={departure.id}>
+                                  <span><b>{departureDateLabel(departure)}</b><small>{formatPeso(departure.price)} / {departure.pricingUnit === "PER_PAX" ? "pax" : departure.pricingUnit.replace("PER_", "").toLowerCase()}</small></span>
+                                  {departure.status === "AVAILABLE" ? <button type="button" onClick={() => { toggleService(item); setSelectedDeparture({ ...departure, serviceId: detail.id }); setSelectedBookingDate(departure.startDate); if (departure.endDate) setSelectedCheckoutDate(departure.endDate); setDeparturePanelService(detail.id); }}>Select</button> : <em>{departure.status === "SOLD_OUT" ? "Sold out" : "Unavailable"}</em>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
                     </article>
                   ) : (
                     <button type="button" key={detail.id || item} className={isSelected ? "premiumService active" : "premiumService"} onClick={() => toggleService(item)} aria-pressed={isSelected}>
@@ -3592,7 +3766,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
           )}
 
           {isToursTravel && (
-            <div className="bookingStep travelDetailsStep">
+            <div className="bookingStep travelDetailsStep" onFocusCapture={() => setTravelActiveStep(2)}>
               <div className="bookingStepTitle"><span>2</span><strong><MapPinned size={16} />Travel Details</strong></div>
               {travelServiceKind === "AIRLINE" && (
                 <>
@@ -3616,7 +3790,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
           )}
 
           {(flags.requireTime || isAccommodation) && (
-          <div className="bookingStep">
+          <div className="bookingStep" onFocusCapture={() => isToursTravel && setTravelActiveStep(3)}>
             <div className="bookingStepTitle"><span>{isToursTravel ? 3 : 2}</span><strong>{timeStepLabel}</strong></div>
             {isBlockedDate && (
               <div className="clientStatusNotice unpaid">
@@ -3661,7 +3835,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
           </div>
           )}
 
-          <div className="bookingStep">
+          <div className="bookingStep" onFocusCapture={() => isToursTravel && setTravelActiveStep(4)}>
             <div className="bookingStepTitle"><span>{isToursTravel ? 4 : 3}</span><strong>{detailsStepLabel}</strong></div>
             <label className="premiumInput"><User size={20} /><span>{isAccommodation ? "Full Name" : "Your name"}<input name="customer" required placeholder="Maria Santos" /></span></label>
             <label className="premiumInput"><Phone size={20} /><span>{isAccommodation ? "Mobile Number" : "Phone or contact number"}<input name="contact" required placeholder="0912 345 6789" /></span></label>
@@ -3700,7 +3874,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
           </div>
 
           {(isToursTravel || allowMultipleServices || flags.showPrices) && (
-            <div className="reservationSummary">
+            <div className="reservationSummary" tabIndex={isToursTravel ? 0 : undefined} onFocus={() => isToursTravel && setTravelActiveStep(5)} onMouseEnter={() => isToursTravel && setTravelActiveStep(5)}>
               <span>{isToursTravel ? "Travel Inquiry Summary" : "Booking Summary"}</span>
               <strong>{primaryServiceLabel}</strong>
               <p>{selectedDateLabel} {flags.requireTime ? `at ${pickedSlot}` : ""}{needsGuestCount ? ` • ${guestCount} ${isToursTravel ? "guest" : "pax"}${guestCount > 1 ? "s" : ""}` : ""}</p>
@@ -3717,7 +3891,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
             </div>
           )}
 
-          <button className="premiumConfirmButton" type="submit" disabled={submitting || isBlockedDate}>
+          <button className="premiumConfirmButton" type="submit" disabled={submitting || isBlockedDate} onFocus={() => isToursTravel && setTravelActiveStep(5)}>
             {submitting ? "Submitting request..." : submitLabel} <ChevronRight size={22} />
           </button>
           {bookingError && <p className="formError premiumError">{bookingError}</p>}
@@ -3934,6 +4108,12 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
       pricingTiers: tiers.map((tier, itemIndex) => itemIndex === tierIndex ? { ...tier, ...updates } : tier),
     });
   };
+  const updateDeparture = (serviceIndex, departureIndex, updates) => {
+    const departures = normalizeDepartureDates(services[serviceIndex].departureDates);
+    updateService(serviceIndex, {
+      departureDates: departures.map((departure, itemIndex) => itemIndex === departureIndex ? { ...departure, ...updates } : departure),
+    });
+  };
 
   return (
     <section className={compact ? "structuredServiceManager compact" : "structuredServiceManager"}>
@@ -4042,6 +4222,22 @@ function StructuredServiceManager({ services, onChange, onDeleteService, booking
                         <option value="PER_DAY">/ day</option>
                         <option value="FIXED">fixed</option>
                       </select>
+                      <div className="departureDateEditor">
+                        <strong>Available Dates &amp; Rates</strong>
+                        {!normalizeDepartureDates(service.departureDates).length && <span className="departureDateEmpty">No departure schedules added yet.</span>}
+                        {normalizeDepartureDates(service.departureDates).map((departure, departureIndex) => (
+                          <div className="departureDateRow" key={departure.id}>
+                            <input type="date" value={departure.startDate} onChange={(event) => updateDeparture(index, departureIndex, { startDate: event.target.value })} aria-label="Departure start date" />
+                            <input type="date" value={departure.endDate} onChange={(event) => updateDeparture(index, departureIndex, { endDate: event.target.value })} aria-label="Departure end date" />
+                            <input type="number" min="0" value={departure.price} onChange={(event) => updateDeparture(index, departureIndex, { price: Number(event.target.value) })} placeholder="Price" aria-label="Departure price" />
+                            <select value={departure.pricingUnit} onChange={(event) => updateDeparture(index, departureIndex, { pricingUnit: event.target.value })} aria-label="Departure pricing unit"><option value="PER_PAX">Per pax</option><option value="PER_GROUP">Per group</option><option value="PER_TRIP">Per trip</option></select>
+                            <select value={departure.status} onChange={(event) => updateDeparture(index, departureIndex, { status: event.target.value })} aria-label="Departure availability"><option value="AVAILABLE">Available</option><option value="SOLD_OUT">Sold out</option><option value="UNAVAILABLE">Unavailable</option></select>
+                            <input value={departure.notes} onChange={(event) => updateDeparture(index, departureIndex, { notes: event.target.value })} placeholder="Optional notes" aria-label="Departure notes" />
+                            <button type="button" onClick={() => updateService(index, { departureDates: normalizeDepartureDates(service.departureDates).filter((_, itemIndex) => itemIndex !== departureIndex) })}>Delete Departure</button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => updateService(index, { departureDates: [...normalizeDepartureDates(service.departureDates), { id: `departure-${Date.now()}`, startDate: "", endDate: "", price: 0, pricingUnit: "PER_PAX", status: "AVAILABLE", notes: "", displayOrder: normalizeDepartureDates(service.departureDates).length }] })}>+ Add Departure</button>
+                      </div>
                     </>
                   )}
                   <select value={service.status || "Active"} onChange={(event) => updateService(index, { status: event.target.value })}>
@@ -6604,7 +6800,9 @@ function ClientDashboard({
           service_status: service.status,
           service_pricing_type: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? normalizePricingType(service.pricingType) : "FIXED",
           service_pricing_unit: isClientAccommodation ? "PER_NIGHT" : isClientToursTravel || isClientConsultant ? normalizePricingUnit(service.pricingUnit, service.pricingType) : "FLAT",
-          service_pricing_tiers: isClientToursTravel || isClientConsultant ? service.pricingTiers : [],
+          service_pricing_tiers: isClientToursTravel
+            ? [...service.pricingTiers, ...getSavableDepartureDates(service.departureDates).map(departureRecord)]
+            : isClientConsultant ? service.pricingTiers : [],
           service_display_order: service.displayOrder,
           service_max_guests: service.maxGuests,
           service_included_guests: service.includedGuests,
