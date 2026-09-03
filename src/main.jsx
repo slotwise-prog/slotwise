@@ -2702,7 +2702,7 @@ function App() {
         const [onlineBooking] = await supabaseRequest("bookings", {
           method: "POST",
           body: databaseBooking,
-          prefer: "return=minimal",
+          prefer: "return=representation",
         });
         if (bookingItems?.length) {
           await supabaseRequest("booking_items", {
@@ -2719,13 +2719,14 @@ function App() {
               selected_tier_snapshot: item.selectedTier,
               line_total: item.lineTotal,
             })),
-            prefer: "return=minimal",
+            prefer: "return=representation",
           });
         }
         nextBooking = { ...(onlineBooking || nextBooking), booking_items: bookingItems || [] };
       }
     } catch (error) {
       console.error("Slotwise booking insert failed", {
+        operation: "public booking save",
         message: error.message,
         business_slug: nextBooking.business_slug,
         service: nextBooking.service,
@@ -3619,7 +3620,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       setGuestCount(2);
     } catch (error) {
       console.error("Booking submission failed", error);
-      setBookingError("Something went wrong. Please try again.");
+      setBookingError(error.message || "Booking could not be saved. Please try again.");
     } finally {
       setSubmitting(false);
     }
