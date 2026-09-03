@@ -44,9 +44,14 @@ begin
   new.pricing_type_snapshot := coalesce(service_row.pricing_type, 'FIXED');
   new.quantity := case when new.pricing_type_snapshot in ('PER_PAX', 'PER_DAY') then pax else 1 end;
 
-  if service_row.price is null
+  if (service_row.price is null or service_row.price <= 0)
      and new.pricing_type_snapshot not in ('GROUP_TIER', 'CUSTOM_INQUIRY', 'IMAGE_BASED_PRICING') then
-    raise exception 'Selected service has incomplete pricing.';
+    new.pricing_type_snapshot := 'CUSTOM_INQUIRY';
+  end if;
+
+  if new.pricing_type_snapshot = 'GROUP_TIER'
+     and jsonb_array_length(coalesce(service_row.pricing_tiers, '[]'::jsonb)) = 0 then
+    new.pricing_type_snapshot := 'CUSTOM_INQUIRY';
   end if;
 
   if new.pricing_type_snapshot in ('CUSTOM_INQUIRY', 'IMAGE_BASED_PRICING') then
