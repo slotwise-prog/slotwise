@@ -738,7 +738,8 @@ function validatePricingTiers(tiers) {
 
 function hasValidPricingConfiguration(serviceDetail = {}) {
   const pricingType = normalizePricingType(serviceDetail.pricingType, serviceDetail.pricingUnit);
-  const price = serviceDetail.price === "" || serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
+  const hasPrice = serviceDetail.price !== "" && serviceDetail.price !== null && serviceDetail.price !== undefined && String(serviceDetail.price).trim() !== "";
+  const price = hasPrice ? Number(serviceDetail.price) : null;
   if (isInquiryPricingType(pricingType)) return true;
   if (pricingType === "GROUP_TIER") {
     const tiers = validatePricingTiers(serviceDetail.pricingTiers);
@@ -758,7 +759,11 @@ function getPricingForGuests(serviceDetail, guestCount, selectedDeparture = null
     return { pricingType, unitPrice, selectedTier: null, estimatedTotal: pricingType === "PER_PAX" ? unitPrice * guestCount : unitPrice, totalAvailable: Number.isFinite(unitPrice) };
   }
   const pricingType = normalizePricingType(serviceDetail.pricingType, serviceDetail.pricingUnit);
-  const price = serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
+  const hasPrice = serviceDetail.price !== "" && serviceDetail.price !== null && serviceDetail.price !== undefined && String(serviceDetail.price).trim() !== "";
+  const price = hasPrice ? Number(serviceDetail.price) : null;
+  if (price === null && pricingType !== "GROUP_TIER") {
+    return { pricingType: "CUSTOM_INQUIRY", unitPrice: null, selectedTier: null, estimatedTotal: null, totalAvailable: true };
+  }
   if (isInquiryPricingType(pricingType)) {
     return { pricingType, unitPrice: null, selectedTier: null, estimatedTotal: null, totalAvailable: true };
   }
@@ -791,7 +796,8 @@ function calculateLineItem(serviceDetail = {}, context = {}) {
   const pricingType = pricing.pricingType;
   const serviceName = serviceDetail.name || serviceDetail.service || "Selected service";
   const serviceId = serviceDetail.id || null;
-  const basePrice = context.selectedDeparture ? Number(context.selectedDeparture.price) : serviceDetail.price === null || serviceDetail.price === undefined ? null : Number(serviceDetail.price);
+  const hasBasePrice = serviceDetail.price !== "" && serviceDetail.price !== null && serviceDetail.price !== undefined && String(serviceDetail.price).trim() !== "";
+  const basePrice = context.selectedDeparture ? Number(context.selectedDeparture.price) : hasBasePrice ? Number(serviceDetail.price) : null;
   let lineTotal = pricing.estimatedTotal;
   let lineLabel = basePrice === null ? "Pricing unavailable" : formatPeso(basePrice);
   let snapshotQuantity = 1;
@@ -926,6 +932,7 @@ function formatPeso(value) {
 function formatServicePriceLabel(detail = {}, fallbackPricingType = "FIXED") {
   const pricingType = normalizePricingType(detail.pricingType ?? detail.pricing_type, detail.pricingUnit ?? detail.pricing_unit ?? fallbackPricingType);
   const price = detail.price;
+  if (price === "" || price === null || price === undefined || String(price).trim() === "") return "Contact for Rate";
   const base = formatPeso(price);
   const tiers = normalizePricingTiers(detail.pricingTiers ?? detail.pricing_tiers);
   if (pricingType === "CUSTOM_INQUIRY" || pricingType === "IMAGE_BASED_PRICING") return "See Plan Details / Inquire for Pricing";
