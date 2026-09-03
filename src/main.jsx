@@ -3533,6 +3533,10 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       selectedDeparture: activeDeparture,
       allowQuoteWithoutPrice: isToursTravel,
     });
+    const canSubmitTravelInquiry = isToursTravel && !activeDeparture && selectedServiceDetails.length > 0 && selectedServiceDetails.every((detail) => {
+      const price = detail.price;
+      return price === "" || price === null || price === undefined || String(price).trim() === "" || !Number.isFinite(Number(price)) || Number(price) <= 0;
+    });
     const pickupLocation = String(data.get("address") || "").trim();
     const booking = {
       customer: data.get("customer"),
@@ -3582,7 +3586,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       setSubmitting(false);
       return;
     }
-    if (!bookingCalculation.totalAvailable) {
+    if (!bookingCalculation.totalAvailable && !canSubmitTravelInquiry) {
       setBookingError(bookingCalculation.invalidItem?.pricingType === "GROUP_TIER"
         ? "Please contact the business for availability and pricing for this group size."
         : "One selected service has incomplete pricing. Please choose another service or contact the business.");
@@ -3605,7 +3609,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       return;
     }
     if (isToursTravel || isAccommodation || allowMultipleServices) {
-      if (!submittedCalculation.totalAvailable) {
+      if (!submittedCalculation.totalAvailable && !canSubmitTravelInquiry) {
         setBookingError("Please contact the business for availability and pricing for this group size.");
         setSubmitting(false);
         return;
