@@ -792,6 +792,11 @@ function getPricingForGuests(serviceDetail, guestCount, selectedDeparture = null
 
 function calculateLineItem(serviceDetail = {}, context = {}) {
   const quantity = Math.max(1, Number(context.pax || context.days || context.nights || 1) || 1);
+  const hasDirectPrice = serviceDetail.price !== "" && serviceDetail.price !== null && serviceDetail.price !== undefined && String(serviceDetail.price).trim() !== "" && Number.isFinite(Number(serviceDetail.price));
+  const hasPricingTiers = normalizePricingTiers(serviceDetail.pricingTiers).length > 0;
+  if (!context.selectedDeparture && !hasDirectPrice && !hasPricingTiers) {
+    return { serviceId: serviceDetail.id || null, serviceName: serviceDetail.name || serviceDetail.service || "Selected service", pricingType: "CUSTOM_INQUIRY", unitPrice: null, quantity: 1, selectedTier: null, lineTotal: null, totalAvailable: true, lineLabel: "Contact for Rate" };
+  }
   const pricing = getPricingForGuests(serviceDetail, quantity, context.selectedDeparture);
   const pricingType = pricing.pricingType;
   const serviceName = serviceDetail.name || serviceDetail.service || "Selected service";
