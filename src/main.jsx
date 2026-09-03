@@ -2699,27 +2699,22 @@ function App() {
     try {
       if (supabaseUrl && supabaseAnonKey) {
         const { businessSlug, bookingItems, ...databaseBooking } = nextBooking;
-        const [onlineBooking] = await supabaseRequest("bookings", {
-          method: "POST",
-          body: databaseBooking,
-          prefer: "return=representation",
-        });
+        const rpcResult = await supabaseRpcRequest("submit_public_booking", { booking_payload: databaseBooking });
+        const onlineBooking = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
         if (bookingItems?.length) {
-          await supabaseRequest("booking_items", {
-            method: "POST",
-            body: bookingItems.map((item, index) => ({
+          await supabaseRpcRequest("submit_public_booking_items", {
+            booking_id_value: nextBooking.id,
+            business_slug_value: nextBooking.business_slug,
+            items_payload: bookingItems.map((item, index) => ({
               id: `${nextBooking.id}-item-${index + 1}`,
-              booking_id: nextBooking.id,
-              business_slug: nextBooking.business_slug,
-              service_id: item.serviceId,
+              service_id: item.serviceId || null,
               service_name_snapshot: item.serviceName,
               pricing_type_snapshot: item.pricingType,
-              unit_price_snapshot: item.unitPrice,
+              unit_price_snapshot: item.unitPrice ?? null,
               quantity: item.quantity,
-              selected_tier_snapshot: item.selectedTier,
-              line_total: item.lineTotal,
+              selected_tier_snapshot: item.selectedTier || null,
+              line_total: item.lineTotal ?? null,
             })),
-            prefer: "return=representation",
           });
         }
         nextBooking = { ...(onlineBooking || nextBooking), booking_items: bookingItems || [] };
