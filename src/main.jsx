@@ -6463,6 +6463,35 @@ After login, you will only see the bookings and features assigned to your busine
   );
 }
 
+function getClientHelpTopics(business = {}, capabilities = {}) {
+  const template = normalizeBookingTemplate(business.bookingTemplate);
+  const travel = template === "TOURS_TRAVEL";
+  const accommodation = template === "STAYCATION_ACCOMMODATION";
+  const consultant = template === "PROFESSIONAL_SERVICES";
+  const serviceLabel = travel ? "Tour Packages" : accommodation ? "Units / Accommodation" : consultant ? "Plans & Services" : "Services";
+  const bookingLabel = travel ? "Reservations / Travel Inquiries" : accommodation ? "Reservations" : consultant ? "Consultations / Inquiries" : "Bookings / Requests";
+  const topics = [
+    { id: "dashboard", title: "Dashboard", intro: "A quick overview of your booking system and recent customer activity.", steps: ["Review total, pending, and confirmed records.", `Open ${bookingLabel} to view complete details.`, "Use Refresh when you expect a newly submitted record."], tips: ["Statistics use actual saved records.", "Use this page for quick monitoring."] },
+    { id: "bookings", title: bookingLabel, intro: "View and manage customer submissions.", steps: ["Open a booking or inquiry to review customer and service details.", "Check the requested date, time, or travel schedule.", "Update the status to Pending, Confirmed, Completed, or Cancelled.", "Use Delete only when the record should be permanently removed."], tips: ["Changing status does not automatically contact the customer.", "Confirm important changes directly with the customer."] },
+    capabilities.customers && { id: "customers", title: travel ? "Guests / Customers" : "Customers", intro: "Customers are created from saved bookings and inquiries.", steps: ["Open this section to review customer contact information.", "Use booking history when it is available in your package."], tips: ["Customer records are connected to their submissions.", "Keep customer information private."] },
+    capabilities.services && { id: "services", title: serviceLabel, intro: `Manage the ${serviceLabel.toLowerCase()} shown on your public booking page.`, steps: ["Add or edit the name, category, and description.", "Enter a price or leave it blank for Contact for Rate.", "Add an external details link when needed.", "Set the item Active or Inactive, then save."], tips: ["Active items may appear publicly.", "Inactive items should not appear on the public page.", "Save after every important change."], customer: `Customers see your active ${serviceLabel.toLowerCase()}, descriptions, pricing labels, and available links.` },
+    travel && capabilities.services && { id: "departures", title: "Available Dates & Rates", intro: "Use this for tour packages with fixed departure schedules.", steps: ["Open Tour Packages and edit the package.", "Find Available Dates & Rates and click Add Departure.", "Enter the start date, end date, rate, and pricing unit.", "Save the package."], tips: ["Customers can select saved departures publicly.", "Without departures, the regular preferred-date inquiry flow remains available."], customer: "Saved departure dates and rates appear on the public travel page." },
+    capabilities.schedule && { id: "schedule", title: travel ? "Availability" : "Schedule", intro: "Controls your working days, hours, and available booking times.", steps: ["Enter your open days and operating hours.", "Review the available time slots.", "Save the schedule."], tips: ["Schedule changes affect customer choices.", "Avoid overlapping or invalid operating periods."], customer: "Customers see only the available dates and times configured here." },
+    capabilities.reservationCalendar && { id: "reservationCalendar", title: "Reservation Calendar", intro: "Shows saved reservations by date.", steps: ["Use Previous, Today, and Next to change month.", "Select a date to see its reservations.", "Open a reservation to review details."], tips: ["Calendar dates use the booking or travel start date.", "The calendar does not support drag-and-drop editing."] },
+    capabilities.blockedDates && { id: "blockedDates", title: "Blocked Dates", intro: "Use blocked dates when you cannot accept bookings.", steps: ["Choose the unavailable date.", "Add a short reason if needed.", "Click Block date."], tips: ["Use this for holidays, maintenance, leave, or fully booked days.", "Remove the block when the date becomes available."], customer: "Blocked dates cannot be selected on the public booking page." },
+    capabilities.paymentVerification && { id: "paymentSettings", title: "Payment Settings", intro: "Configure payment instructions and manually verify submitted references.", steps: ["Choose whether payment or a deposit is required.", "Add your GCash, Maya, bank, or other payment details.", "Review each submitted payment reference.", "Verify only after checking your actual payment account."], tips: ["Payments are not verified automatically.", "Never rely only on a reference number."] },
+    { id: "account", title: "Account", intro: "Manage editable business and contact information.", steps: ["Review the business name and description.", "Update contact details, website, logo, or colors when available.", "Save business details."], tips: ["Never share dashboard credentials publicly.", "Share only the public booking-page link with customers."], customer: "Saved business details and branding may update the public booking page." },
+    { id: "publicPage", title: "Public Booking Page", intro: "This is the customer-facing link you can share publicly.", steps: ["Open your public URL and test the complete flow.", "Share it through Facebook, Messenger, your website, social media, or an external QR code."], tips: ["Do not share the Client Dashboard URL.", "Active services and availability changes affect what customers see."] },
+    { id: "troubleshooting", title: "Troubleshooting", intro: "Quick checks for common issues.", steps: ["Missing service: confirm it is Active and saved.", "Unavailable date: check availability and blocked dates.", "Missing booking: refresh and check the full bookings section.", "Customer access issue: customers must use the public page, never this dashboard."], tips: ["Test changes on the public page.", "Contact your administrator when a saved change still does not appear."] },
+  ];
+  return topics.filter(Boolean);
+}
+
+function ClientHelpContent({ topic }) {
+  if (!topic) return null;
+  return <><h2>{topic.title}</h2><p>{topic.intro}</p><h3>How to use</h3><ol>{topic.steps.map((step) => <li key={step}>{step}</li>)}</ol><h3>Quick tips</h3><ul>{topic.tips.map((tip) => <li key={tip}>{tip}</li>)}</ul>{topic.customer && <div className="clientHelpCustomer"><strong>What customers will see</strong><p>{topic.customer}</p></div>}</>;
+}
+
 function ClientDashboard({
   initialView,
   onBack,
@@ -6494,6 +6523,8 @@ function ClientDashboard({
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [bookingPayments, setBookingPayments] = useState([]);
   const [activeTab, setActiveTab] = useState(initialView === "login" ? "dashboard" : "dashboard");
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpSearch, setHelpSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [calendarFilter, setCalendarFilter] = useState("All");
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
@@ -7171,6 +7202,9 @@ function ClientDashboard({
   const todayCount = clientBookings.filter((booking) => (booking.booking_date || "").startsWith("2026-05-21")).length;
   const currentRole = businessUsers.find((item) => item.business_slug === selectedBusinessSlug)?.role || "OWNER";
   const capabilities = getPackageCapabilities(clientBusiness?.package, clientBusiness?.featureFlags);
+  const helpTopics = getClientHelpTopics(clientBusiness || {}, capabilities);
+  const activeHelpTopic = helpTopics.find((topic) => topic.id === activeTab) || helpTopics[0];
+  const filteredHelpTopics = helpTopics.filter((topic) => `${topic.title} ${topic.intro} ${topic.steps.join(" ")} ${topic.tips.join(" ")}`.toLowerCase().includes(helpSearch.trim().toLowerCase()));
   const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
   const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
   const paymentsByBooking = bookingPayments.reduce((grouped, payment) => {
@@ -7215,6 +7249,7 @@ function ClientDashboard({
       blockedDates: capabilities.blockedDates,
       paymentSettings: capabilities.paymentVerification,
       account: true,
+      guide: true,
     };
     if (!tabAllowed[activeTab]) setActiveTab("dashboard");
   }, [activeTab, capabilities.customers, capabilities.services, capabilities.schedule, capabilities.reservationCalendar, capabilities.blockedDates, capabilities.paymentVerification]);
@@ -7289,11 +7324,13 @@ function ClientDashboard({
           {capabilities.blockedDates && <button className={activeTab === "blockedDates" ? "active" : ""} onClick={() => setActiveTab("blockedDates")}>Blocked Dates</button>}
           {capabilities.paymentVerification && <button className={activeTab === "paymentSettings" ? "active" : ""} onClick={() => setActiveTab("paymentSettings")}>Payment Settings</button>}
           <button className={activeTab === "account" ? "active" : ""} onClick={() => setActiveTab("account")}>Account</button>
+          <button className={activeTab === "guide" ? "active" : ""} onClick={() => setActiveTab("guide")}><CircleHelp size={16} /> Help &amp; Guide</button>
           <button onClick={logoutClient}>Logout</button>
         </aside>
 
         <section className="clientDashboardContent">
           {statusMessage && <div className="setupSaveStatus online setupInlineStatus">{statusMessage}</div>}
+          {activeTab !== "guide" && <button type="button" className="clientHowToButton" onClick={() => setHelpOpen(true)}><CircleHelp size={17} /> How to Use</button>}
 
           {activeTab === "dashboard" && (
             <>
@@ -7513,6 +7550,17 @@ function ClientDashboard({
               <button className="clientPrimaryButton" onClick={logoutClient}>Logout</button>
             </section>
           )}
+
+          {activeTab === "guide" && (
+            <section className="clientGuidePage">
+              <div className="clientDashboardHeader"><p className="eyebrow">User manual</p><h2>Help &amp; Guide</h2><p>Simple instructions for the features available in your dashboard.</p></div>
+              <div className="clientGettingStarted"><strong>Getting Started</strong><ol><li>Review your business information.</li>{capabilities.services && <li>Add or review your services or packages.</li>}{capabilities.schedule && <li>Set your availability.</li>}{capabilities.blockedDates && <li>Add blocked dates when necessary.</li>}{capabilities.paymentVerification && <li>Configure payment information.</li>}<li>Test your public booking page.</li><li>Share only the public booking page with customers.</li></ol><p><strong>Important:</strong> Never share your Client Dashboard URL or login credentials publicly.</p></div>
+              <input className="clientHelpSearch" value={helpSearch} onChange={(event) => setHelpSearch(event.target.value)} placeholder="Search help topics..." />
+              <div className="clientGuideTopics">{filteredHelpTopics.map((topic) => <details key={topic.id}><summary>{topic.title}</summary><div><ClientHelpContent topic={topic} /></div></details>)}</div>
+            </section>
+          )}
+
+          {helpOpen && <div className="clientHelpBackdrop" onMouseDown={(event) => event.target === event.currentTarget && setHelpOpen(false)}><aside className="clientHelpDrawer" role="dialog" aria-modal="true" aria-label={`${activeHelpTopic?.title || "Dashboard"} help`}><button type="button" className="clientHelpClose" onClick={() => setHelpOpen(false)}>Close</button><ClientHelpContent topic={activeHelpTopic} /></aside></div>}
 
           {selectedBooking && (
             <section className="clientBookingDetails">
