@@ -792,9 +792,9 @@ function getPricingForGuests(serviceDetail, guestCount, selectedDeparture = null
 
 function calculateLineItem(serviceDetail = {}, context = {}) {
   const quantity = Math.max(1, Number(context.pax || context.days || context.nights || 1) || 1);
-  const hasDirectPrice = serviceDetail.price !== "" && serviceDetail.price !== null && serviceDetail.price !== undefined && String(serviceDetail.price).trim() !== "" && Number.isFinite(Number(serviceDetail.price));
+  const hasDirectPrice = serviceDetail.price !== "" && serviceDetail.price !== null && serviceDetail.price !== undefined && String(serviceDetail.price).trim() !== "" && Number.isFinite(Number(serviceDetail.price)) && Number(serviceDetail.price) > 0;
   const hasPricingTiers = normalizePricingTiers(serviceDetail.pricingTiers).length > 0;
-  if (!context.selectedDeparture && !hasDirectPrice && !hasPricingTiers) {
+  if (!context.selectedDeparture && (!hasDirectPrice || (context.allowQuoteWithoutPrice && !hasDirectPrice)) && (!hasPricingTiers || context.allowQuoteWithoutPrice)) {
     return { serviceId: serviceDetail.id || null, serviceName: serviceDetail.name || serviceDetail.service || "Selected service", pricingType: "CUSTOM_INQUIRY", unitPrice: null, quantity: 1, selectedTier: null, lineTotal: null, totalAvailable: true, lineLabel: "Contact for Rate" };
   }
   const pricing = getPricingForGuests(serviceDetail, quantity, context.selectedDeparture);
@@ -3433,7 +3433,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const needsGuestCount = isAccommodation || selectedServiceDetails.some((detail) => ["PER_PAX", "GROUP_TIER"].includes(normalizePricingType(detail.pricingType, detail.pricingUnit)));
   const activeDeparture = selectedDeparture?.serviceId === pickedServiceDetail.id ? selectedDeparture : null;
   const hasSelectedDeparture = Boolean(activeDeparture);
-  const bookingCalculation = calculateBookingTotal(selectedServiceDetails, { pax: isAccommodation ? accommodationGuests : guestCount, totalGuests: accommodationGuests, nights: stayNights || 1, selectedDeparture: activeDeparture });
+  const bookingCalculation = calculateBookingTotal(selectedServiceDetails, { pax: isAccommodation ? accommodationGuests : guestCount, totalGuests: accommodationGuests, nights: stayNights || 1, selectedDeparture: activeDeparture, allowQuoteWithoutPrice: isToursTravel });
   const pickedPricing = bookingCalculation.lineItems[0] || calculateLineItem(pickedServiceDetail, { pax: guestCount, nights: stayNights || 1, totalGuests: accommodationGuests, selectedDeparture: activeDeparture });
   const pickedPricingUnit = normalizePricingUnit(pickedServiceDetail.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT");
   const estimatedTotal = bookingCalculation.estimatedTotal;
@@ -3531,6 +3531,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       totalGuests: currentTotalGuests,
       nights: currentNights || 1,
       selectedDeparture: activeDeparture,
+      allowQuoteWithoutPrice: isToursTravel,
     });
     const pickupLocation = String(data.get("address") || "").trim();
     const booking = {
