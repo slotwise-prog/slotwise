@@ -994,6 +994,24 @@ function getStatusClass(value) {
   return (value || "PENDING").toLowerCase().replace(/[^a-z0-9]+/g, "-");
 }
 
+const bookingStatusOptions = [
+  { value: "PENDING", label: "Pending" },
+  { value: "QUOTATION_SENT", label: "Quotation Sent" },
+  { value: "WAITING_FOR_APPROVAL", label: "Waiting for Approval" },
+  { value: "FOR_AMENDMENT", label: "For Amendment" },
+  { value: "CONFIRMED", label: "Confirmed" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
+function getBookingStatusLabel(value) {
+  return bookingStatusOptions.find((item) => item.value === String(value || "PENDING").toUpperCase())?.label || String(value || "Pending").replaceAll("_", " ");
+}
+
+function normalizeBookingStatusValue(value) {
+  return String(value || "PENDING").trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+}
+
 async function supabaseRequest(table, options = {}) {
   if (!supabaseUrl || !supabaseAnonKey) return null;
 
@@ -3298,6 +3316,7 @@ function SmmOffersFeed({ offers = null, placement = "BOTH", compact = false, bus
 function TravelBusinessInfo({ business }) {
   const additionalEmails = splitContactValues(business.additionalEmails)
     .filter((email) => email && email.toLowerCase() !== business.primaryEmail?.toLowerCase());
+  const isPhisavong = business.slug === "phisavong-world-travel-and-tours";
   const content = (
     <div className="travelBusinessInfoList">
       <h2>Contact &amp; Information</h2>
@@ -3306,7 +3325,7 @@ function TravelBusinessInfo({ business }) {
       {business.mobileNumbers && <div><Smartphone size={17} /><span><strong>Mobile</strong>{splitContactValues(business.mobileNumbers).map((number) => <small key={number}><a href={normalizePhoneLink(number)}>{number}</a></small>)}</span></div>}
       {business.primaryEmail && <a href={`mailto:${business.primaryEmail}`}><Mail size={17} /><span><strong>Email</strong><small>{business.primaryEmail}</small></span></a>}
       {additionalEmails.length > 0 && <div><Mail size={17} /><span><strong>Other Emails</strong>{additionalEmails.map((email) => <small key={email}><a href={`mailto:${email}`}>{email}</a></small>)}</span></div>}
-      {business.messengerLink && <a href={normalizeServiceLink(business.messengerLink)} target="_blank" rel="noopener noreferrer"><MessageCircle size={17} /><span><strong>Messenger</strong><small>Open Messenger <ExternalLink size={12} /></small></span></a>}
+      {business.messengerLink && <a href={normalizeServiceLink(business.messengerLink)} target="_blank" rel="noopener noreferrer"><MessageCircle size={17} /><span><strong>Messenger</strong><small>{isPhisavong ? "Message us on Facebook" : "Open Messenger"} <ExternalLink size={12} /></small></span></a>}
       {business.website && <a href={normalizeServiceLink(business.website)} target="_blank" rel="noopener noreferrer"><Globe size={17} /><span><strong>Website</strong><small>{business.website.replace(/^https?:\/\//i, "").replace(/\/$/, "")} <ExternalLink size={12} /></small></span></a>}
     </div>
   );
@@ -3348,7 +3367,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const [adultCount, setAdultCount] = useState(2);
   const [childCount, setChildCount] = useState(0);
   const [infantCount, setInfantCount] = useState(0);
-  const [travelDetails, setTravelDetails] = useState({ tripType: "ROUND_TRIP", origin: "", destination: "", returnDate: "", applicants: 1, pickupLocation: "" });
+  const [travelDetails, setTravelDetails] = useState({ tripType: "ROUND_TRIP", origin: "", destination: "", returnDate: "", applicants: 1, pickupLocation: "", requestedInclusions: "", preferredHotelCategory: "No Preference", roomType: "", customerAddress: "" });
   const [confirmed, setConfirmed] = useState(null);
   const [bookingError, setBookingError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -3464,7 +3483,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
     setAdultCount(2);
     setChildCount(0);
     setInfantCount(0);
-    setTravelDetails({ tripType: "ROUND_TRIP", origin: "", destination: "", returnDate: "", applicants: 1, pickupLocation: "" });
+    setTravelDetails({ tripType: "ROUND_TRIP", origin: "", destination: "", returnDate: "", applicants: 1, pickupLocation: "", requestedInclusions: "", preferredHotelCategory: "No Preference", roomType: "", customerAddress: "" });
     setConfirmed(null);
     setBookingError("");
     setPaymentOpen(false);
@@ -3538,6 +3557,12 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       return price === "" || price === null || price === undefined || String(price).trim() === "" || !Number.isFinite(Number(price)) || Number(price) <= 0;
     });
     const pickupLocation = String(data.get("address") || "").trim();
+    const customerAddress = String(data.get("customerAddress") || "").trim();
+    if (isToursTravel && isPhisavong && customerAddress.length < 5) {
+      setBookingError("Please enter your complete address.");
+      setSubmitting(false);
+      return;
+    }
     const booking = {
       customer: data.get("customer"),
       contact: data.get("contact"),
@@ -3578,6 +3603,10 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
         child_count: isToursTravel && travelServiceKind === "AIRLINE" ? childCount : undefined,
         infant_count: isToursTravel && travelServiceKind === "AIRLINE" ? infantCount : undefined,
         applicant_count: isToursTravel && travelServiceKind === "VISA" ? Math.max(1, Number(data.get("applicantCount") || 1)) : undefined,
+        requested_inclusions: isToursTravel ? String(data.get("requestedInclusions") || "").trim() : undefined,
+        preferred_hotel_category: isToursTravel ? String(data.get("preferredHotelCategory") || "No Preference").trim() : undefined,
+        room_type: isToursTravel ? String(data.get("roomType") || "").trim() : undefined,
+        customer_address: isToursTravel ? customerAddress : undefined,
       },
       bookingItems: submittedCalculation.lineItems,
     };
@@ -3868,6 +3897,9 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
               {travelServiceKind === "VISA" && <label className="premiumInput"><Users size={20} /><span>Number of Applicants<input name="applicantCount" type="number" min="1" value={travelDetails.applicants} onChange={(event) => setTravelDetails((current) => ({ ...current, applicants: Math.max(1, Number(event.target.value) || 1) }))} required /></span></label>}
               {travelServiceKind === "TRANSPORT" && <label className="premiumInput"><MapPinned size={20} /><span>Pickup Location<input name="address" value={travelDetails.pickupLocation} onChange={(event) => setTravelDetails((current) => ({ ...current, pickupLocation: event.target.value }))} required placeholder="Pickup address or landmark" /></span></label>}
               {!['AIRLINE', 'VISA'].includes(travelServiceKind) && <label className="premiumInput"><Users size={20} /><span>Number of Travelers<input name="guestCount" type="number" min="1" value={guestCount} onChange={(event) => setGuestCount(Math.max(1, Number(event.target.value) || 1))} required /></span></label>}
+              <label className="premiumInput"><Building2 size={20} /><span>Preferred Hotel Category<select name="preferredHotelCategory" value={travelDetails.preferredHotelCategory} onChange={(event) => setTravelDetails((current) => ({ ...current, preferredHotelCategory: event.target.value }))}><option>No Preference</option><option>3-Star</option><option>4-Star</option><option>5-Star</option><option>Other</option></select></span></label>
+              <label className="premiumInput"><BedDouble size={20} /><span>Type of Room<select name="roomType" value={travelDetails.roomType} onChange={(event) => setTravelDetails((current) => ({ ...current, roomType: event.target.value }))}><option value="">Select room type</option><option>Single</option><option>Twin</option><option>Double</option><option>Triple</option><option>Family Room</option><option>Other</option></select></span></label>
+              <label className="premiumInput"><FileText size={20} /><span>Inclusions<textarea name="requestedInclusions" value={travelDetails.requestedInclusions} onChange={(event) => setTravelDetails((current) => ({ ...current, requestedInclusions: event.target.value }))} rows="3" placeholder="e.g. Hotel accommodation, transfers, tours, meals, baggage, travel insurance" /></span></label>
             </div>
           )}
 
@@ -3925,6 +3957,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
             <label className="premiumInput"><User size={20} /><span>{isAccommodation ? "Full Name" : "Your name"}<input name="customer" required placeholder="Maria Santos" /></span></label>
             <label className="premiumInput"><Phone size={20} /><span>{isAccommodation ? "Mobile Number" : "Phone or contact number"}<input name="contact" required placeholder="0912 345 6789" /></span></label>
             {isToursTravel && <label className="premiumInput"><Mail size={20} /><span>Email (optional)<input name="email" type="email" placeholder="name@example.com" /></span></label>}
+            {isToursTravel && <label className="premiumInput"><House size={20} /><span>Address{isPhisavong ? " (required)" : ""}<textarea name="customerAddress" value={travelDetails.customerAddress} onChange={(event) => setTravelDetails((current) => ({ ...current, customerAddress: event.target.value }))} required={isPhisavong} rows="2" placeholder="House/Unit No., Street, Barangay, City/Municipality, Province" /></span></label>}
             {isAccommodation ? (
               <div className="accommodationGuestGrid">
                 <label className="guestStepper">
@@ -3963,6 +3996,12 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
               <span>{isToursTravel ? "Travel Inquiry Summary" : "Booking Summary"}</span>
               <strong>{primaryServiceLabel}</strong>
               <p>{selectedDateLabel} {flags.requireTime ? `at ${pickedSlot}` : ""}{needsGuestCount ? ` • ${guestCount} ${isToursTravel ? "guest" : "pax"}${guestCount > 1 ? "s" : ""}` : ""}</p>
+              {isToursTravel && <div className="travelInquiryPreferences">
+                {travelDetails.preferredHotelCategory && <p><strong>Preferred Hotel Category:</strong> {travelDetails.preferredHotelCategory}</p>}
+                {travelDetails.roomType && <p><strong>Type of Room:</strong> {travelDetails.roomType}</p>}
+                {travelDetails.requestedInclusions.trim() && <p><strong>Requested Inclusions:</strong> {travelDetails.requestedInclusions}</p>}
+                {travelDetails.customerAddress.trim() && <p><strong>Address:</strong> {travelDetails.customerAddress}</p>}
+              </div>}
               <div className="bookingLineItems">
                 {bookingCalculation.lineItems.map((item) => (
                   <div key={item.serviceName}>
@@ -6472,7 +6511,7 @@ function getClientHelpTopics(business = {}, capabilities = {}) {
   const bookingLabel = travel ? "Reservations / Travel Inquiries" : accommodation ? "Reservations" : consultant ? "Consultations / Inquiries" : "Bookings / Requests";
   const topics = [
     { id: "dashboard", title: "Dashboard", intro: "A quick overview of your booking system and recent customer activity.", steps: ["Review total, pending, and confirmed records.", `Open ${bookingLabel} to view complete details.`, "Use Refresh when you expect a newly submitted record."], tips: ["Statistics use actual saved records.", "Use this page for quick monitoring."] },
-    { id: "bookings", title: bookingLabel, intro: "View and manage customer submissions.", steps: ["Open a booking or inquiry to review customer and service details.", "Check the requested date, time, or travel schedule.", "Update the status to Pending, Confirmed, Completed, or Cancelled.", "Use Delete only when the record should be permanently removed."], tips: ["Changing status does not automatically contact the customer.", "Confirm important changes directly with the customer."] },
+    { id: "bookings", title: bookingLabel, intro: "View and manage customer submissions.", steps: ["Open a booking or inquiry to review customer and service details.", "Check the requested date, time, or travel schedule.", "Update the status as work progresses: Pending, Quotation Sent, Waiting for Approval, For Amendment, Confirmed, Completed, or Cancelled.", "Use Delete only when the record should be permanently removed."], tips: ["Changing status does not automatically contact the customer.", "Confirm important changes directly with the customer."] },
     capabilities.customers && { id: "customers", title: travel ? "Guests / Customers" : "Customers", intro: "Customers are created from saved bookings and inquiries.", steps: ["Open this section to review customer contact information.", "Use booking history when it is available in your package."], tips: ["Customer records are connected to their submissions.", "Keep customer information private."] },
     capabilities.services && { id: "services", title: serviceLabel, intro: `Manage the ${serviceLabel.toLowerCase()} shown on your public booking page.`, steps: ["Add or edit the name, category, and description.", "Enter a price or leave it blank for Contact for Rate.", "Add an external details link when needed.", "Set the item Active or Inactive, then save."], tips: ["Active items may appear publicly.", "Inactive items should not appear on the public page.", "Save after every important change."], customer: `Customers see your active ${serviceLabel.toLowerCase()}, descriptions, pricing labels, and available links.` },
     travel && capabilities.services && { id: "departures", title: "Available Dates & Rates", intro: "Use this for tour packages with fixed departure schedules.", steps: ["Open Tour Packages and edit the package.", "Find Available Dates & Rates and click Add Departure.", "Enter the start date, end date, rate, and pricing unit.", "Save the package."], tips: ["Customers can select saved departures publicly.", "Without departures, the regular preferred-date inquiry flow remains available."], customer: "Saved departure dates and rates appear on the public travel page." },
@@ -6761,14 +6800,10 @@ function ClientDashboard({
     setStatusMessage("");
     try {
       await onUpdateBookingStatus(booking.id, nextStatus, clientSession?.access_token);
-      const updatedBookings = clientBookings.map((item) => (
-        item.id === booking.id ? { ...item, status: nextStatus } : item
-      ));
-      setClientBookings(updatedBookings);
-      setSelectedBooking((current) => current?.id === booking.id ? { ...current, status: nextStatus } : current);
+      await loadClientData(clientSession);
       setStatusMessage("Booking status updated.");
     } catch (error) {
-      console.error("Client blocked date save failed", error);
+      console.error("Client booking status update failed", error);
       setStatusMessage("Unable to save changes. Please try again.");
     }
   };
@@ -7193,7 +7228,7 @@ function ClientDashboard({
   };
 
   const filteredBookings = clientBookings.filter((booking) => (
-    filter === "All" || (booking.status || "").toUpperCase() === filter.toUpperCase()
+    filter === "All" || normalizeBookingStatusValue(booking.status) === normalizeBookingStatusValue(filter)
   ));
   const pendingCount = clientBookings.filter((booking) => ["PENDING", "NEW"].includes((booking.status || "").toUpperCase())).length;
   const confirmedCount = clientBookings.filter((booking) => (booking.status || "").toUpperCase() === "CONFIRMED").length;
@@ -7362,7 +7397,7 @@ function ClientDashboard({
                 <h2>Customer activity</h2>
               </div>
               <div className="clientFilterRow">
-                {["All", "Pending", "Confirmed", "Completed", "Cancelled"].map((item) => (
+                {["All", ...bookingStatusOptions.map((item) => item.label)].map((item) => (
                   <button className={filter === item ? "active" : ""} onClick={() => setFilter(item)} key={item}>{item}</button>
                 ))}
               </div>
@@ -7387,7 +7422,7 @@ function ClientDashboard({
                       <div className="clientHistoryList">
                         <strong>{customer.history.length} total bookings</strong>
                         {customer.history.slice(0, 5).map((item) => (
-                          <small key={item.id}>{item.service} / {item.booking_date || "No date"} / {item.status}</small>
+                          <small key={item.id}>{item.service} / {item.booking_date || "No date"} / {getBookingStatusLabel(item.status)}</small>
                         ))}
                       </div>
                     )}
@@ -7563,18 +7598,24 @@ function ClientDashboard({
           {helpOpen && <div className="clientHelpBackdrop" onMouseDown={(event) => event.target === event.currentTarget && setHelpOpen(false)}><aside className="clientHelpDrawer" role="dialog" aria-modal="true" aria-label={`${activeHelpTopic?.title || "Dashboard"} help`}><button type="button" className="clientHelpClose" onClick={() => setHelpOpen(false)}>Close</button><ClientHelpContent topic={activeHelpTopic} /></aside></div>}
 
           {selectedBooking && (
-            <section className="clientBookingDetails">
+            <div className="clientBookingDetailsBackdrop" onMouseDown={(event) => event.target === event.currentTarget && setSelectedBooking(null)}>
+            <section className="clientBookingDetails" role="dialog" aria-modal="true" aria-label="Booking or inquiry details">
               <div>
-                <p className="eyebrow">Booking details</p>
+                <p className="eyebrow">Booking / Inquiry Details</p>
                 <h2>{selectedBooking.customer}</h2>
               </div>
+              <p><strong>Reference Number:</strong> {selectedBooking.id || "Not provided"}</p>
+              <p><strong>Status:</strong> {getBookingStatusLabel(selectedBooking.status)}</p>
+              <p><strong>Date Submitted:</strong> {selectedBooking.created_at ? formatFriendlyDateTime(selectedBooking.created_at) : "Not provided"}</p>
               <p><strong>Phone:</strong> {selectedBooking.contact}</p>
+              {selectedBooking.metadata?.traveler_email && <p><strong>Email:</strong> {selectedBooking.metadata.traveler_email}</p>}
+              {isClientToursTravel && selectedBooking.metadata?.customer_address && <p><strong>Address:</strong> {selectedBooking.metadata.customer_address}</p>}
               <div className="bookingItemsPanel">
                 <strong>Services</strong>
                 {selectedBookingItems.map((item) => (
                   <p key={item.serviceName}>
                     <span>{item.serviceName}{item.lineLabel ? ` - ${item.lineLabel}` : ""}</span>
-                    <em>{item.lineTotal === null || item.lineTotal === undefined ? "Pricing unavailable" : formatPeso(item.lineTotal)}</em>
+                    <em>{item.lineTotal === null || item.lineTotal === undefined ? "Contact for Rate" : formatPeso(item.lineTotal)}</em>
                   </p>
                 ))}
                 {selectedBookingTotal !== null && <p className="bookingItemsTotal"><span>Estimated Total</span><em>{formatPeso(selectedBookingTotal)}</em></p>}
@@ -7582,9 +7623,13 @@ function ClientDashboard({
               <p><strong>{isClientAccommodation ? "Check-in" : isClientToursTravel ? "Travel Date" : "Date"}:</strong> {isClientAccommodation ? formatBookingDate(selectedBooking.metadata?.check_in || selectedBooking.booking_date) : selectedBooking.booking_date || "Not required"}</p>
               {isClientAccommodation && <p><strong>Check-out:</strong> {formatBookingDate(selectedBooking.metadata?.check_out)}</p>}
               {isClientToursTravel && selectedBooking.metadata?.travel_end_date && <p><strong>Return / End of Desired Tour:</strong> {formatBookingDate(selectedBooking.metadata.travel_end_date)}</p>}
+              {isClientToursTravel && selectedBooking.metadata?.selected_departure && <p><strong>Selected Departure:</strong> {departureDateLabel(selectedBooking.metadata.selected_departure)}</p>}
               {isClientAccommodation && <p><strong>Nights:</strong> {selectedBooking.metadata?.number_of_nights || "Not saved"}</p>}
               <p><strong>{isClientAccommodation ? "Stay" : isClientToursTravel ? "Preferred Time" : "Time"}:</strong> {selectedBooking.slot || "Inquiry only"}</p>
               {(isClientToursTravel || isClientAccommodation) && <p><strong>Guests:</strong> {selectedBooking.metadata?.guest_count || "Not provided"}</p>}
+              {isClientToursTravel && selectedBooking.metadata?.preferred_hotel_category && <p><strong>Preferred Hotel Category:</strong> {selectedBooking.metadata.preferred_hotel_category}</p>}
+              {isClientToursTravel && selectedBooking.metadata?.room_type && <p><strong>Type of Room:</strong> {selectedBooking.metadata.room_type}</p>}
+              {isClientToursTravel && selectedBooking.metadata?.requested_inclusions && <p><strong>Requested Inclusions:</strong> {selectedBooking.metadata.requested_inclusions}</p>}
               {isClientToursTravel && <p><strong>Pricing Type:</strong> {selectedBooking.metadata?.pricing_type || "Not saved"}</p>}
               {isClientToursTravel && selectedBooking.metadata?.unit_price !== undefined && <p><strong>Rate:</strong> {formatPeso(selectedBooking.metadata.unit_price)}</p>}
               {isClientToursTravel && selectedBooking.metadata?.selected_tier && <p><strong>Selected Group Rate:</strong> {selectedBooking.metadata.selected_tier.minGuests}-{selectedBooking.metadata.selected_tier.maxGuests} pax - {formatPeso(selectedBooking.metadata.selected_tier.price)}</p>}
@@ -7616,11 +7661,12 @@ function ClientDashboard({
               )}
               <label>Status
                 <select value={(selectedBooking.status || "PENDING").toUpperCase()} onChange={(event) => updateStatus(selectedBooking, event.target.value)}>
-                  {["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map((item) => <option key={item}>{item}</option>)}
+                  {bookingStatusOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
               </label>
               <button onClick={() => setSelectedBooking(null)}>Close</button>
             </section>
+            </div>
           )}
         </section>
       </section>
@@ -7646,11 +7692,11 @@ function ReservationCalendar({
   const monthKey = getMonthKey(monthDate);
   const monthDays = buildMonthDays(monthDate);
   const serviceOptions = [...new Set((bookings || []).flatMap((booking) => getBookingLineItems(booking).map((item) => item.serviceName)).filter(Boolean))];
-  const statusOptions = ["All", "Pending", "Confirmed", "Completed", "Cancelled", ...serviceOptions];
+  const statusOptions = ["All", ...bookingStatusOptions.map((item) => item.label), ...serviceOptions];
   const visibleBookings = (bookings || []).filter((booking) => {
     if (!(booking.booking_date || "").startsWith(monthKey)) return false;
-    const statusMatch = ["All", "Pending", "Confirmed", "Completed", "Cancelled"].includes(statusFilter)
-      ? statusFilter === "All" || (booking.status || "").toUpperCase() === statusFilter.toUpperCase()
+    const statusMatch = ["All", ...bookingStatusOptions.map((item) => item.label)].includes(statusFilter)
+      ? statusFilter === "All" || normalizeBookingStatusValue(booking.status) === normalizeBookingStatusValue(statusFilter)
       : getBookingLineItems(booking).some((item) => item.serviceName === statusFilter);
     return statusMatch;
   });
@@ -7737,7 +7783,7 @@ function ReservationCalendar({
                 <i className={`calendarBookingDot ${getStatusClass(booking.status)}`} key={booking.id} onClick={(event) => { event.stopPropagation(); onSelectBooking(booking); }}>
                   <b>{getBookingServiceSummary(booking)}</b>
                   <small>{getInitialsName(booking.customer)}{stayText(booking) ? ` • ${stayText(booking)}` : guestText(booking) ? ` • ${guestText(booking)}` : ""}</small>
-                  <small>{(booking.status || "PENDING").toUpperCase()}</small>
+                  <small>{getBookingStatusLabel(booking.status)}</small>
                 </i>
               ))}
               {dayBookings.length > 2 && <small className="calendarMore">+{dayBookings.length - 2} more</small>}
@@ -7757,12 +7803,12 @@ function ReservationCalendar({
               <div>
                 <strong>{getBookingServiceSummary(booking)}</strong>
                 <span>{booking.customer}{stayText(booking) ? ` • ${stayText(booking)}` : guestText(booking) ? ` • ${guestText(booking)}` : ""}</span>
-                <small>{booking.slot || "No preferred time"} / {(booking.status || "PENDING").toUpperCase()}</small>
+                <small>{booking.slot || "No preferred time"} / {getBookingStatusLabel(booking.status)}</small>
               </div>
               <p>{booking.note || "No notes provided"}</p>
               <div className="clientBookingActions">
                 <select value={(booking.status || "PENDING").toUpperCase()} onChange={(event) => onStatusChange(booking, event.target.value)}>
-                  {["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map((item) => <option key={item}>{item}</option>)}
+                  {bookingStatusOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
                 <button onClick={() => onSelectBooking(booking)}>View Details</button>
               </div>
@@ -7788,9 +7834,9 @@ function BookingList({ bookings, onSelect, onStatusChange, onDelete }) {
           </div>
           <p>{booking.note || "No notes provided"}</p>
           <div className="clientBookingActions">
-            <span className={`clientStatusPill ${getStatusClass(booking.status)}`}>{(booking.status || "PENDING").toUpperCase()}</span>
+            <span className={`clientStatusPill ${getStatusClass(booking.status)}`}>{getBookingStatusLabel(booking.status)}</span>
             <select value={(booking.status || "PENDING").toUpperCase()} onChange={(event) => onStatusChange(booking, event.target.value)}>
-              {["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].map((item) => <option key={item}>{item}</option>)}
+              {bookingStatusOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
             </select>
             <button onClick={() => onSelect(booking)}>View Details</button>
             <button type="button" className="clientDeleteBookingButton" onClick={() => onDelete(booking)}><Trash2 size={15} /> Delete</button>

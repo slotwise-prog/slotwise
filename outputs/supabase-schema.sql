@@ -814,7 +814,15 @@ security definer
 set search_path = public
 as $$
 begin
-  if upper(next_status) not in ('PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED') then
+  if upper(next_status) not in (
+    'PENDING',
+    'QUOTATION_SENT',
+    'WAITING_FOR_APPROVAL',
+    'FOR_AMENDMENT',
+    'CONFIRMED',
+    'COMPLETED',
+    'CANCELLED'
+  ) then
     raise exception 'Invalid booking status';
   end if;
 

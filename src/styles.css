@@ -4181,6 +4181,21 @@ h2 {
   background: #ecfff9;
 }
 
+.calendarBookingDot.quotation-sent {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.calendarBookingDot.waiting-for-approval {
+  border-color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.calendarBookingDot.for-amendment {
+  border-color: #d97706;
+  background: #fff7ed;
+}
+
 .calendarBookingDot.completed {
   border-color: #64748b;
   background: #f1f5f9;
@@ -5630,6 +5645,21 @@ h2 {
   background: #eaf7ff;
 }
 
+.clientStatusPill.quotation-sent {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.clientStatusPill.waiting-for-approval {
+  color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.clientStatusPill.for-amendment {
+  color: #b45309;
+  background: #fff7ed;
+}
+
 .clientStatusPill.completed {
   color: #0c8a70;
   background: #ecfff9;
@@ -5641,10 +5671,24 @@ h2 {
 }
 
 .clientBookingDetails {
-  margin-top: 16px;
+  width: min(620px, calc(100% - 32px));
+  max-height: calc(100vh - 48px);
+  margin: 24px auto;
   padding: 20px;
   display: grid;
   gap: 8px;
+  overflow-y: auto;
+}
+
+.clientBookingDetailsBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.38);
 }
 
 .clientBookingDetails h2 {
@@ -5658,6 +5702,12 @@ h2 {
   color: #4e587c;
   font-size: 13px;
   font-weight: 850;
+}
+
+@media (max-width: 600px) {
+  .clientBookingDetailsBackdrop { align-items: flex-end; }
+  .clientBookingDetails { width: 100%; max-height: 90vh; margin: 0; padding: 18px; border-radius: 12px 12px 0 0; }
+  .clientBookingDetails > button { min-height: 44px; position: sticky; bottom: 0; }
 }
 
 .clientAccountPanel {
