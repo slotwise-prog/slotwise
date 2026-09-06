@@ -86,6 +86,7 @@ import "./styles.css";
 import "./travel.css";
 import "./booking-delete.css";
 import travelCoverFallback from "./assets/travel-cover-fallback.png";
+import healthWellnessCover from "./assets/health-wellness-cover.png";
 
 const services = [
   { name: "Salon appointment", length: "60 min", price: "PHP 350", fields: ["Preferred stylist", "Hair length"] },
@@ -125,6 +126,7 @@ const bookingTemplateOptions = [
   { value: "GENERAL", label: "General" },
   { value: "BEAUTY", label: "Beauty / Salon" },
   { value: "CLINIC", label: "Clinic / Dental" },
+  { value: "HEALTH_WELLNESS", label: "Health & Wellness" },
   { value: "PROFESSIONAL_SERVICES", label: "Consultant / Professional Services" },
   { value: "HOME_SERVICE", label: "Home Service" },
   { value: "AUTO", label: "Auto / Car Wash" },
@@ -323,6 +325,7 @@ function resolveTemplateSectionIcon(bookingTemplate = "GENERAL") {
   const template = normalizeBookingTemplate(bookingTemplate);
   if (template === "BEAUTY") return Sparkles;
   if (template === "CLINIC") return Stethoscope;
+  if (template === "HEALTH_WELLNESS") return HeartPulse;
   if (template === "PROFESSIONAL_SERVICES") return BriefcaseBusiness;
   if (template === "HOME_SERVICE") return Wrench;
   if (template === "AUTO") return CarFront;
@@ -344,6 +347,7 @@ function resolveBusinessTone(business = {}) {
   if (template === "HOME_SERVICE") return "home-service";
   if (template === "AUTO") return "auto";
   if (template === "CLINIC") return "clinic";
+  if (template === "HEALTH_WELLNESS") return "health-wellness";
   if (template === "BEAUTY") return "beauty";
   if (hasKeyword(businessText, ["laundry", "wash and fold", "wash & fold", "dry cleaning", "pickup and delivery", "pick up and delivery"])) return "laundry";
   if (hasKeyword(businessText, ["clinic", "dental", "dentist", "medical", "care"])) return "clinic";
@@ -363,6 +367,7 @@ function getToneThemeDefaults(tone) {
   if (tone === "home-service") return { primaryColor: "#155e75", accentColor: "#eaf7fb", pageBackgroundColor: "#F1F5F9" };
   if (tone === "auto") return { primaryColor: "#1f2937", accentColor: "#eef2f7", pageBackgroundColor: "#F2F4F7" };
   if (tone === "clinic") return { primaryColor: "#148d84", accentColor: "#dff7f3", pageBackgroundColor: "#EEF4F8" };
+  if (tone === "health-wellness") return { primaryColor: "#5B3FD3", accentColor: "#F8DCEB", pageBackgroundColor: "#FCFAFD" };
   if (tone === "travel") return { primaryColor: "#b16f16", accentColor: "#fff1d3", pageBackgroundColor: "#F7F3E8" };
   if (tone === "general") return { primaryColor: "#38516f", accentColor: "#f2f6fb", pageBackgroundColor: "#F4F6F8" };
   return { primaryColor: "#bd5d6d", accentColor: "#f6dfe3", pageBackgroundColor: "#FBF3F5" };
@@ -406,6 +411,7 @@ function getTemplateFallbackCover(tone = "beauty") {
     "home-service": { title: "HOME SERVICE", subtitle: "Repair • Clean • Fix", start: "#0f3f4f", end: "#2563eb" },
     auto: { title: "AUTO", subtitle: "Detail • Wash • Drive", start: "#111827", end: "#ea580c" },
     clinic: { title: "CLINIC", subtitle: "Care • Wellness • Visit", start: "#0f766e", end: "#7dd3fc" },
+    "health-wellness": { title: "WELLNESS", subtitle: "Balance • Routine • Care", start: "#5B3FD3", end: "#D982B5" },
     general: { title: "BUSINESS", subtitle: "Book • Manage • Repeat", start: "#243b53", end: "#2f80ed" },
     beauty: { title: "BEAUTY", subtitle: "Glow • Style • Shine", start: "#bd5d6d", end: "#f6dfe3" },
   };
@@ -560,6 +566,11 @@ const bookingTemplatePublicCopy = {
     tagline: ["Quality care.", "Easy appointment booking."],
     trust: [["Easy appointment booking", "Choose your preferred schedule"], ["Visit confirmation", "The clinic will confirm your appointment"], ["Simple and private", "Your details stay organized"]],
   },
+  HEALTH_WELLNESS: {
+    category: "Health & Wellness",
+    tagline: ["Everyday wellness.", "Simple booking and inquiries."],
+    trust: [["Choose an option", "Browse available products and services"], ["Enter your details", "Complete the information requested"], ["Receive confirmation", "Keep your Slotwise reference"]],
+  },
   HOME_SERVICE: {
     category: "Home Services",
     tagline: ["Reliable service.", "Book at your convenience."],
@@ -623,6 +634,7 @@ function getBookingTemplateTone(bookingTemplate) {
   if (nextTemplate === "HOME_SERVICE") return "home-service";
   if (nextTemplate === "AUTO") return "auto";
   if (nextTemplate === "CLINIC") return "clinic";
+  if (nextTemplate === "HEALTH_WELLNESS") return "health-wellness";
   if (nextTemplate === "BEAUTY") return "beauty";
   return "general";
 }
@@ -1817,6 +1829,7 @@ function parseServicesToStructured(value, bookingTemplate = "GENERAL") {
 
 function getServiceManagerCopy(bookingTemplate = "GENERAL") {
   const template = normalizeBookingTemplate(bookingTemplate);
+  if (template === "HEALTH_WELLNESS") return { title: "Products / Services", single: "Product / service", add: "Add Another Product / Service" };
   if (template === "TOURS_TRAVEL") return { title: "Travel Services & Packages", single: "Travel service / package", add: "Add Another Service / Package" };
   if (template === "STAYCATION_ACCOMMODATION") return { title: "Rooms / Units", single: "Room / unit", add: "Add Room / Unit" };
   if (template === "PROFESSIONAL_SERVICES") return { title: "Plans & Services", single: "Plan / product", add: "Add Another Plan" };
@@ -1855,6 +1868,7 @@ function filterLegacyToursSeedRows(serviceRows = [], bookingTemplate = "GENERAL"
 
 function inferBookingTemplateFromIndustry(industry = "") {
   const lower = industry.toLowerCase();
+  if (/(health\s*&?\s*wellness|wellness|nutrition|supplement)/i.test(lower)) return "HEALTH_WELLNESS";
   if (/(staycation|accommodation|resort|villa|transient|apartment|condotel|hotel|guest house|cabin|beach house|room|rental)/i.test(lower)) return "STAYCATION_ACCOMMODATION";
   if (/(travel|tour)/i.test(lower)) return "TOURS_TRAVEL";
   if (/(consultant|consulting|professional services|professional service|agency|advisory|advisor|accounting|legal|lawyer|real estate|broker|marketing|design|freelance|profession)/i.test(lower)) return "PROFESSIONAL_SERVICES";
@@ -1962,6 +1976,42 @@ function getPublicSlugFromLocation() {
 }
 
 const templates = [
+  {
+    icon: <HeartPulse />,
+    slug: "the-vitality-collective",
+    name: "Health & Wellness",
+    business: "The Vitality Collective",
+    link: "the-vitality-collective.slotwise.app",
+    logo: "",
+    primaryColor: "#5B3FD3",
+    accentColor: "#F8DCEB",
+    pageBackgroundColor: "#FCFAFD",
+    phone: "09926377497",
+    primaryEmail: "chin.nnej02@gmail.com",
+    messengerLink: "",
+    address: "",
+    description: "Explore thoughtfully selected wellness options designed to fit into your everyday routine.",
+    businessType: "Health & Wellness",
+    bookingMode: "inquiry",
+    bookingTemplate: "HEALTH_WELLNESS",
+    package: "BUSINESS",
+    featureFlags: { ...defaultFeatureFlags, requireDate: false, requireTime: false, clientAdminEnabled: true, customerListEnabled: true, wellnessHeroEyebrow: "EVERYDAY WELLNESS", wellnessHeroTitle: "Find Your Everyday Balance", wellnessFooterTagline: "Wellness made simpler for everyday life." },
+    availability: { ...defaultAvailability, days: "Monday to Sunday", hours: "8:00 AM to 5:00 PM" },
+    cover: healthWellnessCover,
+    accent: "health-wellness",
+    tagline: "Explore thoughtfully selected wellness options for your everyday routine.",
+    highlight: "Flexible for product inquiries and scheduled wellness services",
+    stat: "Five wellness options",
+    services: ["Daily Balance 15", "Daily Balance 30", "Daily Balance 60", "Metabolic Support Plus", "Appetite Balance"],
+    serviceDetails: [
+      { name: "Daily Balance 15", description: "", price: 1949, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 0, status: "Active" },
+      { name: "Daily Balance 30", description: "", price: 3249, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 1, status: "Active" },
+      { name: "Daily Balance 60", description: "", price: 4250, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 2, status: "Active" },
+      { name: "Metabolic Support Plus", description: "", price: 4099, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 3, status: "Active" },
+      { name: "Appetite Balance", description: "", price: 2250, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 4, status: "Active" },
+    ],
+    forms: ["Questions or notes"],
+  },
   {
     icon: <Scissors />,
     slug: "glowbeauty",
@@ -3386,6 +3436,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const selectedWeekdayLabel = formatBookingWeekday(selectedBookingDate);
   const bookingTone = resolveBusinessTone(business);
   const isClinic = bookingTone === "clinic";
+  const isHealthWellness = bookingTone === "health-wellness";
   const isToursTravel = bookingTone === "tours-travel";
   const isPhisavong = business.slug === "phisavong-world-travel-and-tours";
   const travelSeasonalNoticeTitle = String(
@@ -3401,19 +3452,26 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const isHomeService = bookingTone === "home-service";
   const isConsultant = bookingTone === "professional-services";
   const brandInitial = (business.business || "S").trim().charAt(0).toUpperCase();
+  const brandInitials = (business.business || "S")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 3)
+    .map((word) => word.charAt(0).toUpperCase())
+    .join("") || brandInitial;
   const templateCopy = getBookingTemplateCopy(business.bookingTemplate, business);
   const brandCategory = templateCopy.category;
   const brandLine = templateCopy.tagline;
-  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Plan Your Trip" : isLaundry ? "Book Laundry Pickup" : isConsultant ? "Plans & Services" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
-  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? "Choose a travel service to get started." : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
-  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Travel Service" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
+  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Plan Your Trip" : isHealthWellness ? "Our Wellness Collection" : isLaundry ? "Book Laundry Pickup" : isConsultant ? "Plans & Services" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
+  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? "Choose a travel service to get started." : isHealthWellness ? "Choose the product or service that fits your everyday routine." : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
+  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Travel Service" : isHealthWellness ? "Choose Product / Service" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
   const ServiceStepIcon = resolveTemplateSectionIcon(business.bookingTemplate);
-  const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Dates" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
+  const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Dates" : isHealthWellness ? "Preferred Schedule" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
   const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : isLaundry ? "Pickup Time" : "";
-  const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Traveler Information" : isLaundry ? "Pickup Details" : isHomeService ? "Your contact details" : "Your details";
+  const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Traveler Information" : isHealthWellness ? "Your Information" : isLaundry ? "Pickup Details" : isHomeService ? "Your contact details" : "Your details";
+  const detailsStepNumber = isToursTravel ? 4 : (flags.requireTime || isAccommodation ? 3 : 2);
   const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isLaundry ? "Laundry notes" : isConsultant ? "Inquiry / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
   const notePlaceholder = isAccommodation ? "Arrival notes, requests, or questions for the host" : isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isLaundry ? "Fabric care, folding instructions, delivery notes, or special requests" : isConsultant ? "Tell us which plan you need, coverage questions, or who should contact you." : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
-  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Travel Inquiry" : isLaundry ? "Submit Pickup Request" : isConsultant ? "Send Inquiry" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
+  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Travel Inquiry" : isHealthWellness ? (flags.requireDate || flags.requireTime ? "Submit Booking Request" : "Submit Request") : isLaundry ? "Submit Pickup Request" : isConsultant ? "Send Inquiry" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
   const paymentSettings = business.paymentSettings || {};
   const paymentMethods = (business.paymentMethods || []).filter((method) => method.active !== false);
   const allowMultipleServices = Boolean(flags.allowMultipleServices);
@@ -3466,6 +3524,15 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
     isAccommodation && detail.maxGuests ? `Up to ${detail.maxGuests} guests` : detail.durationMinutes ? `${detail.durationMinutes} min` : "",
     detail.price !== null || detail.pricingTiers?.length ? servicePriceLabel(detail) : "",
   ].filter(Boolean).join(" • ");
+  const publicServiceMetaLabel = (detail) => {
+    const label = serviceMetaLabel(detail);
+    return isHealthWellness ? label.replace(/\bPHP\s*/g, "₱") : label;
+  };
+  const publicPriceLabel = (value) => {
+    const label = formatPeso(value);
+    return isHealthWellness ? label.replace(/\bPHP\s*/g, "₱") : label;
+  };
+  const publicLineLabel = (value) => isHealthWellness ? String(value || "").replace(/\bPHP\s*/g, "₱") : value;
   const requiredPaymentAmount = getRequiredPaymentAmount(paymentSettings, estimatedTotal);
   const paymentRequired = isProductionActive && paymentSettings.enabled && requiredPaymentAmount !== null && paymentMethods.length > 0;
 
@@ -3573,7 +3640,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       booking_date: flags.requireDate ? selectedBookingDate : "",
       slot: isAccommodation ? `${formatBookingDate(selectedBookingDate)} to ${formatBookingDate(selectedCheckoutDate)}` : flags.requireTime ? pickedSlot : "Inquiry only",
       note: data.get("note"),
-      status: isProductionActive ? (isToursTravel ? "PENDING" : "Confirmed") : `${clientStatus} preview`,
+      status: isProductionActive ? (isToursTravel || isHealthWellness ? "PENDING" : "Confirmed") : `${clientStatus} preview`,
       estimated_total: submittedCalculation.estimatedTotal,
       metadata: {
         booking_template: business.bookingTemplate,
@@ -3698,17 +3765,33 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
         ...getBusinessPageBackgroundStyle(business, bookingTone),
       }}
     >
+      {isHealthWellness && (
+        <header className="wellnessPublicNav">
+          <a href="#wellness-home" className="wellnessNavBrand">
+            <span>{business.logo ? <img src={business.logo} alt={`${business.business} logo`} /> : brandInitials}</span>
+            <strong>{business.business}</strong>
+          </a>
+          <nav aria-label="Health and wellness page navigation">
+            <a href="#wellness-options">Products / Services</a>
+            <a href="#wellness-how">How It Works</a>
+            <a href="#wellness-contact">Contact</a>
+          </nav>
+          <a className="wellnessNavCta" href="#wellness-options">Get Started</a>
+        </header>
+      )}
       <button className="backButton premiumBackButton" onClick={onBack}><ArrowLeft size={18} /> Back to Slotwise</button>
-      <section className="publicBooking premiumPublicBooking">
+      <section className="publicBooking premiumPublicBooking" id={isHealthWellness ? "wellness-home" : undefined}>
         <aside className="premiumBrandPanel" style={getBusinessCoverStyle(business, bookingTone)}>
           <div className="brandMark">
-            {business.logo ? <img src={business.logo} alt={`${business.business} logo`} /> : <span>{brandInitial}</span>}
+            {business.logo ? <img src={business.logo} alt={`${business.business} logo`} /> : <span>{isHealthWellness ? brandInitials : brandInitial}</span>}
           </div>
           <div className="brandStory">
-            <span>{brandCategory}</span>
-            <h1>{business.business}</h1>
+            <span>{isHealthWellness ? (business.featureFlags?.wellnessHeroEyebrow || "EVERYDAY WELLNESS") : brandCategory}</span>
+            {isHealthWellness && <strong className="wellnessHeroBusinessName">{business.business}</strong>}
+            <h1>{isHealthWellness ? (business.featureFlags?.wellnessHeroTitle || "Find Your Everyday Balance") : business.business}</h1>
             <i />
             <p>{brandLine[0]}{brandLine[1] && <><br />{brandLine[1]}</>}</p>
+            {isHealthWellness && <div className="wellnessHeroActions"><a href="#wellness-options">Explore Options</a><a href="#wellness-contact">Contact Us</a></div>}
           </div>
           <div className="bookingTrustCard">
             <div><CalendarDays size={22} /><span><strong>{templateCopy.trust[0][0]}</strong><small>{templateCopy.trust[0][1]}</small></span></div>
@@ -3744,7 +3827,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
               )}
               {!isToursTravel && (business.phone || business.mobileNumbers || business.primaryEmail || business.website || business.address) && (
                 <div className="bookingContactLine">
-                  {business.phone && <span><Phone size={13} /><strong>Office</strong>{business.phone}</span>}
+                  {business.phone && <span><Phone size={13} /><strong>{isHealthWellness ? "Phone" : "Office"}</strong>{business.phone}</span>}
                   {business.mobileNumbers && <span><Smartphone size={13} /><strong>Mobile</strong>{business.mobileNumbers}</span>}
                   {business.primaryEmail && <span><Mail size={13} /><strong>Email</strong>{business.primaryEmail}</span>}
                   {business.website && <a href={normalizeServiceLink(business.website)} target="_blank" rel="noopener noreferrer"><Globe size={13} /><strong>Visit Website</strong></a>}
@@ -3779,7 +3862,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
           )}
 
           {flags.bookingEnabled && (
-          <div className="bookingStep" onFocusCapture={() => isToursTravel && setTravelActiveStep(1)}>
+          <div className="bookingStep" id={isHealthWellness ? "wellness-options" : undefined} onFocusCapture={() => isToursTravel && setTravelActiveStep(1)}>
             <div className="bookingStepTitle"><span>1</span><strong><ServiceStepIcon size={16} />{serviceStepLabel}</strong></div>
             <div className={isConsultant ? "premiumServiceGrid consultantServiceGrid" : "premiumServiceGrid"}>
               {business.services.map((item) => {
@@ -3865,7 +3948,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                       <strong>{detail.imageTitle || item}</strong>
                       {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
                       {detail.description && <p className="serviceDescription">{detail.description}</p>}
-                      {flags.showPrices && serviceMetaLabel(detail) && <small>{serviceMetaLabel(detail)}</small>}
+                      {flags.showPrices && publicServiceMetaLabel(detail) && <small>{publicServiceMetaLabel(detail)}</small>}
                       {isSelected && <em><Check size={16} /></em>}
                     </button>
                   )
@@ -3953,7 +4036,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
           )}
 
           <div className="bookingStep" onFocusCapture={() => isToursTravel && setTravelActiveStep(4)}>
-            <div className="bookingStepTitle"><span>{isToursTravel ? 4 : 3}</span><strong>{detailsStepLabel}</strong></div>
+            <div className="bookingStepTitle"><span>{detailsStepNumber}</span><strong>{detailsStepLabel}</strong></div>
             <label className="premiumInput"><User size={20} /><span>{isAccommodation ? "Full Name" : "Your name"}<input name="customer" required placeholder="Maria Santos" /></span></label>
             <label className="premiumInput"><Phone size={20} /><span>{isAccommodation ? "Mobile Number" : "Phone or contact number"}<input name="contact" required placeholder="0912 345 6789" /></span></label>
             {isToursTravel && <label className="premiumInput"><Mail size={20} /><span>Email (optional)<input name="email" type="email" placeholder="name@example.com" /></span></label>}
@@ -3993,9 +4076,9 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
 
           {(isToursTravel || allowMultipleServices || flags.showPrices) && (
             <div className="reservationSummary" tabIndex={isToursTravel ? 0 : undefined} onFocus={() => isToursTravel && setTravelActiveStep(5)} onMouseEnter={() => isToursTravel && setTravelActiveStep(5)}>
-              <span>{isToursTravel ? "Travel Inquiry Summary" : "Booking Summary"}</span>
+              <span>{isToursTravel ? "Travel Inquiry Summary" : isHealthWellness && !flags.requireDate && !flags.requireTime ? "Request Summary" : "Booking Summary"}</span>
               <strong>{primaryServiceLabel}</strong>
-              <p>{selectedDateLabel} {flags.requireTime ? `at ${pickedSlot}` : ""}{needsGuestCount ? ` • ${guestCount} ${isToursTravel ? "guest" : "pax"}${guestCount > 1 ? "s" : ""}` : ""}</p>
+              {(flags.requireDate || flags.requireTime || needsGuestCount) && <p>{flags.requireDate ? selectedDateLabel : ""} {flags.requireTime ? `at ${pickedSlot}` : ""}{needsGuestCount ? `${flags.requireDate || flags.requireTime ? " • " : ""}${guestCount} ${isToursTravel ? "guest" : "pax"}${guestCount > 1 ? "s" : ""}` : ""}</p>}
               {isToursTravel && <div className="travelInquiryPreferences">
                 {travelDetails.preferredHotelCategory && <p><strong>Preferred Hotel Category:</strong> {travelDetails.preferredHotelCategory}</p>}
                 {travelDetails.roomType && <p><strong>Type of Room:</strong> {travelDetails.roomType}</p>}
@@ -4005,13 +4088,13 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
               <div className="bookingLineItems">
                 {bookingCalculation.lineItems.map((item) => (
                   <div key={item.serviceName}>
-                    <span>{item.serviceName}<small>{item.lineLabel}</small></span>
-                    <strong>{item.lineTotal === null ? (isToursTravel ? "Request Quote" : "Pricing unavailable") : formatPeso(item.lineTotal)}</strong>
+                    <span>{item.serviceName}<small>{publicLineLabel(item.lineLabel)}</small></span>
+                    <strong>{item.lineTotal === null ? (isToursTravel ? "Request Quote" : "Pricing unavailable") : publicPriceLabel(item.lineTotal)}</strong>
                   </div>
                 ))}
               </div>
               {!bookingCalculation.totalAvailable && <em>This booking option needs pricing configured before it can be submitted.</em>}
-              {flags.showPrices && bookingCalculation.totalAvailable && !isQuoteOnlySelection && <em>Estimated total: {formatPeso(estimatedTotal)}</em>}
+              {flags.showPrices && bookingCalculation.totalAvailable && !isQuoteOnlySelection && <em>Estimated total: {publicPriceLabel(estimatedTotal)}</em>}
             </div>
           )}
 
@@ -4099,6 +4182,31 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
           )}
         </form>
       </section>
+      {isHealthWellness && (
+        <>
+          <section className="wellnessHowItWorks" id="wellness-how">
+            <div className="wellnessSectionHeading"><span>How It Works</span><h2>A simple way to get started.</h2></div>
+            <div className="wellnessHowGrid">
+              {[
+                ["01", "Choose Your Wellness Option", "Browse available products or services."],
+                ["02", "Enter Your Details", "Complete the information requested by the business."],
+                ["03", "Submit Your Request", "Review your details and send your request."],
+                ["04", "Receive Confirmation", "Keep your Slotwise reference for follow-up."],
+              ].map(([number, title, text]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{text}</p></article>)}
+            </div>
+          </section>
+          <section className="wellnessBusinessInfo" id="wellness-contact">
+            <div><span>Business Information</span><h2>{business.business}</h2><p>{business.featureFlags?.wellnessFooterTagline || "Wellness made simpler for everyday life."}</p></div>
+            <div className="wellnessContactGrid">
+              <div><Clock size={19} /><span><small>Business Hours</small><strong>{business.availability?.days}<br />{business.availability?.hours}</strong></span></div>
+              {business.phone && <a href={normalizePhoneLink(business.phone)}><Phone size={19} /><span><small>Phone</small><strong>{business.phone}</strong></span></a>}
+              {business.primaryEmail && <a href={`mailto:${business.primaryEmail}`}><Mail size={19} /><span><small>Email</small><strong>{business.primaryEmail}</strong></span></a>}
+              {business.messengerLink && <a href={normalizeServiceLink(business.messengerLink)} target="_blank" rel="noopener noreferrer"><MessageCircle size={19} /><span><small>Messenger</small><strong>Send a message</strong></span></a>}
+            </div>
+          </section>
+          <footer className="wellnessFooter"><strong>{business.business}</strong><span>{business.featureFlags?.wellnessFooterTagline || business.businessType}</span></footer>
+        </>
+      )}
       <p className="privacyNote">We respect your time and privacy.</p>
     </main>
   );
