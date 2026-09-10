@@ -81,12 +81,18 @@ import {
   Mail,
   Smartphone,
   MessageCircle,
+  Ruler,
 } from "lucide-react";
 import "./styles.css";
 import "./travel.css";
 import "./booking-delete.css";
 import travelCoverFallback from "./assets/travel-cover-fallback.png";
 import healthWellnessCover from "./assets/health-wellness-cover.png";
+import facialUnlimitedLogo from "./assets/facial-unlimited-logo.png";
+import facialUnlimitedCover from "./assets/facial-unlimited-cover.png";
+import realEstateCover from "./assets/real-estate-cover.png";
+import pestControlCover from "./assets/pest-control-cover.png";
+import dmonsterLogo from "./assets/dmonster-logo.png";
 
 const services = [
   { name: "Salon appointment", length: "60 min", price: "PHP 350", fields: ["Preferred stylist", "Hair length"] },
@@ -122,11 +128,42 @@ const packageOptions = [
   { value: "PRO", label: "Pro", price: "PHP 1,499 lifetime" },
 ];
 
+const SMM_FACEBOOK_URL = "https://www.facebook.com/smmsolutionsv2/";
+
+const dashboardPackageCards = [
+  {
+    value: "STARTER",
+    label: "Starter",
+    price: "PHP 499",
+    note: "Lifetime access",
+    summary: "A clean booking or inquiry page for small businesses getting started.",
+    features: ["Public booking / inquiry page", "Client dashboard", "Customer booking details", "Status management", "Mobile-friendly page"],
+  },
+  {
+    value: "BUSINESS",
+    label: "Business",
+    price: "PHP 799",
+    note: "Lifetime access",
+    summary: "More day-to-day control for services, pricing, and business information.",
+    features: ["Everything in Starter", "Service management", "Pricing management", "Schedule management", "Customer list"],
+  },
+  {
+    value: "PRO",
+    label: "Pro",
+    price: "PHP 1,499",
+    note: "Lifetime access",
+    summary: "Advanced reservation tools for businesses that need a fuller operating dashboard.",
+    features: ["Everything in Business", "Manual Create Reservation", "Reservation calendar", "Blocked dates", "Payment verification", "Customer history"],
+  },
+];
+
 const bookingTemplateOptions = [
   { value: "GENERAL", label: "General" },
   { value: "BEAUTY", label: "Beauty / Salon" },
   { value: "CLINIC", label: "Clinic / Dental" },
   { value: "HEALTH_WELLNESS", label: "Health & Wellness" },
+  { value: "REAL_ESTATE", label: "Real Estate / Property Inquiry" },
+  { value: "PEST_CONTROL", label: "Pest Control / Service Request" },
   { value: "PROFESSIONAL_SERVICES", label: "Consultant / Professional Services" },
   { value: "HOME_SERVICE", label: "Home Service" },
   { value: "AUTO", label: "Auto / Car Wash" },
@@ -142,9 +179,11 @@ const packageCapabilityMap = {
     photoManagement: false,
     schedule: false,
     customers: false,
+    clientRecords: false,
     basicStats: false,
     blockedDates: false,
     reservationCalendar: false,
+    manualReservations: false,
     paymentVerification: false,
     customerHistory: false,
     enhancedStats: false,
@@ -154,9 +193,11 @@ const packageCapabilityMap = {
     photoManagement: true,
     schedule: true,
     customers: true,
+    clientRecords: false,
     basicStats: true,
     blockedDates: false,
     reservationCalendar: false,
+    manualReservations: false,
     paymentVerification: false,
     customerHistory: false,
     enhancedStats: false,
@@ -166,9 +207,11 @@ const packageCapabilityMap = {
     photoManagement: true,
     schedule: true,
     customers: true,
+    clientRecords: false,
     basicStats: true,
     blockedDates: true,
     reservationCalendar: true,
+    manualReservations: true,
     paymentVerification: true,
     customerHistory: true,
     enhancedStats: true,
@@ -189,6 +232,56 @@ function formatBookingWeekday(dateValue) {
   if (!dateValue) return "";
   const date = new Date(`${dateValue}T00:00:00`);
   return date.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+function formatReadableDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+}
+
+function isBusinessOpen24Hours(availability = {}) {
+  const text = `${availability.days || ""} ${availability.openDays || ""} ${availability.hours || ""} ${availability.openHours || ""}`.toLowerCase();
+  return /\b(24\/7|24-7|24 hours|24hrs|24 hrs|anytime|any time|operate any time|open all day|open 24)\b/.test(text);
+}
+
+function timeInputToDisplay(value = "") {
+  const match = String(value).match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return value;
+  const hours = Number(match[1]);
+  const minutes = match[2];
+  const period = hours >= 12 ? "PM" : "AM";
+  const hour12 = hours % 12 || 12;
+  return `${hour12}:${minutes} ${period}`;
+}
+
+function displayTimeToInput(value = "") {
+  const raw = String(value || "").trim();
+  const inputMatch = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (inputMatch) return `${inputMatch[1].padStart(2, "0")}:${inputMatch[2]}`;
+  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (!match) return "";
+  let hours = Number(match[1]);
+  const minutes = match[2] || "00";
+  const period = match[3].toUpperCase();
+  if (period === "PM" && hours !== 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+  return `${String(hours).padStart(2, "0")}:${minutes}`;
+}
+
+function getCurrentTimeInputValue() {
+  const now = new Date(Date.now() + 60000);
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
+function isPastPreferredSchedule(dateValue, displayTimeValue) {
+  const timeValue = displayTimeToInput(displayTimeValue);
+  if (!dateValue || !timeValue) return false;
+  const [hours, minutes] = timeValue.split(":").map(Number);
+  const selected = new Date(`${dateValue}T00:00:00`);
+  selected.setHours(hours, minutes, 0, 0);
+  return selected.getTime() < Date.now();
 }
 
 function getMonthKey(date) {
@@ -326,6 +419,8 @@ function resolveTemplateSectionIcon(bookingTemplate = "GENERAL") {
   if (template === "BEAUTY") return Sparkles;
   if (template === "CLINIC") return Stethoscope;
   if (template === "HEALTH_WELLNESS") return HeartPulse;
+  if (template === "REAL_ESTATE") return Building2;
+  if (template === "PEST_CONTROL") return ShieldCheck;
   if (template === "PROFESSIONAL_SERVICES") return BriefcaseBusiness;
   if (template === "HOME_SERVICE") return Wrench;
   if (template === "AUTO") return CarFront;
@@ -348,6 +443,8 @@ function resolveBusinessTone(business = {}) {
   if (template === "AUTO") return "auto";
   if (template === "CLINIC") return "clinic";
   if (template === "HEALTH_WELLNESS") return "health-wellness";
+  if (template === "REAL_ESTATE") return "real-estate";
+  if (template === "PEST_CONTROL") return "pest-control";
   if (template === "BEAUTY") return "beauty";
   if (hasKeyword(businessText, ["laundry", "wash and fold", "wash & fold", "dry cleaning", "pickup and delivery", "pick up and delivery"])) return "laundry";
   if (hasKeyword(businessText, ["clinic", "dental", "dentist", "medical", "care"])) return "clinic";
@@ -368,6 +465,8 @@ function getToneThemeDefaults(tone) {
   if (tone === "auto") return { primaryColor: "#1f2937", accentColor: "#eef2f7", pageBackgroundColor: "#F2F4F7" };
   if (tone === "clinic") return { primaryColor: "#148d84", accentColor: "#dff7f3", pageBackgroundColor: "#EEF4F8" };
   if (tone === "health-wellness") return { primaryColor: "#5B3FD3", accentColor: "#F8DCEB", pageBackgroundColor: "#FCFAFD" };
+  if (tone === "real-estate") return { primaryColor: "#17324D", accentColor: "#EEE7DA", pageBackgroundColor: "#F7F4EE" };
+  if (tone === "pest-control") return { primaryColor: "#A51D24", accentColor: "#F4E8E8", pageBackgroundColor: "#F5F5F4" };
   if (tone === "travel") return { primaryColor: "#b16f16", accentColor: "#fff1d3", pageBackgroundColor: "#F7F3E8" };
   if (tone === "general") return { primaryColor: "#38516f", accentColor: "#f2f6fb", pageBackgroundColor: "#F4F6F8" };
   return { primaryColor: "#bd5d6d", accentColor: "#f6dfe3", pageBackgroundColor: "#FBF3F5" };
@@ -412,6 +511,8 @@ function getTemplateFallbackCover(tone = "beauty") {
     auto: { title: "AUTO", subtitle: "Detail • Wash • Drive", start: "#111827", end: "#ea580c" },
     clinic: { title: "CLINIC", subtitle: "Care • Wellness • Visit", start: "#0f766e", end: "#7dd3fc" },
     "health-wellness": { title: "WELLNESS", subtitle: "Balance • Routine • Care", start: "#5B3FD3", end: "#D982B5" },
+    "real-estate": { title: "PROPERTY", subtitle: "Inquire • Connect • Move", start: "#17324D", end: "#A88A5B" },
+    "pest-control": { title: "PEST CONTROL", subtitle: "Protect • Treat • Prevent", start: "#171717", end: "#A51D24" },
     general: { title: "BUSINESS", subtitle: "Book • Manage • Repeat", start: "#243b53", end: "#2f80ed" },
     beauty: { title: "BEAUTY", subtitle: "Glow • Style • Shine", start: "#bd5d6d", end: "#f6dfe3" },
   };
@@ -452,6 +553,18 @@ function getBusinessCoverStyle(business = {}, tone = "beauty") {
       || business.featureFlags?.travelCoverIsScenery === true;
     return {
       backgroundImage: `url(${cover && isPhotoCover ? cover : travelCoverFallback})`,
+      backgroundPosition: business.coverPosition || "center",
+    };
+  }
+  if (tone === "real-estate") {
+    return {
+      backgroundImage: `linear-gradient(180deg, rgba(8, 22, 36, 0.18), rgba(8, 22, 36, 0.82)), url(${cover || realEstateCover})`,
+      backgroundPosition: business.coverPosition || "center",
+    };
+  }
+  if (tone === "pest-control") {
+    return {
+      backgroundImage: `linear-gradient(180deg, rgba(20, 17, 17, 0.18), rgba(20, 12, 13, 0.86)), url(${cover || pestControlCover})`,
       backgroundPosition: business.coverPosition || "center",
     };
   }
@@ -551,6 +664,16 @@ function normalizeBookingTemplate(value) {
 }
 
 const bookingTemplatePublicCopy = {
+  PEST_CONTROL: {
+    category: "Pest Control Services",
+    tagline: ["Protect Your Space.", "We'll Handle the Pests."],
+    trust: [["Choose a Service", "Select the pest concern you need help with"], ["Select Your Schedule", "Choose your preferred service date and time"], ["Submit Your Request", "Send your location and contact details"]],
+  },
+  REAL_ESTATE: {
+    category: "Real Estate",
+    tagline: ["Find a Property That Fits Your Next Move.", "Send us your property inquiry and let our team assist you."],
+    trust: [["Tell Us What You're Looking For", "Share your preferred property and location"], ["Send Your Inquiry", "Review and submit your requirements"], ["Receive a Response", "The property team will contact you"]],
+  },
   PROFESSIONAL_SERVICES: {
     category: "Plans & Services",
     tagline: ["Professional guidance.", "Simple online booking."],
@@ -635,6 +758,8 @@ function getBookingTemplateTone(bookingTemplate) {
   if (nextTemplate === "AUTO") return "auto";
   if (nextTemplate === "CLINIC") return "clinic";
   if (nextTemplate === "HEALTH_WELLNESS") return "health-wellness";
+  if (nextTemplate === "REAL_ESTATE") return "real-estate";
+  if (nextTemplate === "PEST_CONTROL") return "pest-control";
   if (nextTemplate === "BEAUTY") return "beauty";
   return "general";
 }
@@ -946,6 +1071,11 @@ function formatPeso(value) {
   return `PHP ${Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
+function formatDashboardPeso(value) {
+  if (value === null || value === undefined || value === "" || Number.isNaN(Number(value))) return "For Assessment";
+  return `₱${Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
 function formatServicePriceLabel(detail = {}, fallbackPricingType = "FIXED") {
   const pricingType = normalizePricingType(detail.pricingType ?? detail.pricing_type, detail.pricingUnit ?? detail.pricing_unit ?? fallbackPricingType);
   const price = detail.price;
@@ -999,7 +1129,41 @@ function getPackageCapabilities(value, featureFlags = {}) {
     showPrices: featureFlags.showPrices !== false,
     bookingEnabled: featureFlags.bookingEnabled !== false,
     inquiryEnabled: featureFlags.inquiryEnabled !== false,
+    clientRecords: featureFlags.clientRecords === true || featureFlags.client_records === true || featureFlags.client_records_enabled === true,
   };
+}
+
+function normalizeUpdatePackages(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item || "").toUpperCase()).filter(Boolean);
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.map((item) => String(item || "").toUpperCase()).filter(Boolean);
+    } catch {
+      return value.split(",").map((item) => item.trim().toUpperCase()).filter(Boolean);
+    }
+  }
+  return ["ALL"];
+}
+
+function updateAppliesToPackage(update, packageKey) {
+  const packages = normalizeUpdatePackages(update?.applicable_packages || update?.target_packages);
+  return !packages.length || packages.includes("ALL") || packages.includes(packageKey);
+}
+
+function getUpdatePackageBadgeLabel(packageValue, currentPackageKey) {
+  const packageKey = String(packageValue || "").toUpperCase();
+  if (packageKey === "ALL") return "All packages";
+  if (packageKey === currentPackageKey) return "Available on your plan";
+  return `${packageKey} feature`;
+}
+
+function getUpdateTypeLabel(value) {
+  return String(value || "UPDATE").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function getPackageOrder(value) {
+  return { STARTER: 1, BUSINESS: 2, PRO: 3 }[normalizePackage(value)] || 1;
 }
 
 function getStatusClass(value) {
@@ -1271,7 +1435,7 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     accentColor: tone === "home-service" && isBeautyDefaultColor(row.accent_color) ? themeDefaults.accentColor : row.accent_color || themeDefaults.accentColor,
     pageBackgroundType: (row.page_background_type || row.pageBackgroundType || "SOLID").toUpperCase(),
     phone: row.phone || "",
-    messengerLink: row.messenger_link || "",
+    messengerLink: row.messenger_link || (row.slug === "the-facial-unlimited-ph" ? "https://www.facebook.com/profile.php?id=61592702334620" : ""),
     mobileNumbers: row.feature_flags?.mobileNumbers || "",
     primaryEmail: row.feature_flags?.primaryEmail || "",
     additionalEmails: row.feature_flags?.additionalEmails || "",
@@ -1562,9 +1726,10 @@ function resolveAnnouncementCtaHref(announcement = {}, business = null) {
   const ctaType = (announcement.cta_type || announcement.ctaType || "NONE").toUpperCase();
   const ctaUrl = String(announcement.cta_url || announcement.ctaUrl || "").trim();
   const ctaDestination = String(announcement.cta_destination || announcement.ctaDestination || "").trim();
+  const ctaLabel = String(announcement.cta_label || announcement.ctaLabel || "").trim().toLowerCase();
   if (ctaType === "NONE") return "";
   if (ctaType === "MESSENGER") {
-    return business?.messengerLink || business?.phone && `tel:${String(business.phone).replace(/\s+/g, "")}` || ctaUrl || ctaDestination || "";
+    return SMM_FACEBOOK_URL;
   }
   if (ctaType === "INTERNAL_PAGE") {
     const next = ctaDestination || ctaUrl;
@@ -1576,6 +1741,7 @@ function resolveAnnouncementCtaHref(announcement = {}, business = null) {
     return "";
   }
   if (ctaType === "EXTERNAL_LINK") {
+    if (ctaLabel === "message smm to upgrade" || ctaLabel === "message smm solutions") return SMM_FACEBOOK_URL;
     return ctaUrl;
   }
   return ctaUrl || ctaDestination || "";
@@ -1829,6 +1995,8 @@ function parseServicesToStructured(value, bookingTemplate = "GENERAL") {
 
 function getServiceManagerCopy(bookingTemplate = "GENERAL") {
   const template = normalizeBookingTemplate(bookingTemplate);
+  if (template === "PEST_CONTROL") return { title: "Pest Control Services", single: "Pest control service", add: "Add Pest Control Service" };
+  if (template === "REAL_ESTATE") return { title: "Property Categories / Inquiry Options", single: "Property category", add: "Add Property Category" };
   if (template === "HEALTH_WELLNESS") return { title: "Products / Services", single: "Product / service", add: "Add Another Product / Service" };
   if (template === "TOURS_TRAVEL") return { title: "Travel Services & Packages", single: "Travel service / package", add: "Add Another Service / Package" };
   if (template === "STAYCATION_ACCOMMODATION") return { title: "Rooms / Units", single: "Room / unit", add: "Add Room / Unit" };
@@ -1868,10 +2036,12 @@ function filterLegacyToursSeedRows(serviceRows = [], bookingTemplate = "GENERAL"
 
 function inferBookingTemplateFromIndustry(industry = "") {
   const lower = industry.toLowerCase();
+  if (/(pest control|termite|fumigation|exterminat|disinfection)/i.test(lower)) return "PEST_CONTROL";
+  if (/(real estate|realty|property broker|property consultant|property developer|condominium seller|house\s*&?\s*lot)/i.test(lower)) return "REAL_ESTATE";
   if (/(health\s*&?\s*wellness|wellness|nutrition|supplement)/i.test(lower)) return "HEALTH_WELLNESS";
   if (/(staycation|accommodation|resort|villa|transient|apartment|condotel|hotel|guest house|cabin|beach house|room|rental)/i.test(lower)) return "STAYCATION_ACCOMMODATION";
   if (/(travel|tour)/i.test(lower)) return "TOURS_TRAVEL";
-  if (/(consultant|consulting|professional services|professional service|agency|advisory|advisor|accounting|legal|lawyer|real estate|broker|marketing|design|freelance|profession)/i.test(lower)) return "PROFESSIONAL_SERVICES";
+  if (/(consultant|consulting|professional services|professional service|agency|advisory|advisor|accounting|legal|lawyer|broker|marketing|design|freelance|profession)/i.test(lower)) return "PROFESSIONAL_SERVICES";
   if (/(car wash|carwash|auto detailing|detailing|vehicle cleaning|motorcycle wash|motor wash)/i.test(lower)) return "CAR_WASH";
   if (/(laundry|wash\s*&\s*fold|wash and fold|dry cleaning|pickup.*delivery|pick up.*delivery)/i.test(lower)) return "LAUNDRY";
   if (/(clinic|dental|doctor|medical)/i.test(lower)) return "CLINIC";
@@ -1977,6 +2147,76 @@ function getPublicSlugFromLocation() {
 
 const templates = [
   {
+    icon: <ShieldCheck />,
+    slug: "dmonster-pest-control-services",
+    name: "Pest Control / Service Request",
+    business: "D’Monster Pest Control Services",
+    link: "dmonster-pest-control-services.slotwise.app",
+    logo: dmonsterLogo,
+    primaryColor: "#A51D24",
+    accentColor: "#F4E8E8",
+    pageBackgroundColor: "#F5F5F4",
+    phone: "09057024649",
+    primaryEmail: "dmonsterpestcontrolservices@gmail.com",
+    messengerLink: "https://www.facebook.com/share/19gzkn37Jn/",
+    address: "",
+    description: "Request pest control service for your home or business in just a few simple steps.",
+    businessType: "Pest Control",
+    bookingMode: "booking",
+    bookingTemplate: "PEST_CONTROL",
+    package: "STARTER",
+    featureFlags: { ...defaultFeatureFlags, showPrices: false, requireDate: true, requireTime: true },
+    availability: { ...defaultAvailability, days: "Operate Any Time", hours: "Open 24/7", slots },
+    cover: pestControlCover,
+    accent: "pest-control",
+    tagline: "Request pest control service for your home or business in just a few simple steps.",
+    highlight: "Package-aware pest control requests using the shared Slotwise workflow",
+    stat: "Open 24/7",
+    services: [
+      "General Pest Control",
+      "Termite Treatment",
+      "Soil Poisoning",
+      "Reticulation System",
+    ],
+    serviceDetails: [
+      { name: "General Pest Control", description: "Including common pests such as rats, cockroaches, flies, and mosquitoes.", price: null, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 0, status: "Active" },
+      { name: "Termite Treatment", description: "Termite treatment estimate based on property type, floors, and area.", price: null, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 1, status: "Active" },
+      { name: "Soil Poisoning", description: "Soil poisoning service priced by covered area.", price: null, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 2, status: "Active" },
+      { name: "Reticulation System", description: "Reticulation system installation priced by area.", price: null, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 3, status: "Active" },
+    ],
+    forms: ["Additional notes"],
+  },
+  {
+    icon: <Building2 />,
+    slug: "inner-sparc-realty-corporation",
+    name: "Real Estate / Property Inquiry",
+    business: "Inner SPARC Realty Corporation",
+    link: "inner-sparc-realty-corporation.slotwise.app",
+    logo: "",
+    primaryColor: "#17324D",
+    accentColor: "#EEE7DA",
+    pageBackgroundColor: "#F7F4EE",
+    phone: "0999-994-3304",
+    primaryEmail: "libacaoga@gmail.com",
+    messengerLink: "",
+    address: "",
+    description: "Send us your property inquiry and let our team assist you.",
+    businessType: "Real Estate",
+    bookingMode: "inquiry",
+    bookingTemplate: "REAL_ESTATE",
+    package: "STARTER",
+    featureFlags: { ...defaultFeatureFlags, requireDate: false, requireTime: false, showPrices: false },
+    availability: { ...defaultAvailability, days: "", hours: "", slots: [] },
+    cover: realEstateCover,
+    accent: "real-estate",
+    tagline: "Send us your property inquiry and let our team assist you.",
+    highlight: "Package-aware property inquiries using the shared Slotwise workflow",
+    stat: "Starter inquiry template",
+    services: [],
+    serviceDetails: [],
+    forms: ["Additional requirements"],
+  },
+  {
     icon: <HeartPulse />,
     slug: "the-vitality-collective",
     name: "Health & Wellness",
@@ -2011,6 +2251,45 @@ const templates = [
       { name: "Appetite Balance", description: "", price: 2250, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 4, status: "Active" },
     ],
     forms: ["Questions or notes"],
+  },
+  {
+    icon: <Sparkles />,
+    slug: "the-facial-unlimited-ph",
+    name: "Aesthetic Beauty Clinic",
+    business: "The Facial Unlimited PH",
+    link: "the-facial-unlimited-ph.slotwise.app",
+    logo: facialUnlimitedLogo,
+    primaryColor: "#3B3B91",
+    accentColor: "#F0EFFF",
+    pageBackgroundColor: "#FAFAFF",
+    phone: "(0960) 822 5004",
+    primaryEmail: "tfucareer.philippines@gmail.com",
+    messengerLink: "https://www.facebook.com/profile.php?id=61592702334620",
+    address: "",
+    description: "Choose your preferred treatment and schedule your visit at a time that works for you.",
+    businessType: "Aesthetic Beauty Clinic",
+    bookingMode: "booking",
+    bookingTemplate: "BEAUTY",
+    package: "PRO",
+    featureFlags: { ...defaultFeatureFlags, clientAdminEnabled: true, customerListEnabled: true, analyticsEnabled: true },
+    availability: {
+      ...defaultAvailability,
+      days: "Monday to Sunday",
+      hours: "9:00 AM to 6:00 PM",
+      slots: ["9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"],
+    },
+    cover: facialUnlimitedCover,
+    accent: "beauty",
+    tagline: "Aesthetic beauty care with convenient online scheduling.",
+    highlight: "Editable services, pricing, and availability",
+    stat: "Open daily",
+    services: ["Treatment Slot 1", "Treatment Slot 2", "Treatment Slot 3"],
+    serviceDetails: [
+      { name: "Treatment Slot 1", description: "", price: null, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 0, status: "Active" },
+      { name: "Treatment Slot 2", description: "", price: null, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 1, status: "Active" },
+      { name: "Treatment Slot 3", description: "", price: null, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: 2, status: "Active" },
+    ],
+    forms: ["Treatment concerns or notes"],
   },
   {
     icon: <Scissors />,
@@ -2295,6 +2574,88 @@ const demoSteps = [
     customerItems: ["View booking", "Reschedule if allowed", "Download receipt"],
   },
 ];
+
+const dmonsterOfficialServices = [
+  "General Pest Control",
+  "Termite Treatment",
+  "Soil Poisoning",
+  "Reticulation System",
+];
+
+const dmonsterServiceContent = {
+  "General Pest Control": {
+    description: "Including common pests such as rats, cockroaches, flies, and mosquitoes.",
+    cardPrice: "Starts at ₱3,500",
+  },
+  "Termite Treatment": {
+    description: "Termite treatment estimate based on property type, floors, and area.",
+    cardPrice: "Starts at ₱7,500",
+  },
+  "Soil Poisoning": {
+    description: "Soil poisoning service priced by covered area.",
+    cardPrice: "Starts at ₱200/sqm",
+  },
+  "Reticulation System": {
+    description: "Reticulation system installation priced by area.",
+    cardPrice: "₱200/sqm",
+  },
+};
+
+const dmonsterPropertyTypes = [
+  "Condominium",
+  "House",
+  "Commercial Establishment",
+  "Office",
+  "Warehouse",
+  "Other",
+];
+
+const dmonsterFloorOptions = [
+  { value: "1", label: "1 Floor" },
+  { value: "2", label: "2 Floors" },
+  { value: "3", label: "3 Floors" },
+  { value: "4", label: "More than 3 Floors" },
+];
+
+const dmonsterServiceAreas = ["Metro Manila / NCR", "Outside Metro Manila / NCR"];
+
+const facialUnlimitedBranches = ["Pateros", "Parañaque", "Taguig / Lakeshore", "Antipolo"];
+
+function getDmonsterServiceContent(name = "") {
+  return dmonsterServiceContent[name] || {};
+}
+
+function calculateDmonsterPestPrice(serviceName, details = {}) {
+  const area = Number(details.areaSize);
+  if (!Number.isFinite(area) || area <= 0) {
+    return { status: "assessment_required", total: null, formula: "", note: "Enter a valid area size to estimate pricing." };
+  }
+  const propertyType = details.propertyType || "";
+  const serviceArea = details.serviceArea || "";
+  const floors = Number(details.floors || 0);
+  if (serviceName === "General Pest Control") {
+    return { status: "assessment_required", total: null, formula: [propertyType, `${area} sqm`, serviceArea].filter(Boolean).join(" • "), note: "We'll review your property and service details to confirm the applicable price." };
+  }
+  if (serviceName === "Termite Treatment") {
+    const isCondo = propertyType === "Condominium";
+    const isHouse = propertyType === "House";
+    const isMetroManila = serviceArea === "Metro Manila / NCR";
+    if (isCondo && area >= 20 && area <= 70) return { status: "calculated", total: 7500, formula: `${propertyType} • ${area} sqm${serviceArea ? ` • ${serviceArea}` : ""}`, note: "Estimated price based on the information provided. Final price is subject to business assessment and confirmation." };
+    if ((isCondo || isHouse) && floors <= 2 && area >= 80 && area <= 100) return { status: "calculated", total: 10000, formula: `${propertyType} • up to 2 floors • ${area} sqm${serviceArea ? ` • ${serviceArea}` : ""}`, note: "Estimated price based on the information provided. Final price is subject to business assessment and confirmation." };
+    if (isHouse && floors === 3 && area >= 100 && area <= 150) return { status: "calculated", total: 15000, formula: `${propertyType} • 3 floors • ${area} sqm${serviceArea ? ` • ${serviceArea}` : ""}`, note: "Estimated price based on the information provided. Final price is subject to business assessment and confirmation." };
+    if ((isCondo || isHouse || propertyType === "Commercial Establishment" || propertyType === "Office" || propertyType === "Warehouse") && isMetroManila && area > 150) return { status: "calculated", total: area * 100, formula: `${propertyType} • ${area} sqm × ₱100/sqm • ${serviceArea}`, note: "Estimated price based on the information provided. Final price is subject to business assessment and confirmation." };
+    return { status: "assessment_required", total: null, formula: [propertyType, floors ? `${floors >= 4 ? "More than 3" : floors} floor${floors === 1 ? "" : "s"}` : "", `${area} sqm`, serviceArea].filter(Boolean).join(" • "), note: "We'll review your property and service details to confirm the applicable price." };
+  }
+  if (serviceName === "Soil Poisoning") {
+    if (area >= 50 && area <= 100) return { status: "calculated", total: area * 200, formula: `${area} sqm × ₱200/sqm${serviceArea ? ` • ${serviceArea}` : ""}`, note: "Estimated price based on the information provided. Final price is subject to business assessment and confirmation." };
+    if (area > 200) return { status: "calculated", total: area * 100, formula: `${area} sqm × ₱100/sqm${serviceArea ? ` • ${serviceArea}` : ""}`, note: "Estimated price based on the information provided. Final price is subject to business assessment and confirmation." };
+    return { status: "assessment_required", total: null, formula: [propertyType, `${area} sqm`, serviceArea].filter(Boolean).join(" • "), note: "We'll review your property and service details to confirm the applicable price." };
+  }
+  if (serviceName === "Reticulation System") {
+    return { status: "calculated", total: area * 200, formula: `${area} sqm × ₱200/sqm${serviceArea ? ` • ${serviceArea}` : ""}`, note: "Estimated price based on the information provided. Final price is subject to business assessment and confirmation." };
+  }
+  return { status: "assessment_required", total: null, formula: [propertyType, `${area} sqm`, serviceArea].filter(Boolean).join(" • "), note: "We'll review your property and service details to confirm the applicable price." };
+}
 
 function App() {
   const [page, setPage] = useState("home");
@@ -2727,6 +3088,20 @@ function App() {
     await supabaseRpcRequest("delete_client_booking", { booking_id_value: bookingId }, accessToken);
   };
 
+  const createManualReservation = async (reservationData, accessToken = "") => {
+    const result = await supabaseRpcRequest("create_manual_reservation", reservationData, accessToken);
+    return Array.isArray(result) ? result[0] : result;
+  };
+
+  const upsertClientRecord = async (clientData, accessToken = "") => {
+    const result = await supabaseRpcRequest("upsert_client_record", clientData, accessToken);
+    return Array.isArray(result) ? result[0] : result;
+  };
+
+  const deleteClientRecord = async (clientRecordId, accessToken = "") => {
+    return supabaseRpcRequest("delete_client_record", { client_record_id_value: clientRecordId }, accessToken);
+  };
+
   const saveClientService = async (serviceData, accessToken = "") => {
     await supabaseRpcRequest("upsert_client_service", serviceData, accessToken);
   };
@@ -2884,6 +3259,9 @@ function App() {
         onBack={() => setPage("home")}
         onUpdateBookingStatus={updateBookingStatus}
         onDeleteBooking={deleteBooking}
+        onCreateManualReservation={createManualReservation}
+        onUpsertClientRecord={upsertClientRecord}
+        onDeleteClientRecord={deleteClientRecord}
         onSaveService={saveClientService}
         onDeleteService={deleteClientService}
         onSaveAvailability={saveClientAvailability}
@@ -3337,7 +3715,7 @@ function SmmOffersFeed({ offers = null, placement = "BOTH", compact = false, bus
     },
   ].filter((item) => item.title || item.message || item.imageUrl);
   if (!cards.length) return null;
-  const contactHref = business?.messengerLink || "https://m.me/slotwise";
+  const contactHref = SMM_FACEBOOK_URL;
   return (
     <section className={compact ? "smmOffers compact" : "smmOffers"}>
       <div className="smmOffersHeader">
@@ -3392,14 +3770,72 @@ function TravelBusinessInfo({ business }) {
 }
 
 function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, onSubmitPayment, smmOffers = null }) {
-  const business = useMemo(() => normalizeBusinessConfig({
+  const business = useMemo(() => {
+    const normalized = normalizeBusinessConfig({
     ...(incomingBusiness || {}),
     services: Array.isArray(incomingBusiness?.services) ? incomingBusiness.services : [],
     serviceDetails: Array.isArray(incomingBusiness?.serviceDetails) ? incomingBusiness.serviceDetails : [],
     forms: Array.isArray(incomingBusiness?.forms) && incomingBusiness.forms.length ? incomingBusiness.forms : undefined,
     availability: incomingBusiness?.availability && typeof incomingBusiness.availability === "object" ? incomingBusiness.availability : {},
     featureFlags: incomingBusiness?.featureFlags && typeof incomingBusiness.featureFlags === "object" ? incomingBusiness.featureFlags : {},
-  }), [incomingBusiness]);
+    });
+    const normalizedTemplate = normalizeBookingTemplate(normalized.bookingTemplate);
+    if (normalized.slug === "dmonster-pest-control-services") {
+      const existingDetailsByName = new Map(
+        (normalized.serviceDetails || []).map((detail) => [String(detail.name || detail.service || "").trim().toLowerCase(), detail])
+      );
+      const serviceDetails = dmonsterOfficialServices.map((name, index) => ({
+        id: `dmonster-pest-service-${index + 1}`,
+        name,
+        description: "",
+        price: null,
+        pricingUnit: "FLAT",
+        pricingType: "FIXED",
+        pricingTiers: [],
+        durationMinutes: null,
+        displayOrder: index,
+        status: "Active",
+        ...(existingDetailsByName.get(name.toLowerCase()) || {}),
+        name,
+        displayOrder: index,
+        status: existingDetailsByName.get(name.toLowerCase())?.status || "Active",
+      }));
+      return {
+        ...normalized,
+        bookingTemplate: "PEST_CONTROL",
+        bookingMode: "booking",
+        businessType: "Pest Control",
+        accent: "pest-control",
+        featureFlags: { ...normalized.featureFlags, showPrices: false, requireDate: true, requireTime: true },
+        availability: {
+          ...normalized.availability,
+          days: normalized.availability?.days || normalized.availability?.openDays || "Operate Any Time",
+          hours: normalized.availability?.hours || normalized.availability?.openHours || "Open 24/7",
+        },
+        services: dmonsterOfficialServices,
+        serviceDetails,
+      };
+    }
+    if (!["REAL_ESTATE", "PEST_CONTROL"].includes(normalizedTemplate) || normalized.services.length) return normalized;
+    const inquiryCategories = normalizedTemplate === "REAL_ESTATE"
+      ? ["House & Lot", "Condominium", "Lot Only", "Commercial Property", "Rental", "Others"]
+      : ["General Pest Control", "Termite Control", "Cockroach Control", "Rodent Control", "Mosquito Control", "Other Pest Concern"];
+    return {
+      ...normalized,
+      services: inquiryCategories,
+      serviceDetails: inquiryCategories.map((name, index) => ({
+        id: `${normalizedTemplate.toLowerCase()}-inquiry-${index + 1}`,
+        name,
+        description: "",
+        price: null,
+        pricingType: "CUSTOM_INQUIRY",
+        pricingUnit: "FLAT",
+        displayOrder: index,
+        status: "Active",
+        isGenericInquiryCategory: true,
+      })),
+    };
+  }, [incomingBusiness]);
   const [pickedService, setPickedService] = useState(business.services[0]);
   const [pickedServices, setPickedServices] = useState([business.services[0]].filter(Boolean));
   const [selectedPlanImage, setSelectedPlanImage] = useState(null);
@@ -3417,17 +3853,24 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const [adultCount, setAdultCount] = useState(2);
   const [childCount, setChildCount] = useState(0);
   const [infantCount, setInfantCount] = useState(0);
-  const [travelDetails, setTravelDetails] = useState({ tripType: "ROUND_TRIP", origin: "", destination: "", returnDate: "", applicants: 1, pickupLocation: "", requestedInclusions: "", preferredHotelCategory: "No Preference", roomType: "", customerAddress: "" });
+  const [travelDetails, setTravelDetails] = useState({ tripType: "ROUND_TRIP", origin: "", destination: "", returnDate: "", applicants: 1, pickupLocation: "", requestedInclusions: "", preferredHotelCategory: "No Preference", roomType: "", customerEmail: "", customerAddress: "" });
   const [confirmed, setConfirmed] = useState(null);
   const [bookingError, setBookingError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState("");
   const [travelActiveStep, setTravelActiveStep] = useState(1);
+  const [beautyActiveStep, setBeautyActiveStep] = useState(1);
+  const [realEstateActiveStep, setRealEstateActiveStep] = useState(1);
+  const [realEstateDetails, setRealEstateDetails] = useState({ location: "", budgetRange: "", purpose: "Personal Use", requirements: "" });
+  const [pestControlActiveStep, setPestControlActiveStep] = useState(1);
+  const [pestControlDetails, setPestControlDetails] = useState({ propertyType: "House", serviceArea: "Metro Manila / NCR", serviceLocation: "", areaSize: "", floors: "1" });
   const flags = { ...defaultFeatureFlags, ...(business.featureFlags || {}) };
   const clientStatus = (business.status || "ACTIVE").toUpperCase();
   const isProductionActive = clientStatus === "ACTIVE";
   const isDemoPreview = clientStatus === "DEMO";
+  const isDemoActive = isDemoPreview && !isDemoExpired(business);
+  const canPersistPublicBooking = isProductionActive || isDemoActive;
   const isAwaitingActivation = clientStatus === "UNPAID";
   const demoExpiryState = getDemoExpiryState(business);
   const blockedDates = business.availability?.blockedDates || [];
@@ -3435,9 +3878,21 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const selectedDateLabel = formatBookingDate(selectedBookingDate);
   const selectedWeekdayLabel = formatBookingWeekday(selectedBookingDate);
   const bookingTone = resolveBusinessTone(business);
+  const currentPackage = normalizePackage(business.package);
   const isClinic = bookingTone === "clinic";
   const isHealthWellness = bookingTone === "health-wellness";
+  const isBeauty = bookingTone === "beauty";
+  const isStarterBeauty = isBeauty && currentPackage === "STARTER";
+  const isBusinessBeauty = isBeauty && currentPackage === "BUSINESS";
+  const isProBeauty = isBeauty && currentPackage === "PRO";
+  const hasEnhancedBeautyPage = isBusinessBeauty || isProBeauty;
+  const isProHealthWellness = isHealthWellness && normalizePackage(business.package) === "PRO";
+  const hasExpandedWellnessPage = isHealthWellness && ["BUSINESS", "PRO"].includes(normalizePackage(business.package));
   const isToursTravel = bookingTone === "tours-travel";
+  const isRealEstate = bookingTone === "real-estate";
+  const isPestControl = bookingTone === "pest-control";
+  const isDmonster = business.slug === "dmonster-pest-control-services";
+  const usesPreferredSchedule = isBusinessOpen24Hours(business.availability);
   const isPhisavong = business.slug === "phisavong-world-travel-and-tours";
   const travelSeasonalNoticeTitle = String(
     business.featureFlags?.seasonalRatesNoticeTitle || "Seasonal Rates & Packages",
@@ -3461,17 +3916,20 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const templateCopy = getBookingTemplateCopy(business.bookingTemplate, business);
   const brandCategory = templateCopy.category;
   const brandLine = templateCopy.tagline;
-  const headingText = isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Plan Your Trip" : isHealthWellness ? "Our Wellness Collection" : isLaundry ? "Book Laundry Pickup" : isConsultant ? "Plans & Services" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
-  const headerSubtext = isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? "Choose a travel service to get started." : isHealthWellness ? "Choose the product or service that fits your everyday routine." : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
-  const serviceStepLabel = isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Travel Service" : isHealthWellness ? "Choose Product / Service" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
+  const headingText = isPestControl ? "Request Pest Control Service" : isRealEstate ? "Property Inquiry" : isAccommodation ? "Reserve Your Stay" : isToursTravel ? "Plan Your Trip" : isHealthWellness ? "Our Wellness Collection" : isLaundry ? "Book Laundry Pickup" : isConsultant ? "Plans & Services" : isHomeService ? "Book a Service" : flags.bookingEnabled ? "Book an appointment" : "Send an inquiry";
+  const beautyBookingIntro = business.description === "Professional aesthetic beauty care in a clean and welcoming clinic setting."
+    ? "Choose your preferred treatment and schedule your visit at a time that works for you."
+    : business.description;
+  const headerSubtext = isPestControl ? "Tell us what you need and choose your preferred schedule." : isRealEstate ? "Tell us what you're looking for and we'll help you with your property inquiry." : isAccommodation ? (business.description || "Choose your room or unit, check-in date, check-out date, and guest count.") : isToursTravel ? "Choose a travel service to get started." : isHealthWellness ? "Choose the product or service that fits your everyday routine." : isProBeauty ? beautyBookingIntro : isLaundry ? (business.description || "Choose your laundry service, pickup date, and pickup time.") : isConsultant ? (business.description || "Choose a plan, view the full details, and send your inquiry.") : isHomeService ? "Choose the service you need and your preferred date and time." : business.description;
+  const serviceStepLabel = isPestControl ? "Choose a Service" : isRealEstate ? "Property Type" : isAccommodation ? "Choose Room / Unit" : isToursTravel ? "Choose a Travel Service" : isHealthWellness ? "Choose Product / Service" : isLaundry ? "Choose a Laundry Service" : isConsultant ? "Plans & Services" : isHomeService ? "Choose a Service" : "Choose a service";
   const ServiceStepIcon = resolveTemplateSectionIcon(business.bookingTemplate);
-  const timeStepLabel = isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Dates" : isHealthWellness ? "Preferred Schedule" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
+  const timeStepLabel = usesPreferredSchedule ? "Select Your Preferred Schedule" : isPestControl ? "Select Your Schedule" : isAccommodation ? "Check-in & Check-out" : isToursTravel ? "Select Travel Dates" : isHealthWellness ? "Preferred Schedule" : isLaundry ? "Pickup Date & Time" : isHomeService ? "Choose date and time" : "Pick a time";
   const slotLabel = isToursTravel ? "Preferred Time / Pickup Time" : isLaundry ? "Pickup Time" : "";
-  const detailsStepLabel = isAccommodation ? "Guest Information" : isToursTravel ? "Traveler Information" : isHealthWellness ? "Your Information" : isLaundry ? "Pickup Details" : isHomeService ? "Your contact details" : "Your details";
-  const detailsStepNumber = isToursTravel ? 4 : (flags.requireTime || isAccommodation ? 3 : 2);
-  const noteLabel = isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isLaundry ? "Laundry notes" : isConsultant ? "Inquiry / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
+  const detailsStepLabel = isPestControl ? "Your Details" : isRealEstate ? "Your Details" : isAccommodation ? "Guest Information" : isToursTravel ? "Traveler Information" : isHealthWellness ? "Your Information" : isLaundry ? "Pickup Details" : isHomeService ? "Your contact details" : "Your details";
+  const detailsStepNumber = isDmonster ? 5 : isPestControl ? 4 : isRealEstate ? 3 : isToursTravel ? 4 : (flags.requireTime || isAccommodation ? 3 : 2);
+  const noteLabel = isPestControl ? "Additional Notes" : isRealEstate ? "Additional Requirements" : isAccommodation ? "Special Requests" : isToursTravel ? "Special Requests / Notes" : isLaundry ? "Laundry notes" : isConsultant ? "Inquiry / Notes" : isHomeService ? "Service concern / notes" : `${business.forms[0]} / notes`;
   const notePlaceholder = isAccommodation ? "Arrival notes, requests, or questions for the host" : isToursTravel ? "Preferred pickup details, guest needs, or questions for the tour operator" : isLaundry ? "Fabric care, folding instructions, delivery notes, or special requests" : isConsultant ? "Tell us which plan you need, coverage questions, or who should contact you." : isHomeService ? "Describe the issue, unit type, or anything the technician should know" : business.forms.join(", ");
-  const submitLabel = isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Travel Inquiry" : isHealthWellness ? (flags.requireDate || flags.requireTime ? "Submit Booking Request" : "Submit Request") : isLaundry ? "Submit Pickup Request" : isConsultant ? "Send Inquiry" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
+  const submitLabel = isPestControl ? "Submit Service Request" : isRealEstate ? "Submit Property Inquiry" : isAccommodation ? "Submit Reservation" : isToursTravel ? "Submit Travel Inquiry" : isHealthWellness ? (flags.requireDate || flags.requireTime ? "Submit Booking Request" : "Submit Request") : isLaundry ? "Submit Pickup Request" : isConsultant ? "Send Inquiry" : isHomeService ? "Submit Service Request" : flags.bookingEnabled ? "Submit booking request" : "Send inquiry";
   const paymentSettings = business.paymentSettings || {};
   const paymentMethods = (business.paymentMethods || []).filter((method) => method.active !== false);
   const allowMultipleServices = Boolean(flags.allowMultipleServices);
@@ -3510,10 +3968,11 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   const needsGuestCount = isAccommodation || selectedServiceDetails.some((detail) => ["PER_PAX", "GROUP_TIER"].includes(normalizePricingType(detail.pricingType, detail.pricingUnit)));
   const activeDeparture = selectedDeparture?.serviceId === pickedServiceDetail.id ? selectedDeparture : null;
   const hasSelectedDeparture = Boolean(activeDeparture);
-  const bookingCalculation = calculateBookingTotal(selectedServiceDetails, { pax: isAccommodation ? accommodationGuests : guestCount, totalGuests: accommodationGuests, nights: stayNights || 1, selectedDeparture: activeDeparture, allowQuoteWithoutPrice: isToursTravel });
+  const bookingCalculation = calculateBookingTotal(selectedServiceDetails, { pax: isAccommodation ? accommodationGuests : guestCount, totalGuests: accommodationGuests, nights: stayNights || 1, selectedDeparture: activeDeparture, allowQuoteWithoutPrice: isToursTravel || isRealEstate || isPestControl });
   const pickedPricing = bookingCalculation.lineItems[0] || calculateLineItem(pickedServiceDetail, { pax: guestCount, nights: stayNights || 1, totalGuests: accommodationGuests, selectedDeparture: activeDeparture });
   const pickedPricingUnit = normalizePricingUnit(pickedServiceDetail.pricingUnit, isAccommodation ? "PER_NIGHT" : isToursTravel ? "PER_PAX" : "FLAT");
   const estimatedTotal = bookingCalculation.estimatedTotal;
+  const dmonsterPricing = isDmonster ? calculateDmonsterPestPrice(pickedService, pestControlDetails) : null;
   const isQuoteOnlySelection = bookingCalculation.lineItems.length > 0 && bookingCalculation.lineItems.every((item) => isInquiryPricingType(item.pricingType));
   const primaryServiceLabel = selectedServiceNames.length > 1 ? `${selectedServiceNames.length} Services` : selectedServiceNames[0] || pickedService;
   const servicePriceLabel = (detail) => {
@@ -3539,7 +3998,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
   useEffect(() => {
     setPickedService(business.services[0]);
     setPickedServices([business.services[0]].filter(Boolean));
-    setPickedSlot(availableSlots[1] || availableSlots[0] || "10:15 AM");
+    setPickedSlot(usesPreferredSchedule ? timeInputToDisplay(getCurrentTimeInputValue()) : availableSlots[1] || availableSlots[0] || "10:15 AM");
     setSelectedBookingDate(getTodayDateValue());
     setSelectedCheckoutDate(() => {
       const next = new Date();
@@ -3550,15 +4009,25 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
     setAdultCount(2);
     setChildCount(0);
     setInfantCount(0);
-    setTravelDetails({ tripType: "ROUND_TRIP", origin: "", destination: "", returnDate: "", applicants: 1, pickupLocation: "", requestedInclusions: "", preferredHotelCategory: "No Preference", roomType: "", customerAddress: "" });
+    setTravelDetails({ tripType: "ROUND_TRIP", origin: "", destination: "", returnDate: "", applicants: 1, pickupLocation: "", requestedInclusions: "", preferredHotelCategory: "No Preference", roomType: "", customerEmail: "", customerAddress: "" });
     setConfirmed(null);
     setBookingError("");
     setPaymentOpen(false);
     setPaymentStatus("");
     setTravelActiveStep(1);
+    setBeautyActiveStep(1);
+    setRealEstateActiveStep(1);
+    setRealEstateDetails({ location: "", budgetRange: "", purpose: "Personal Use", requirements: "" });
+    setPestControlActiveStep(1);
+    setPestControlDetails({ propertyType: "House", serviceArea: "Metro Manila / NCR", serviceLocation: "", areaSize: "", floors: "1" });
     setSelectedDeparture(null);
     setDeparturePanelService(null);
-  }, [business.slug]);
+  }, [business.slug, usesPreferredSchedule]);
+
+  useEffect(() => {
+    if (!usesPreferredSchedule || !isPastPreferredSchedule(selectedBookingDate, pickedSlot)) return;
+    setPickedSlot(timeInputToDisplay(getCurrentTimeInputValue()));
+  }, [usesPreferredSchedule, selectedBookingDate, pickedSlot]);
 
   const openServiceLink = (detail) => {
     const href = normalizeServiceLink(detail?.imageUrl);
@@ -3570,6 +4039,13 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
     if (!allowMultipleServices) {
       setPickedService(serviceName);
       setPickedServices([serviceName]);
+      if (isDmonster) {
+        setPestControlDetails((current) => ({
+          ...current,
+          propertyType: dmonsterPropertyTypes.includes(current.propertyType) ? current.propertyType : "House",
+          serviceArea: dmonsterServiceAreas.includes(current.serviceArea) ? current.serviceArea : "Metro Manila / NCR",
+        }));
+      }
       setSelectedDeparture(null);
       setDeparturePanelService(null);
       return;
@@ -3617,16 +4093,57 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       totalGuests: currentTotalGuests,
       nights: currentNights || 1,
       selectedDeparture: activeDeparture,
-      allowQuoteWithoutPrice: isToursTravel,
+      allowQuoteWithoutPrice: isToursTravel || isRealEstate || isPestControl,
     });
-    const canSubmitTravelInquiry = isToursTravel && !activeDeparture && selectedServiceDetails.length > 0 && selectedServiceDetails.every((detail) => {
+    const canSubmitQuoteInquiry = (isToursTravel || isProBeauty || isRealEstate || isPestControl) && !activeDeparture && selectedServiceDetails.length > 0 && selectedServiceDetails.every((detail) => {
       const price = detail.price;
       return price === "" || price === null || price === undefined || String(price).trim() === "" || !Number.isFinite(Number(price)) || Number(price) <= 0;
     });
     const pickupLocation = String(data.get("address") || "").trim();
+    const customerEmail = String(data.get("email") || "").trim();
     const customerAddress = String(data.get("customerAddress") || "").trim();
-    if (isToursTravel && isPhisavong && customerAddress.length < 5) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+      setBookingError("Please enter a valid email address.");
+      setSubmitting(false);
+      return;
+    }
+    if (customerAddress.length < 5) {
       setBookingError("Please enter your complete address.");
+      setSubmitting(false);
+      return;
+    }
+    if (usesPreferredSchedule && isPastPreferredSchedule(selectedBookingDate, pickedSlot)) {
+      setBookingError("Please choose a future preferred date and time.");
+      setSubmitting(false);
+      return;
+    }
+    if (isRealEstate && (!String(data.get("preferredLocation") || "").trim() || !String(data.get("budgetRange") || "").trim() || !String(data.get("propertyPurpose") || "").trim())) {
+      setBookingError("Please complete your property preferences before submitting.");
+      setSubmitting(false);
+      return;
+    }
+    const pestAreaSize = Number(data.get("areaSize") || 0);
+    const pestFloors = Number(data.get("numberOfFloors") || pestControlDetails.floors || 0);
+    const pestPropertyType = String(data.get("propertyType") || pestControlDetails.propertyType || "").trim();
+    const pestServiceArea = String(data.get("serviceArea") || pestControlDetails.serviceArea || "").trim();
+    const submittedDmonsterPricing = isDmonster ? calculateDmonsterPestPrice(primaryServiceLabel, { ...pestControlDetails, areaSize: pestAreaSize, floors: pestFloors, propertyType: pestPropertyType, serviceArea: pestServiceArea }) : null;
+    if (isDmonster && (!Number.isFinite(pestAreaSize) || pestAreaSize <= 0)) {
+      setBookingError("Please enter a valid area size in sqm.");
+      setSubmitting(false);
+      return;
+    }
+    if (isDmonster && (!pestPropertyType || !pestServiceArea)) {
+      setBookingError("Please select the property type and service area.");
+      setSubmitting(false);
+      return;
+    }
+    if (isDmonster && primaryServiceLabel === "Termite Treatment" && (!Number.isFinite(pestFloors) || pestFloors <= 0)) {
+      setBookingError("Please complete the termite treatment property type and number of floors.");
+      setSubmitting(false);
+      return;
+    }
+    if (isPestControl && ((!isDmonster && !String(data.get("propertyType") || "").trim()) || String(data.get("serviceLocation") || "").trim().length < 5)) {
+      setBookingError("Please select the property type and enter the complete service location.");
       setSubmitting(false);
       return;
     }
@@ -3640,10 +4157,13 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       booking_date: flags.requireDate ? selectedBookingDate : "",
       slot: isAccommodation ? `${formatBookingDate(selectedBookingDate)} to ${formatBookingDate(selectedCheckoutDate)}` : flags.requireTime ? pickedSlot : "Inquiry only",
       note: data.get("note"),
-      status: isProductionActive ? (isToursTravel || isHealthWellness ? "PENDING" : "Confirmed") : `${clientStatus} preview`,
-      estimated_total: submittedCalculation.estimatedTotal,
+      status: canPersistPublicBooking ? (isToursTravel || isHealthWellness || isRealEstate || isPestControl || isDemoActive ? "PENDING" : "Confirmed") : `${clientStatus} preview`,
+      estimated_total: isDmonster ? submittedDmonsterPricing.total : submittedCalculation.estimatedTotal,
       metadata: {
         booking_template: business.bookingTemplate,
+        source: "online",
+        demo_booking: isDemoActive || undefined,
+        test_booking: isDemoActive || undefined,
         guest_count: currentTotalGuests,
         adult_count: isAccommodation ? currentAdults : undefined,
         child_count: isAccommodation ? currentChildren : undefined,
@@ -3655,11 +4175,12 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
         unit_price: pickedPricing.unitPrice,
         selected_tier: pickedPricing.selectedTier,
         selected_departure: activeDeparture,
-        estimated_total: submittedCalculation.estimatedTotal,
+        estimated_total: isDmonster ? submittedDmonsterPricing.total : submittedCalculation.estimatedTotal,
         line_items: submittedCalculation.lineItems,
         allow_multiple_services: allowMultipleServices,
         pickup_location: pickupLocation,
-        traveler_email: isToursTravel ? String(data.get("email") || "").trim() : undefined,
+        customer_email: customerEmail,
+        traveler_email: isToursTravel ? customerEmail : undefined,
         travel_service_kind: isToursTravel ? travelServiceKind : undefined,
         trip_type: isToursTravel && travelServiceKind === "AIRLINE" ? travelDetails.tripType : undefined,
         origin: isToursTravel && travelServiceKind === "AIRLINE" ? String(data.get("origin") || "").trim() : undefined,
@@ -3673,7 +4194,25 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
         requested_inclusions: isToursTravel ? String(data.get("requestedInclusions") || "").trim() : undefined,
         preferred_hotel_category: isToursTravel ? String(data.get("preferredHotelCategory") || "No Preference").trim() : undefined,
         room_type: isToursTravel ? String(data.get("roomType") || "").trim() : undefined,
-        customer_address: isToursTravel ? customerAddress : undefined,
+        customer_address: customerAddress,
+        preferred_location: isRealEstate ? String(data.get("preferredLocation") || "").trim() : undefined,
+        budget_range: isRealEstate ? String(data.get("budgetRange") || "").trim() : undefined,
+        property_purpose: isRealEstate ? String(data.get("propertyPurpose") || "").trim() : undefined,
+        additional_requirements: isRealEstate ? String(data.get("note") || "").trim() : undefined,
+        property_type: isPestControl ? (isDmonster ? pestPropertyType : String(data.get("propertyType") || "").trim()) : (isRealEstate ? primaryServiceLabel : undefined),
+        service_location: isPestControl ? String(data.get("serviceLocation") || "").trim() : undefined,
+        service_area: isDmonster ? pestServiceArea : undefined,
+        pest_concern: isPestControl ? primaryServiceLabel : undefined,
+        pest_area_sqm: isDmonster ? pestAreaSize : undefined,
+        area_sqm: isDmonster ? pestAreaSize : undefined,
+        floor_count: isDmonster && primaryServiceLabel === "Termite Treatment" ? pestFloors : undefined,
+        pest_number_of_floors: isDmonster && primaryServiceLabel === "Termite Treatment" ? pestFloors : undefined,
+        calculated_price: isDmonster ? submittedDmonsterPricing.total : undefined,
+        pricing_status: isDmonster ? submittedDmonsterPricing.status : undefined,
+        pest_pricing_status: isDmonster ? submittedDmonsterPricing.status : undefined,
+        pest_estimated_price: isDmonster ? submittedDmonsterPricing.total : undefined,
+        pest_pricing_formula: isDmonster ? submittedDmonsterPricing.formula : undefined,
+        pest_pricing_note: isDmonster ? submittedDmonsterPricing.note : undefined,
       },
       bookingItems: submittedCalculation.lineItems,
     };
@@ -3682,7 +4221,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       setSubmitting(false);
       return;
     }
-    if (!bookingCalculation.totalAvailable && !canSubmitTravelInquiry) {
+    if (!bookingCalculation.totalAvailable && !canSubmitQuoteInquiry) {
       setBookingError(bookingCalculation.invalidItem?.pricingType === "GROUP_TIER"
         ? "Please contact the business for availability and pricing for this group size."
         : "One selected service has incomplete pricing. Please choose another service or contact the business.");
@@ -3705,7 +4244,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       return;
     }
     if (isToursTravel || isAccommodation || allowMultipleServices) {
-      if (!submittedCalculation.totalAvailable && !canSubmitTravelInquiry) {
+      if (!submittedCalculation.totalAvailable && !canSubmitQuoteInquiry) {
         setBookingError("Please contact the business for availability and pricing for this group size.");
         setSubmitting(false);
         return;
@@ -3722,7 +4261,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       booking.bookingItems = submittedCalculation.lineItems;
     }
     try {
-      const savedBooking = isProductionActive ? await onSaveBooking(booking) : booking;
+      const savedBooking = canPersistPublicBooking ? await onSaveBooking(booking) : booking;
       setConfirmed(savedBooking);
       bookingForm.reset();
       setGuestCount(2);
@@ -3758,7 +4297,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
 
   return (
     <main
-      className={`bookingPage premiumBookingPage ${bookingTone}`}
+      className={`bookingPage premiumBookingPage ${bookingTone} package-${currentPackage.toLowerCase()}`}
       style={{
         "--booking-primary": business.primaryColor,
         "--booking-accent": business.accentColor,
@@ -3766,54 +4305,105 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
       }}
     >
       {isHealthWellness && (
-        <header className="wellnessPublicNav">
+        <header className={isProHealthWellness ? "wellnessPublicNav pro" : hasExpandedWellnessPage ? "wellnessPublicNav business" : "wellnessPublicNav simple"}>
           <a href="#wellness-home" className="wellnessNavBrand">
             <span>{business.logo ? <img src={business.logo} alt={`${business.business} logo`} /> : brandInitials}</span>
             <strong>{business.business}</strong>
           </a>
-          <nav aria-label="Health and wellness page navigation">
-            <a href="#wellness-options">Products / Services</a>
-            <a href="#wellness-how">How It Works</a>
-            <a href="#wellness-contact">Contact</a>
-          </nav>
+          {hasExpandedWellnessPage && (
+            <nav aria-label="Health and wellness page navigation">
+              <a href="#wellness-contact">Contact</a>
+            </nav>
+          )}
           <a className="wellnessNavCta" href="#wellness-options">Get Started</a>
         </header>
       )}
+      {isProBeauty && (
+        <header className="proBeautyPublicNav">
+          <a href="#beauty-home" className="proBeautyNavBrand">
+            <img src={business.logo} alt={`${business.business} logo`} />
+            <strong>{business.business}</strong>
+          </a>
+          <nav aria-label="Aesthetic beauty page navigation">
+            <a href="#beauty-contact">Contact</a>
+          </nav>
+          <a className="proBeautyNavCta" href="#beauty-services">Book Now</a>
+        </header>
+      )}
+      {isBusinessBeauty && (
+        <header className="businessBeautyPublicNav">
+          <a href="#beauty-home" className="proBeautyNavBrand">
+            {business.logo ? <img src={business.logo} alt={`${business.business} logo`} /> : <span>{brandInitials}</span>}
+            <strong>{business.business}</strong>
+          </a>
+          <a className="proBeautyNavCta" href="#beauty-services">Book Appointment</a>
+        </header>
+      )}
       <button className="backButton premiumBackButton" onClick={onBack}><ArrowLeft size={18} /> Back to Slotwise</button>
-      <section className="publicBooking premiumPublicBooking" id={isHealthWellness ? "wellness-home" : undefined}>
+      <section className="publicBooking premiumPublicBooking" id={isHealthWellness ? "wellness-home" : isBeauty ? "beauty-home" : isRealEstate ? "property-home" : isPestControl ? "pest-home" : undefined}>
         <aside className="premiumBrandPanel" style={getBusinessCoverStyle(business, bookingTone)}>
-          <div className="brandMark">
-            {business.logo ? <img src={business.logo} alt={`${business.business} logo`} /> : <span>{isHealthWellness ? brandInitials : brandInitial}</span>}
+          <div className={isPestControl ? "brandLogoLockup pestLogoLockup" : "brandLogoLockup"}>
+            <div className="brandMark">
+              {business.logo ? <img src={business.logo} alt={`${business.business} logo`} /> : <span>{isHealthWellness || isRealEstate || isPestControl ? brandInitials : brandInitial}</span>}
+            </div>
           </div>
           <div className="brandStory">
             <span>{isHealthWellness ? (business.featureFlags?.wellnessHeroEyebrow || "EVERYDAY WELLNESS") : brandCategory}</span>
             {isHealthWellness && <strong className="wellnessHeroBusinessName">{business.business}</strong>}
-            <h1>{isHealthWellness ? (business.featureFlags?.wellnessHeroTitle || "Find Your Everyday Balance") : business.business}</h1>
+            {isRealEstate && <strong className="realEstateBusinessName">{business.business}</strong>}
+            {isPestControl && <strong className="pestControlBusinessName">{business.business}</strong>}
+            <h1>{isHealthWellness ? (business.featureFlags?.wellnessHeroTitle || "Find Your Everyday Balance") : isRealEstate ? "Find a Property That Fits Your Next Move." : isPestControl ? "Protect Your Space. We'll Handle the Pests." : business.business}</h1>
             <i />
             <p>{brandLine[0]}{brandLine[1] && <><br />{brandLine[1]}</>}</p>
-            {isHealthWellness && <div className="wellnessHeroActions"><a href="#wellness-options">Explore Options</a><a href="#wellness-contact">Contact Us</a></div>}
+            {isHealthWellness && (
+              <div className="wellnessHeroActions">
+                <a href="#wellness-options">Explore Options</a>
+                <a href={hasExpandedWellnessPage ? "#wellness-contact" : business.primaryEmail ? `mailto:${business.primaryEmail}` : normalizePhoneLink(business.phone)}>Contact Us</a>
+              </div>
+            )}
+            {isRealEstate && <a className="realEstateHeroCta" href="#property-inquiry">Send Property Inquiry <ChevronRight size={18} /></a>}
+            {isPestControl && <div className="pestHeroActions"><a className="pestControlHeroCta" href="#pest-service-request">Request Service <ChevronRight size={18} /></a><span className="pestOpenBadge"><Clock size={14} /> {business.availability?.hours || business.availability?.days}</span></div>}
           </div>
-          <div className="bookingTrustCard">
-            <div><CalendarDays size={22} /><span><strong>{templateCopy.trust[0][0]}</strong><small>{templateCopy.trust[0][1]}</small></span></div>
-            <div><Check size={22} /><span><strong>{templateCopy.trust[1][0]}</strong><small>{templateCopy.trust[1][1]}</small></span></div>
-            <div><Sparkles size={22} /><span><strong>{templateCopy.trust[2][0]}</strong><small>{templateCopy.trust[2][1]}</small></span></div>
-          </div>
+          {hasExpandedWellnessPage ? (
+            <div className={isProHealthWellness ? "wellnessBusinessCard pro" : "wellnessBusinessCard"} id="wellness-contact">
+              <strong>Business Information</strong>
+              <div><Clock size={17} /><span><small>Business Hours</small><b>{business.availability?.days}<br />{business.availability?.hours}</b></span></div>
+              {business.phone && <a href={normalizePhoneLink(business.phone)}><Phone size={17} /><span><small>Phone</small><b>{business.phone}</b></span></a>}
+              {business.primaryEmail && <a href={`mailto:${business.primaryEmail}`}><Mail size={17} /><span><small>Email</small><b>{business.primaryEmail}</b></span></a>}
+              {business.messengerLink && <a href={normalizeServiceLink(business.messengerLink)} target="_blank" rel="noopener noreferrer"><MessageCircle size={17} /><span><small>Messenger</small><b>Send a message</b></span></a>}
+            </div>
+          ) : hasEnhancedBeautyPage ? (
+            <div className={isProBeauty ? "proBeautyContactCard" : "proBeautyContactCard business"} id="beauty-contact">
+              <strong>Business Information</strong>
+              <div><Clock size={17} /><span><small>Business Hours</small><b>{business.availability?.days}<br />{business.availability?.hours}</b></span></div>
+              {business.phone && <a href={normalizePhoneLink(business.phone)}><Phone size={17} /><span><small>Phone</small><b>{business.phone}</b></span></a>}
+              {business.primaryEmail && <a href={`mailto:${business.primaryEmail}`}><Mail size={17} /><span><small>Email</small><b>{business.primaryEmail}</b></span></a>}
+              {business.messengerLink && <a href={normalizeServiceLink(business.messengerLink)} target="_blank" rel="noopener noreferrer"><MessageCircle size={17} /><span><small>Messenger</small><b>Message the clinic</b></span></a>}
+            </div>
+          ) : (!isHealthWellness || !hasExpandedWellnessPage) && (
+            <div className="bookingTrustCard">
+              <div><CalendarDays size={22} /><span><strong>{templateCopy.trust[0][0]}</strong><small>{templateCopy.trust[0][1]}</small></span></div>
+              <div><Check size={22} /><span><strong>{templateCopy.trust[1][0]}</strong><small>{templateCopy.trust[1][1]}</small></span></div>
+              <div><Sparkles size={22} /><span><strong>{templateCopy.trust[2][0]}</strong><small>{templateCopy.trust[2][1]}</small></span></div>
+            </div>
+          )}
           {isToursTravel && <TravelBusinessInfo business={business} />}
         </aside>
 
-        <form className="publicForm premiumPublicForm" onSubmit={submitBooking}>
+        <form className="publicForm premiumPublicForm" id={isRealEstate ? "property-inquiry" : isPestControl ? "pest-service-request" : undefined} onSubmit={submitBooking}>
           {(isDemoPreview || isAwaitingActivation) && (
             <div className={isDemoPreview ? "clientStatusNotice demo" : "clientStatusNotice unpaid"}>
               <strong>{isDemoPreview ? "Demo preview" : "Awaiting activation"}</strong>
               <span>
                 {isDemoPreview
-                  ? `Test the booking flow. Submissions on this preview are simulated and will not be saved as live bookings.${demoExpiryState.dateLabel ? ` Available until: ${demoExpiryState.dateLabel}.` : " Demo expiry not set."}`
+                  ? `Test the booking flow. Submissions on this preview are saved as test bookings in the demo dashboard, not live customer bookings.${demoExpiryState.dateLabel ? ` Available until: ${demoExpiryState.dateLabel}.` : " Demo expiry not set."}`
                   : "System setup is complete and awaiting activation. Submissions are preview only until the client is activated."}
               </span>
             </div>
           )}
           <div className="bookingFormHeader">
             <div>
+              {isProBeauty && <span className="proBeautyFormEyebrow">Private aesthetic appointment</span>}
               <h2>{headingText}</h2>
               <p>{headerSubtext}</p>
               {isToursTravel && travelSeasonalNotice && (
@@ -3827,7 +4417,8 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
               )}
               {!isToursTravel && (business.phone || business.mobileNumbers || business.primaryEmail || business.website || business.address) && (
                 <div className="bookingContactLine">
-                  {business.phone && <span><Phone size={13} /><strong>{isHealthWellness ? "Phone" : "Office"}</strong>{business.phone}</span>}
+                  {business.phone && <span><Phone size={13} /><strong>Phone</strong>{business.phone}</span>}
+                  {isProBeauty && business.availability?.openDays && <span><Clock size={13} /><strong>Open</strong>{business.availability.openDays}</span>}
                   {business.mobileNumbers && <span><Smartphone size={13} /><strong>Mobile</strong>{business.mobileNumbers}</span>}
                   {business.primaryEmail && <span><Mail size={13} /><strong>Email</strong>{business.primaryEmail}</span>}
                   {business.website && <a href={normalizeServiceLink(business.website)} target="_blank" rel="noopener noreferrer"><Globe size={13} /><strong>Visit Website</strong></a>}
@@ -3861,10 +4452,44 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
             </nav>
           )}
 
+          {isRealEstate && (
+            <nav className="realEstateProgress" aria-label="Property inquiry progress">
+              {["Property", "Preferences", "Your Details", "Review"].map((label, index) => (
+                <span key={label} className={index + 1 === realEstateActiveStep ? "active" : index + 1 < realEstateActiveStep ? "completed" : "upcoming"}>
+                  <i>{index + 1 < realEstateActiveStep ? <Check size={13} /> : index + 1}</i><small>{label}</small>
+                </span>
+              ))}
+            </nav>
+          )}
+
+          {isPestControl && (
+            <nav className="pestControlProgress" aria-label="Pest control service request progress">
+              {(isDmonster ? ["Service", "Details", "Schedule", "Location", "Your Details"] : ["Service", "Schedule", "Location", "Your Details"]).map((label, index) => (
+                <span key={label} className={index + 1 === pestControlActiveStep ? "active" : index + 1 < pestControlActiveStep ? "completed" : "upcoming"}>
+                  <i>{index + 1 < pestControlActiveStep ? <Check size={13} /> : index + 1}</i><small>{label}</small>
+                </span>
+              ))}
+            </nav>
+          )}
+
+          {isProBeauty && (
+            <nav className="proBeautyBookingProgress" aria-label="Booking progress" style={{ "--beauty-progress": `${beautyActiveStep * 25}%` }}>
+              <em>Step {beautyActiveStep} of 4</em>
+              {["Treatment", "Schedule", "Your Information", "Review & Submit"].map((label, index) => (
+                <React.Fragment key={label}>
+                  <span className={index + 1 === beautyActiveStep ? "active" : index + 1 < beautyActiveStep ? "completed" : "upcoming"}>
+                    <i>{index + 1 < beautyActiveStep ? <Check size={14} /> : index + 1}</i><small>{label}</small>
+                  </span>
+                  {index < 3 && <b className={index + 1 < beautyActiveStep ? "completed" : "upcoming"} />}
+                </React.Fragment>
+              ))}
+            </nav>
+          )}
+
           {flags.bookingEnabled && (
-          <div className="bookingStep" id={isHealthWellness ? "wellness-options" : undefined} onFocusCapture={() => isToursTravel && setTravelActiveStep(1)}>
+          <div className="bookingStep" id={isHealthWellness ? "wellness-options" : isBeauty ? "beauty-services" : undefined} onFocusCapture={() => { if (isToursTravel) setTravelActiveStep(1); if (isProBeauty) setBeautyActiveStep(1); if (isRealEstate) setRealEstateActiveStep(1); if (isPestControl) setPestControlActiveStep(1); }}>
             <div className="bookingStepTitle"><span>1</span><strong><ServiceStepIcon size={16} />{serviceStepLabel}</strong></div>
-            <div className={isConsultant ? "premiumServiceGrid consultantServiceGrid" : "premiumServiceGrid"}>
+            <div className={isConsultant ? "premiumServiceGrid consultantServiceGrid" : isRealEstate ? "premiumServiceGrid realEstatePropertyGrid" : isPestControl ? "premiumServiceGrid pestControlServiceGrid" : "premiumServiceGrid"}>
               {business.services.map((item) => {
                 const detail = getServiceDetail(item);
                 const ServiceIcon = resolveServiceIcon(item, business);
@@ -3948,18 +4573,66 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                       <strong>{detail.imageTitle || item}</strong>
                       {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
                       {detail.description && <p className="serviceDescription">{detail.description}</p>}
-                      {flags.showPrices && publicServiceMetaLabel(detail) && <small>{publicServiceMetaLabel(detail)}</small>}
+                      {isDmonster && getDmonsterServiceContent(item).cardPrice && <small>{getDmonsterServiceContent(item).cardPrice}</small>}
+                      {!isDmonster && flags.showPrices && (publicServiceMetaLabel(detail) || isProBeauty && "Contact for Price") && <small>{publicServiceMetaLabel(detail) || "Contact for Price"}</small>}
                       {isSelected && <em><Check size={16} /></em>}
                     </button>
                   )
                 );
               })}
             </div>
+            {!business.services.length && (
+              <div className="publicServiceEmptyState">
+                <Sparkles size={20} />
+                <span><strong>Services are being updated</strong><small>Please check back soon or contact the business for current treatments and rates.</small></span>
+              </div>
+            )}
             {allowMultipleServices && <p className="multiServiceCount">{selectedServiceNames.length} service{selectedServiceNames.length > 1 ? "s" : ""} selected</p>}
           </div>
           )}
 
-          {isToursTravel && (
+          {isDmonster && (
+            <div className="bookingStep pestServiceDetailsStep" onFocusCapture={() => setPestControlActiveStep(2)}>
+              <div className="bookingStepTitle"><span>2</span><strong><Ruler size={16} />Property / Service Details</strong></div>
+              <fieldset className="pestPropertyType">
+                <legend>Property / Establishment Type</legend>
+                {dmonsterPropertyTypes.map((propertyType) => <label key={propertyType}><input type="radio" name="propertyType" value={propertyType} checked={pestControlDetails.propertyType === propertyType} onChange={(event) => setPestControlDetails((current) => ({ ...current, propertyType: event.target.value }))} required /><span>{propertyType}</span></label>)}
+              </fieldset>
+              {pickedService === "Termite Treatment" && (
+                <fieldset className="pestPropertyType pestFloorType">
+                  <legend>Number of Floors</legend>
+                  {dmonsterFloorOptions.map((floor) => <label key={floor.value}><input type="radio" name="numberOfFloors" value={floor.value} checked={pestControlDetails.floors === floor.value} onChange={(event) => setPestControlDetails((current) => ({ ...current, floors: event.target.value }))} required /><span>{floor.label}</span></label>)}
+                </fieldset>
+              )}
+              <label className="premiumInput"><Ruler size={20} /><span>Area Size<input name="areaSize" type="number" min="1" step="1" value={pestControlDetails.areaSize} onChange={(event) => setPestControlDetails((current) => ({ ...current, areaSize: event.target.value }))} required placeholder="Area in sqm" /></span></label>
+              <fieldset className="pestPropertyType pestServiceArea">
+                <legend>Service Area</legend>
+                {dmonsterServiceAreas.map((serviceArea) => <label key={serviceArea}><input type="radio" name="serviceArea" value={serviceArea} checked={pestControlDetails.serviceArea === serviceArea} onChange={(event) => setPestControlDetails((current) => ({ ...current, serviceArea: event.target.value }))} required /><span>{serviceArea}</span></label>)}
+              </fieldset>
+              <div className="pestPriceSummary">
+                <span>{dmonsterPricing?.status === "calculated" ? "Estimated Service Price" : "Price"}</span>
+                <strong>{dmonsterPricing?.status === "calculated" ? formatPeso(dmonsterPricing.total) : "For assessment"}</strong>
+                {dmonsterPricing?.formula && <p>{pickedService} • {dmonsterPricing.formula}</p>}
+                <small>{dmonsterPricing?.note || "Estimated price based on the information provided. Final service price is subject to business confirmation."}</small>
+              </div>
+            </div>
+          )}
+
+          {isRealEstate && (
+            <div className="bookingStep realEstatePreferences" onFocusCapture={() => setRealEstateActiveStep(2)}>
+              <div className="bookingStepTitle"><span>2</span><strong><MapPinned size={16} />Property Preferences</strong></div>
+              <div className="realEstatePreferenceGrid">
+                <label className="premiumInput"><MapPin size={20} /><span>Preferred Location<input name="preferredLocation" value={realEstateDetails.location} onChange={(event) => setRealEstateDetails((current) => ({ ...current, location: event.target.value }))} required placeholder="City, municipality, or preferred area" /></span></label>
+                <label className="premiumInput"><BadgeDollarSign size={20} /><span>Budget Range<select name="budgetRange" value={realEstateDetails.budgetRange} onChange={(event) => setRealEstateDetails((current) => ({ ...current, budgetRange: event.target.value }))} required><option value="">Select budget range</option><option>Below PHP 2M</option><option>PHP 2M - 5M</option><option>PHP 5M - 10M</option><option>PHP 10M - 20M</option><option>Above PHP 20M</option><option>To be discussed</option></select></span></label>
+              </div>
+              <fieldset className="realEstatePurpose">
+                <legend>Purpose</legend>
+                {["Personal Use", "Investment", "Business", "Others"].map((purpose) => <label key={purpose}><input type="radio" name="propertyPurpose" value={purpose} checked={realEstateDetails.purpose === purpose} onChange={(event) => setRealEstateDetails((current) => ({ ...current, purpose: event.target.value }))} /><span>{purpose}</span></label>)}
+              </fieldset>
+            </div>
+          )}
+
+          {business.services.length > 0 && isToursTravel && (
             <div className="bookingStep travelDetailsStep" onFocusCapture={() => setTravelActiveStep(2)}>
               <div className="bookingStepTitle"><span>2</span><strong><MapPinned size={16} />Travel Details</strong></div>
               {travelServiceKind === "AIRLINE" && (
@@ -3986,15 +4659,40 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
             </div>
           )}
 
-          {(flags.requireTime || isAccommodation) && (
-          <div className="bookingStep" onFocusCapture={() => isToursTravel && setTravelActiveStep(3)}>
-            <div className="bookingStepTitle"><span>{isToursTravel ? 3 : 2}</span><strong>{timeStepLabel}</strong></div>
+          {business.services.length > 0 && (flags.requireTime || isAccommodation) && (
+          <div className="bookingStep" onFocusCapture={() => { if (isToursTravel) setTravelActiveStep(3); if (isProBeauty) setBeautyActiveStep(2); if (isPestControl) setPestControlActiveStep(isDmonster ? 3 : 2); }}>
+            <div className="bookingStepTitle"><span>{isToursTravel ? 3 : isDmonster ? 3 : 2}</span><strong>{timeStepLabel}</strong></div>
             {isBlockedDate && (
               <div className="clientStatusNotice unpaid">
                 <strong>Date unavailable</strong>
                 <span>This business marked {selectedDateLabel} as unavailable.</span>
               </div>
             )}
+            {usesPreferredSchedule ? (
+              <div className="preferredSchedulePanel">
+                <span className="alwaysOpenBadge"><Clock size={14} /> 24/7 Service Available</span>
+                <div className="preferredScheduleGrid">
+                  <label className="premiumInput"><CalendarDays size={20} /><span>Preferred Date<input
+                    name="preferredDate"
+                    type="date"
+                    value={selectedBookingDate}
+                    min={getTodayDateValue()}
+                    onChange={(event) => setSelectedBookingDate(event.target.value)}
+                    required={flags.requireDate}
+                  /></span></label>
+                  <label className="premiumInput"><Clock size={20} /><span>Preferred Time<input
+                    name="preferredTime"
+                    type="time"
+                    value={displayTimeToInput(pickedSlot) || "10:15"}
+                    min={selectedBookingDate === getTodayDateValue() ? getCurrentTimeInputValue() : undefined}
+                    onChange={(event) => setPickedSlot(timeInputToDisplay(event.target.value))}
+                    required={flags.requireTime}
+                  /></span></label>
+                </div>
+                <p className="preferredScheduleNote">Open 24/7 — Select your preferred service date and time.<br />Requested schedules are subject to business confirmation.</p>
+                {selectedBookingDate && pickedSlot && <p className="preferredScheduleSummary"><strong>Preferred Schedule</strong> {selectedDateLabel} • {pickedSlot}</p>}
+              </div>
+            ) : (
             <div className="timeAndDate">
               {!isAccommodation && (
                 <div className="premiumSlotGrid">
@@ -4032,15 +4730,27 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                 )}
               </div>
             </div>
+            )}
           </div>
           )}
 
-          <div className="bookingStep" onFocusCapture={() => isToursTravel && setTravelActiveStep(4)}>
+          {isPestControl && (
+            <div className="bookingStep pestControlLocationStep" onFocusCapture={() => setPestControlActiveStep(isDmonster ? 4 : 3)}>
+              <div className="bookingStepTitle"><span>{isDmonster ? 4 : 3}</span><strong><MapPinned size={16} />Service Location</strong></div>
+              {!isDmonster && <fieldset className="pestPropertyType">
+                <legend>Property Type</legend>
+                {["Residential", "Commercial", "Office", "Store / Business Establishment", "Warehouse", "Other"].map((propertyType) => <label key={propertyType}><input type="radio" name="propertyType" value={propertyType} checked={pestControlDetails.propertyType === propertyType} onChange={(event) => setPestControlDetails((current) => ({ ...current, propertyType: event.target.value }))} /><span>{propertyType}</span></label>)}
+              </fieldset>}
+              <label className="premiumInput"><MapPin size={20} /><span>Service Location / Address<textarea name="serviceLocation" value={pestControlDetails.serviceLocation} onChange={(event) => setPestControlDetails((current) => ({ ...current, serviceLocation: event.target.value }))} required minLength="5" rows="2" placeholder="House/Unit No., Street, Barangay, City/Municipality, Province" /></span></label>
+            </div>
+          )}
+
+          {business.services.length > 0 && <div className="bookingStep" onFocusCapture={() => { if (isToursTravel) setTravelActiveStep(4); if (isProBeauty) setBeautyActiveStep(3); if (isRealEstate) setRealEstateActiveStep(3); if (isPestControl) setPestControlActiveStep(4); }}>
             <div className="bookingStepTitle"><span>{detailsStepNumber}</span><strong>{detailsStepLabel}</strong></div>
             <label className="premiumInput"><User size={20} /><span>{isAccommodation ? "Full Name" : "Your name"}<input name="customer" required placeholder="Maria Santos" /></span></label>
             <label className="premiumInput"><Phone size={20} /><span>{isAccommodation ? "Mobile Number" : "Phone or contact number"}<input name="contact" required placeholder="0912 345 6789" /></span></label>
-            {isToursTravel && <label className="premiumInput"><Mail size={20} /><span>Email (optional)<input name="email" type="email" placeholder="name@example.com" /></span></label>}
-            {isToursTravel && <label className="premiumInput"><House size={20} /><span>Address{isPhisavong ? " (required)" : ""}<textarea name="customerAddress" value={travelDetails.customerAddress} onChange={(event) => setTravelDetails((current) => ({ ...current, customerAddress: event.target.value }))} required={isPhisavong} rows="2" placeholder="House/Unit No., Street, Barangay, City/Municipality, Province" /></span></label>}
+            <label className="premiumInput"><Mail size={20} /><span>Email Address<input name="email" type="email" value={travelDetails.customerEmail} onChange={(event) => setTravelDetails((current) => ({ ...current, customerEmail: event.target.value }))} required autoComplete="email" placeholder="name@example.com" /></span></label>
+            <label className="premiumInput"><House size={20} /><span>Address<textarea name="customerAddress" value={travelDetails.customerAddress} onChange={(event) => setTravelDetails((current) => ({ ...current, customerAddress: event.target.value }))} required minLength="5" autoComplete="street-address" rows="2" placeholder="House/Unit No., Street, Barangay, City/Municipality, Province" /></span></label>
             {isAccommodation ? (
               <div className="accommodationGuestGrid">
                 <label className="guestStepper">
@@ -4070,13 +4780,12 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                 </div>
               </label>
             )}
-            {flags.requireAddress && !isToursTravel && <label className="premiumInput"><House size={20} /><span>{isHomeService ? "Service address" : "Address"}<input name="address" required placeholder="Street, barangay, city" /></span></label>}
-            <label className="premiumInput"><FileText size={20} /><span>{noteLabel}<textarea name="note" placeholder={notePlaceholder} rows="3" /></span></label>
-          </div>
+            <label className="premiumInput"><FileText size={20} /><span>{noteLabel}<textarea name="note" value={isRealEstate ? realEstateDetails.requirements : undefined} onChange={isRealEstate ? (event) => setRealEstateDetails((current) => ({ ...current, requirements: event.target.value })) : undefined} placeholder={isRealEstate ? "Property features, bedrooms, move-in timeline, or other preferences" : notePlaceholder} rows="3" /></span></label>
+          </div>}
 
-          {(isToursTravel || allowMultipleServices || flags.showPrices) && (
-            <div className="reservationSummary" tabIndex={isToursTravel ? 0 : undefined} onFocus={() => isToursTravel && setTravelActiveStep(5)} onMouseEnter={() => isToursTravel && setTravelActiveStep(5)}>
-              <span>{isToursTravel ? "Travel Inquiry Summary" : isHealthWellness && !flags.requireDate && !flags.requireTime ? "Request Summary" : "Booking Summary"}</span>
+          {business.services.length > 0 && (isPestControl || isRealEstate || isToursTravel || allowMultipleServices || flags.showPrices) && (
+            <div className="reservationSummary" tabIndex={isToursTravel || isProBeauty || isRealEstate ? 0 : undefined} onFocus={() => { if (isToursTravel) setTravelActiveStep(5); if (isProBeauty) setBeautyActiveStep(4); if (isRealEstate) setRealEstateActiveStep(4); }} onMouseEnter={() => { if (isToursTravel) setTravelActiveStep(5); if (isProBeauty) setBeautyActiveStep(4); if (isRealEstate) setRealEstateActiveStep(4); }}>
+              <span>{isPestControl ? "Service Request Summary" : isRealEstate ? "Property Inquiry Summary" : isToursTravel ? "Travel Inquiry Summary" : isHealthWellness && !flags.requireDate && !flags.requireTime ? "Request Summary" : "Booking Summary"}</span>
               <strong>{primaryServiceLabel}</strong>
               {(flags.requireDate || flags.requireTime || needsGuestCount) && <p>{flags.requireDate ? selectedDateLabel : ""} {flags.requireTime ? `at ${pickedSlot}` : ""}{needsGuestCount ? `${flags.requireDate || flags.requireTime ? " • " : ""}${guestCount} ${isToursTravel ? "guest" : "pax"}${guestCount > 1 ? "s" : ""}` : ""}</p>}
               {isToursTravel && <div className="travelInquiryPreferences">
@@ -4085,22 +4794,45 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
                 {travelDetails.requestedInclusions.trim() && <p><strong>Requested Inclusions:</strong> {travelDetails.requestedInclusions}</p>}
                 {travelDetails.customerAddress.trim() && <p><strong>Address:</strong> {travelDetails.customerAddress}</p>}
               </div>}
-              <div className="bookingLineItems">
+              {!isToursTravel && <div className="customerInquirySummary">
+                {isRealEstate && realEstateDetails.location.trim() && <p><strong>Preferred Location:</strong> {realEstateDetails.location}</p>}
+                {isRealEstate && realEstateDetails.budgetRange && <p><strong>Budget Range:</strong> {realEstateDetails.budgetRange}</p>}
+                {isRealEstate && realEstateDetails.purpose && <p><strong>Purpose:</strong> {realEstateDetails.purpose}</p>}
+                {isRealEstate && realEstateDetails.requirements.trim() && <p><strong>Additional Requirements:</strong> {realEstateDetails.requirements}</p>}
+                {isPestControl && pestControlDetails.propertyType && <p><strong>Property Type:</strong> {pestControlDetails.propertyType}</p>}
+                {isDmonster && pestControlDetails.areaSize && <p><strong>Area:</strong> {pestControlDetails.areaSize} sqm</p>}
+                {isDmonster && pickedService === "Termite Treatment" && pestControlDetails.floors && <p><strong>Floors:</strong> {dmonsterFloorOptions.find((floor) => floor.value === pestControlDetails.floors)?.label || pestControlDetails.floors}</p>}
+                {isDmonster && pestControlDetails.serviceArea && <p><strong>Service Area:</strong> {pestControlDetails.serviceArea}</p>}
+                {isPestControl && pestControlDetails.serviceLocation.trim() && <p><strong>Service Location:</strong> {pestControlDetails.serviceLocation}</p>}
+                {travelDetails.customerEmail.trim() && <p><strong>Email:</strong> {travelDetails.customerEmail}</p>}
+                {travelDetails.customerAddress.trim() && <p><strong>Address:</strong> {travelDetails.customerAddress}</p>}
+              </div>}
+              {isDmonster && (
+                <div className="pestPriceSummary inline">
+                  <span>{dmonsterPricing?.status === "calculated" ? "Estimated Service Price" : "Price"}</span>
+                  <strong>{dmonsterPricing?.status === "calculated" ? formatPeso(dmonsterPricing.total) : "For assessment"}</strong>
+                  {dmonsterPricing?.formula && <p>{dmonsterPricing.formula}</p>}
+                  <small>{dmonsterPricing?.note || "Estimated price based on the information provided. Final service price is subject to business confirmation."}</small>
+                </div>
+              )}
+              {!isRealEstate && !isPestControl && <div className="bookingLineItems">
                 {bookingCalculation.lineItems.map((item) => (
                   <div key={item.serviceName}>
                     <span>{item.serviceName}<small>{publicLineLabel(item.lineLabel)}</small></span>
-                    <strong>{item.lineTotal === null ? (isToursTravel ? "Request Quote" : "Pricing unavailable") : publicPriceLabel(item.lineTotal)}</strong>
+                    <strong>{item.lineTotal === null ? (isToursTravel ? "Request Quote" : isProBeauty ? "Contact for Price" : "Pricing unavailable") : publicPriceLabel(item.lineTotal)}</strong>
                   </div>
                 ))}
-              </div>
-              {!bookingCalculation.totalAvailable && <em>This booking option needs pricing configured before it can be submitted.</em>}
+              </div>}
+              {!isRealEstate && !isPestControl && !bookingCalculation.totalAvailable && (
+                <em>{isProBeauty ? "Final treatment price will be confirmed by the clinic." : "This booking option needs pricing configured before it can be submitted."}</em>
+              )}
               {flags.showPrices && bookingCalculation.totalAvailable && !isQuoteOnlySelection && <em>Estimated total: {publicPriceLabel(estimatedTotal)}</em>}
             </div>
           )}
 
-          <button className="premiumConfirmButton" type="submit" disabled={submitting || isBlockedDate} onFocus={() => isToursTravel && setTravelActiveStep(5)}>
+          {business.services.length > 0 && <button className="premiumConfirmButton" type="submit" disabled={submitting || isBlockedDate} onFocus={() => { if (isToursTravel) setTravelActiveStep(5); if (isRealEstate) setRealEstateActiveStep(4); if (isPestControl) setPestControlActiveStep(4); }}>
             {submitting ? "Submitting request..." : submitLabel} <ChevronRight size={22} />
-          </button>
+          </button>}
           {bookingError && <p className="formError premiumError">{bookingError}</p>}
           {selectedPlanImage && (
             <div className="planImageOverlay" role="dialog" aria-modal="true" aria-label={selectedPlanImage.title}>
@@ -4117,9 +4849,13 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
           )}
           {confirmed && (
             <div className="formSuccess premiumSuccess">
-              <strong>{isProductionActive ? (isToursTravel ? "Reservation Request Received" : "Booking Request Received") : "Demo booking completed"}</strong>
+              <strong>{isProductionActive ? (isPestControl ? "Service Request Received" : isRealEstate ? "Property Inquiry Received" : isToursTravel ? "Reservation Request Received" : "Booking Request Received") : "Demo booking completed"}</strong>
               <span>
-                {isProductionActive && (isToursTravel || isAccommodation)
+                {isProductionActive && isPestControl
+                  ? "Your service request has been received. The pest control team may contact you to confirm the schedule and assessment details."
+                  : isProductionActive && isRealEstate
+                  ? "Your property inquiry has been received. The property team may contact you to discuss your requirements."
+                  : isProductionActive && (isToursTravel || isAccommodation)
                   ? `Your reservation request has been received. The ${isAccommodation ? "host" : "tour operator"} may contact you to confirm availability and final details.`
                   : isProductionActive
                   ? "Your booking request has been received. The business may contact you to confirm your appointment."
@@ -4127,7 +4863,12 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
               </span>
               <dl>
                 <div><dt>Business</dt><dd>{business.business}</dd></div>
-                <div><dt>{selectedServiceNames.length > 1 ? "Services" : isAccommodation ? "Room / Unit" : isToursTravel ? "Tour Package" : "Service"}</dt><dd>{confirmed.service}</dd></div>
+                <div><dt>{isPestControl ? "Pest Concern / Service" : isRealEstate ? "Property Type" : selectedServiceNames.length > 1 ? "Services" : isAccommodation ? "Room / Unit" : isToursTravel ? "Tour Package" : "Service"}</dt><dd>{confirmed.service}</dd></div>
+                {isPestControl && confirmed.metadata?.property_type && <div><dt>Property Type</dt><dd>{confirmed.metadata.property_type}</dd></div>}
+                {isPestControl && confirmed.metadata?.service_location && <div><dt>Service Location</dt><dd>{confirmed.metadata.service_location}</dd></div>}
+                {isRealEstate && confirmed.metadata?.preferred_location && <div><dt>Preferred Location</dt><dd>{confirmed.metadata.preferred_location}</dd></div>}
+                {isRealEstate && confirmed.metadata?.budget_range && <div><dt>Budget Range</dt><dd>{confirmed.metadata.budget_range}</dd></div>}
+                {isRealEstate && confirmed.metadata?.property_purpose && <div><dt>Purpose</dt><dd>{confirmed.metadata.property_purpose}</dd></div>}
                 <div><dt>{isAccommodation ? "Check-in" : isToursTravel ? "Desired Tour Start" : "Date"}</dt><dd>{confirmed.booking_date ? formatBookingDate(confirmed.booking_date) : "Not required"}</dd></div>
                 {isToursTravel && confirmed.metadata?.travel_end_date && <div><dt>Return / End of Tour</dt><dd>{formatBookingDate(confirmed.metadata.travel_end_date)}</dd></div>}
                 {isAccommodation && <div><dt>Check-out</dt><dd>{formatBookingDate(confirmed.metadata?.check_out)}</dd></div>}
@@ -4182,31 +4923,7 @@ function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, o
           )}
         </form>
       </section>
-      {isHealthWellness && (
-        <>
-          <section className="wellnessHowItWorks" id="wellness-how">
-            <div className="wellnessSectionHeading"><span>How It Works</span><h2>A simple way to get started.</h2></div>
-            <div className="wellnessHowGrid">
-              {[
-                ["01", "Choose Your Wellness Option", "Browse available products or services."],
-                ["02", "Enter Your Details", "Complete the information requested by the business."],
-                ["03", "Submit Your Request", "Review your details and send your request."],
-                ["04", "Receive Confirmation", "Keep your Slotwise reference for follow-up."],
-              ].map(([number, title, text]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{text}</p></article>)}
-            </div>
-          </section>
-          <section className="wellnessBusinessInfo" id="wellness-contact">
-            <div><span>Business Information</span><h2>{business.business}</h2><p>{business.featureFlags?.wellnessFooterTagline || "Wellness made simpler for everyday life."}</p></div>
-            <div className="wellnessContactGrid">
-              <div><Clock size={19} /><span><small>Business Hours</small><strong>{business.availability?.days}<br />{business.availability?.hours}</strong></span></div>
-              {business.phone && <a href={normalizePhoneLink(business.phone)}><Phone size={19} /><span><small>Phone</small><strong>{business.phone}</strong></span></a>}
-              {business.primaryEmail && <a href={`mailto:${business.primaryEmail}`}><Mail size={19} /><span><small>Email</small><strong>{business.primaryEmail}</strong></span></a>}
-              {business.messengerLink && <a href={normalizeServiceLink(business.messengerLink)} target="_blank" rel="noopener noreferrer"><MessageCircle size={19} /><span><small>Messenger</small><strong>Send a message</strong></span></a>}
-            </div>
-          </section>
-          <footer className="wellnessFooter"><strong>{business.business}</strong><span>{business.featureFlags?.wellnessFooterTagline || business.businessType}</span></footer>
-        </>
-      )}
+      {isHealthWellness && <footer className="wellnessFooter"><strong>{business.business}</strong><span>{business.featureFlags?.wellnessFooterTagline || business.businessType}</span></footer>}
       <p className="privacyNote">We respect your time and privacy.</p>
     </main>
   );
@@ -6615,18 +7332,23 @@ function getClientHelpTopics(business = {}, capabilities = {}) {
   const travel = template === "TOURS_TRAVEL";
   const accommodation = template === "STAYCATION_ACCOMMODATION";
   const consultant = template === "PROFESSIONAL_SERVICES";
-  const serviceLabel = travel ? "Tour Packages" : accommodation ? "Units / Accommodation" : consultant ? "Plans & Services" : "Services";
-  const bookingLabel = travel ? "Reservations / Travel Inquiries" : accommodation ? "Reservations" : consultant ? "Consultations / Inquiries" : "Bookings / Requests";
+  const realEstate = template === "REAL_ESTATE";
+  const pestControl = template === "PEST_CONTROL";
+  const serviceLabel = pestControl ? "Pest Control Services" : realEstate ? "Property Categories / Inquiry Options" : travel ? "Tour Packages" : accommodation ? "Units / Accommodation" : consultant ? "Plans & Services" : "Services";
+  const bookingLabel = pestControl ? "Service Requests" : realEstate ? "Property Inquiries" : travel ? "Reservations / Travel Inquiries" : accommodation ? "Reservations" : consultant ? "Consultations / Inquiries" : "Bookings / Requests";
   const topics = [
     { id: "dashboard", title: "Dashboard", intro: "A quick overview of your booking system and recent customer activity.", steps: ["Review total, pending, and confirmed records.", `Open ${bookingLabel} to view complete details.`, "Use Refresh when you expect a newly submitted record."], tips: ["Statistics use actual saved records.", "Use this page for quick monitoring."] },
     { id: "bookings", title: bookingLabel, intro: "View and manage customer submissions.", steps: ["Open a booking or inquiry to review customer and service details.", "Check the requested date, time, or travel schedule.", "Update the status as work progresses: Pending, Quotation Sent, Waiting for Approval, For Amendment, Confirmed, Completed, or Cancelled.", "Use Delete only when the record should be permanently removed."], tips: ["Changing status does not automatically contact the customer.", "Confirm important changes directly with the customer."] },
     capabilities.customers && { id: "customers", title: travel ? "Guests / Customers" : "Customers", intro: "Customers are created from saved bookings and inquiries.", steps: ["Open this section to review customer contact information.", "Use booking history when it is available in your package."], tips: ["Customer records are connected to their submissions.", "Keep customer information private."] },
+    capabilities.clientRecords && { id: "clients", title: "Clients", intro: "Client Records is a paid add-on for businesses that need reusable client profiles.", steps: ["Add a client with name, contact number, branch, email, and notes.", "Search or filter by branch.", "Open a client profile to review information and reservation history.", "Create a reservation from a client profile when needed."], tips: ["Reservation history is read from existing Slotwise bookings.", "Branch assignment helps organize clients without creating a separate CRM."] },
     capabilities.services && { id: "services", title: serviceLabel, intro: `Manage the ${serviceLabel.toLowerCase()} shown on your public booking page.`, steps: ["Add or edit the name, category, and description.", "Enter a price or leave it blank for Contact for Rate.", "Add an external details link when needed.", "Set the item Active or Inactive, then save."], tips: ["Active items may appear publicly.", "Inactive items should not appear on the public page.", "Save after every important change."], customer: `Customers see your active ${serviceLabel.toLowerCase()}, descriptions, pricing labels, and available links.` },
     travel && capabilities.services && { id: "departures", title: "Available Dates & Rates", intro: "Use this for tour packages with fixed departure schedules.", steps: ["Open Tour Packages and edit the package.", "Find Available Dates & Rates and click Add Departure.", "Enter the start date, end date, rate, and pricing unit.", "Save the package."], tips: ["Customers can select saved departures publicly.", "Without departures, the regular preferred-date inquiry flow remains available."], customer: "Saved departure dates and rates appear on the public travel page." },
     capabilities.schedule && { id: "schedule", title: travel ? "Availability" : "Schedule", intro: "Controls your working days, hours, and available booking times.", steps: ["Enter your open days and operating hours.", "Review the available time slots.", "Save the schedule."], tips: ["Schedule changes affect customer choices.", "Avoid overlapping or invalid operating periods."], customer: "Customers see only the available dates and times configured here." },
     capabilities.reservationCalendar && { id: "reservationCalendar", title: "Reservation Calendar", intro: "Shows saved reservations by date.", steps: ["Use Previous, Today, and Next to change month.", "Select a date to see its reservations.", "Open a reservation to review details."], tips: ["Calendar dates use the booking or travel start date.", "The calendar does not support drag-and-drop editing."] },
     capabilities.blockedDates && { id: "blockedDates", title: "Blocked Dates", intro: "Use blocked dates when you cannot accept bookings.", steps: ["Choose the unavailable date.", "Add a short reason if needed.", "Click Block date."], tips: ["Use this for holidays, maintenance, leave, or fully booked days.", "Remove the block when the date becomes available."], customer: "Blocked dates cannot be selected on the public booking page." },
     capabilities.paymentVerification && { id: "paymentSettings", title: "Payment Settings", intro: "Configure payment instructions and manually verify submitted references.", steps: ["Choose whether payment or a deposit is required.", "Add your GCash, Maya, bank, or other payment details.", "Review each submitted payment reference.", "Verify only after checking your actual payment account."], tips: ["Payments are not verified automatically.", "Never rely only on a reference number."] },
+    { id: "updates", title: "Updates", intro: "Read published Slotwise feature updates and improvements available for your package.", steps: ["Open Updates from the sidebar.", "Review newest announcements first.", "Use package badges to see who the update applies to."], tips: ["Unpublished updates do not appear here.", "The new indicator clears after opening Updates."] },
+    { id: "packages", title: "Packages", intro: "Compare Starter, Business, and Pro from inside your dashboard.", steps: ["Open Packages from the sidebar.", "Check your current package badge.", "Use Message SMM to Upgrade when you want a higher package."], tips: ["Paid add-ons are separate from normal package features.", "Your active dashboard permissions do not change until your package or add-ons are updated by an authorized admin."] },
     { id: "account", title: "Account", intro: "Manage editable business and contact information.", steps: ["Review the business name and description.", "Update contact details, website, logo, or colors when available.", "Save business details."], tips: ["Never share dashboard credentials publicly.", "Share only the public booking-page link with customers."], customer: "Saved business details and branding may update the public booking page." },
     { id: "publicPage", title: "Public Booking Page", intro: "This is the customer-facing link you can share publicly.", steps: ["Open your public URL and test the complete flow.", "Share it through Facebook, Messenger, your website, social media, or an external QR code."], tips: ["Do not share the Client Dashboard URL.", "Active services and availability changes affect what customers see."] },
     { id: "troubleshooting", title: "Troubleshooting", intro: "Quick checks for common issues.", steps: ["Missing service: confirm it is Active and saved.", "Unavailable date: check availability and blocked dates.", "Missing booking: refresh and check the full bookings section.", "Customer access issue: customers must use the public page, never this dashboard."], tips: ["Test changes on the public page.", "Contact your administrator when a saved change still does not appear."] },
@@ -6644,6 +7366,9 @@ function ClientDashboard({
   onBack,
   onUpdateBookingStatus,
   onDeleteBooking,
+  onCreateManualReservation,
+  onUpsertClientRecord,
+  onDeleteClientRecord,
   onSaveService,
   onDeleteService,
   onSaveAvailability,
@@ -6663,6 +7388,7 @@ function ClientDashboard({
   const [selectedBusinessSlug, setSelectedBusinessSlug] = useState("");
   const [clientBusiness, setClientBusiness] = useState(null);
   const [clientBookings, setClientBookings] = useState([]);
+  const [clientRecords, setClientRecords] = useState([]);
   const [clientServices, setClientServices] = useState([]);
   const [clientAvailability, setClientAvailability] = useState({ ...defaultAvailability });
   const [blockedDates, setBlockedDates] = useState([]);
@@ -6673,11 +7399,17 @@ function ClientDashboard({
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpSearch, setHelpSearch] = useState("");
   const [filter, setFilter] = useState("All");
+  const [sourceFilter, setSourceFilter] = useState("All");
+  const [clientRecordSearch, setClientRecordSearch] = useState("");
+  const [clientRecordBranchFilter, setClientRecordBranchFilter] = useState("All Branches");
+  const [selectedClientRecord, setSelectedClientRecord] = useState(null);
   const [calendarFilter, setCalendarFilter] = useState("All");
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(getTodayDateValue());
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
+  const [slotwiseUpdates, setSlotwiseUpdates] = useState([]);
+  const [slotwiseUpdateRead, setSlotwiseUpdateRead] = useState(null);
   const emptyServiceForm = { id: "", name: "", serviceCategory: "", description: "", price: "", durationMinutes: 60, displayOrder: 0, status: "Active", pricingType: "FIXED", pricingUnit: "FLAT", pricingTiers: [], departureDates: [], imageUrl: "", imageTitle: "", imageCaption: "" };
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [clientServiceEntries, setClientServiceEntries] = useState(emptyStructuredServices());
@@ -6686,6 +7418,44 @@ function ClientDashboard({
   const [blockedDateForm, setBlockedDateForm] = useState({ blockedDate: "", reason: "" });
   const [paymentMethodForm, setPaymentMethodForm] = useState({ method_type: "GCASH", method_name: "GCash", account_name: "", account_number: "", instructions: "", active: true });
   const [serviceImageUploading, setServiceImageUploading] = useState(false);
+  const emptyManualReservationForm = {
+    customerMode: "new",
+    existingCustomerKey: "",
+    customer: "",
+    contact: "",
+    email: "",
+    address: "",
+    serviceId: "",
+    serviceName: "",
+    branch: "",
+    date: getTodayDateValue(),
+    time: "",
+    propertyType: "House",
+    areaSize: "",
+    serviceArea: "Metro Manila / NCR",
+    serviceLocation: "",
+    notes: "",
+    internalNotes: "",
+  };
+  const [manualReservationOpen, setManualReservationOpen] = useState(false);
+  const [manualReservationForm, setManualReservationForm] = useState(emptyManualReservationForm);
+  const emptyClientRecordForm = { id: "", fullName: "", contactNumber: "", email: "", assignedBranch: "", notes: "" };
+  const [clientRecordForm, setClientRecordForm] = useState(emptyClientRecordForm);
+
+  const loadSlotwiseUpdateState = async (session, businessSlug) => {
+    const [updates, readRows] = await Promise.all([
+      supabaseRequest("slotwise_updates", {
+        query: "?select=*&is_published=eq.true&order=published_at.desc",
+        accessToken: session.access_token,
+      }).catch(() => []),
+      supabaseRequest("slotwise_update_reads", {
+        query: `?select=*&business_slug=eq.${encodeURIComponent(businessSlug)}&user_id=eq.${encodeURIComponent(session.user.id)}`,
+        accessToken: session.access_token,
+      }).catch(() => []),
+    ]);
+    setSlotwiseUpdates(updates || []);
+    setSlotwiseUpdateRead(readRows?.[0] || null);
+  };
 
   const loadClientData = async (session) => {
     const mappings = await supabaseRequest("business_users", {
@@ -6702,6 +7472,7 @@ function ClientDashboard({
       query: `?select=*&slug=eq.${encodeURIComponent(chosenSlug)}`,
       accessToken: session.access_token,
     });
+    const hasClientRecordsAddon = getPackageCapabilities(businessRow?.business_package, businessRow?.feature_flags || {}).clientRecords;
     const serviceRows = await supabaseRequest("business_services", {
       query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=display_order.asc`,
       accessToken: session.access_token,
@@ -6734,6 +7505,10 @@ function ClientDashboard({
       query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=submitted_at.desc`,
       accessToken: session.access_token,
     }).catch(() => []);
+    const clientRecordRows = hasClientRecordsAddon ? await supabaseRequest("client_records", {
+      query: `?select=*&business_slug=eq.${encodeURIComponent(chosenSlug)}&order=created_at.desc`,
+      accessToken: session.access_token,
+    }).catch(() => []) : [];
     const normalizedAvailability = {
       days: availabilityRow?.open_days || defaultAvailability.days,
       hours: availabilityRow?.open_hours || defaultAvailability.hours,
@@ -6763,6 +7538,7 @@ function ClientDashboard({
     });
     const visibleServiceRows = filterLegacyToursSeedRows(serviceRows || [], businessRow?.booking_template);
     setClientBookings(attachBookingItems(bookingRows || [], bookingItemRows || []));
+    setClientRecords(clientRecordRows || []);
     setClientServices(visibleServiceRows);
     setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
     setClientAvailability(normalizedAvailability);
@@ -6775,6 +7551,8 @@ function ClientDashboard({
     setPaymentSettings(paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
     setPaymentMethods(paymentMethodRows || []);
     setBookingPayments(paymentRows || []);
+    if (!hasClientRecordsAddon) setSelectedClientRecord(null);
+    await loadSlotwiseUpdateState(session, chosenSlug);
     setAuthState("authorized");
     return true;
   };
@@ -6839,6 +7617,7 @@ function ClientDashboard({
         query: `?select=*&slug=eq.${encodeURIComponent(nextSlug)}`,
         accessToken: clientSession.access_token,
       });
+      const hasClientRecordsAddon = getPackageCapabilities(businessRow?.business_package, businessRow?.feature_flags || {}).clientRecords;
       const serviceRows = await supabaseRequest("business_services", {
         query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=display_order.asc`,
         accessToken: clientSession.access_token,
@@ -6871,6 +7650,10 @@ function ClientDashboard({
         query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=submitted_at.desc`,
         accessToken: clientSession.access_token,
       }).catch(() => []);
+      const clientRecordRows = hasClientRecordsAddon ? await supabaseRequest("client_records", {
+        query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&order=created_at.desc`,
+        accessToken: clientSession.access_token,
+      }).catch(() => []) : [];
       const dismissalRows = await supabaseRequest("announcement_dismissals", {
         query: `?select=*&business_slug=eq.${encodeURIComponent(nextSlug)}&user_id=eq.${encodeURIComponent(clientSession.user.id)}&order=dismissed_at.desc`,
         accessToken: clientSession.access_token,
@@ -6887,6 +7670,7 @@ function ClientDashboard({
       }, paymentSettingsRow || null, paymentMethodRows || [])));
       const visibleServiceRows = filterLegacyToursSeedRows(serviceRows || [], businessRow?.booking_template);
       setClientBookings(attachBookingItems(bookingRows || [], bookingItemRows || []));
+      setClientRecords(clientRecordRows || []);
       setClientServices(visibleServiceRows);
       setClientServiceEntries(normalizeStructuredServices(visibleServiceRows.map(serviceRowToStructured)));
       setClientAvailability(normalizedAvailability);
@@ -6900,7 +7684,9 @@ function ClientDashboard({
       setPaymentMethods(paymentMethodRows || []);
       setBookingPayments(paymentRows || []);
       setAnnouncementDismissals(dismissalRows || []);
+      await loadSlotwiseUpdateState(clientSession, nextSlug);
       setSelectedBooking(null);
+      setSelectedClientRecord(null);
     }
   };
 
@@ -7335,9 +8121,12 @@ function ClientDashboard({
     }
   };
 
-  const filteredBookings = clientBookings.filter((booking) => (
-    filter === "All" || normalizeBookingStatusValue(booking.status) === normalizeBookingStatusValue(filter)
-  ));
+  const filteredBookings = clientBookings.filter((booking) => {
+    const statusMatch = filter === "All" || normalizeBookingStatusValue(booking.status) === normalizeBookingStatusValue(filter);
+    const source = String(booking.metadata?.source || "online").toLowerCase();
+    const sourceMatch = sourceFilter === "All" || source === sourceFilter.toLowerCase();
+    return statusMatch && sourceMatch;
+  });
   const pendingCount = clientBookings.filter((booking) => ["PENDING", "NEW"].includes((booking.status || "").toUpperCase())).length;
   const confirmedCount = clientBookings.filter((booking) => (booking.status || "").toUpperCase() === "CONFIRMED").length;
   const completedCount = clientBookings.filter((booking) => (booking.status || "").toUpperCase() === "COMPLETED").length;
@@ -7345,11 +8134,18 @@ function ClientDashboard({
   const todayCount = clientBookings.filter((booking) => (booking.booking_date || "").startsWith("2026-05-21")).length;
   const currentRole = businessUsers.find((item) => item.business_slug === selectedBusinessSlug)?.role || "OWNER";
   const capabilities = getPackageCapabilities(clientBusiness?.package, clientBusiness?.featureFlags);
+  const visibleSlotwiseUpdates = slotwiseUpdates
+    .sort((a, b) => new Date(b.published_at || b.created_at || 0) - new Date(a.published_at || a.created_at || 0));
+  const lastUpdatesViewedAt = slotwiseUpdateRead?.last_viewed_at ? new Date(slotwiseUpdateRead.last_viewed_at).getTime() : 0;
+  const unreadUpdatesCount = visibleSlotwiseUpdates.filter((update) => new Date(update.published_at || update.created_at || 0).getTime() > lastUpdatesViewedAt).length;
+  const smmUpgradeHref = SMM_FACEBOOK_URL;
   const helpTopics = getClientHelpTopics(clientBusiness || {}, capabilities);
   const activeHelpTopic = helpTopics.find((topic) => topic.id === activeTab) || helpTopics[0];
   const filteredHelpTopics = helpTopics.filter((topic) => `${topic.title} ${topic.intro} ${topic.steps.join(" ")} ${topic.tips.join(" ")}`.toLowerCase().includes(helpSearch.trim().toLowerCase()));
   const isClientToursTravel = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "TOURS_TRAVEL";
   const isClientAccommodation = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "STAYCATION_ACCOMMODATION";
+  const isClientRealEstate = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "REAL_ESTATE";
+  const isClientPestControl = normalizeBookingTemplate(clientBusiness?.bookingTemplate) === "PEST_CONTROL";
   const paymentsByBooking = bookingPayments.reduce((grouped, payment) => {
     grouped[payment.booking_id] = grouped[payment.booking_id] || [];
     grouped[payment.booking_id].push(payment);
@@ -7358,11 +8154,29 @@ function ClientDashboard({
   const selectedBookingPayments = selectedBooking ? paymentsByBooking[selectedBooking.id] || [] : [];
   const latestSelectedPayment = selectedBookingPayments[0];
   const selectedBookingItems = selectedBooking ? getBookingLineItems(selectedBooking) : [];
-  const selectedBookingTotal = selectedBooking?.estimated_total ?? selectedBooking?.metadata?.estimated_total ?? (
-    selectedBookingItems.every((item) => item.lineTotal !== null && item.lineTotal !== undefined)
+  const selectedBookingPersistedTotal = selectedBooking?.metadata?.calculated_price
+    ?? selectedBooking?.metadata?.pest_estimated_price
+    ?? selectedBooking?.metadata?.estimated_price
+    ?? selectedBooking?.metadata?.total_price
+    ?? selectedBooking?.metadata?.estimated_total
+    ?? selectedBooking?.estimated_total
+    ?? null;
+  const selectedBookingTotal = selectedBookingPersistedTotal ?? (
+    selectedBookingItems.length && selectedBookingItems.every((item) => item.lineTotal !== null && item.lineTotal !== undefined)
       ? selectedBookingItems.reduce((sum, item) => sum + Number(item.lineTotal || 0), 0)
       : null
   );
+  const selectedPricingStatusValue = String(
+    selectedBooking?.metadata?.pest_pricing_status
+    || selectedBooking?.metadata?.pricing_status
+    || (selectedBookingTotal !== null ? "calculated" : "assessment_required")
+  ).toLowerCase();
+  const selectedPricingIsCalculated = selectedPricingStatusValue === "calculated" || selectedPricingStatusValue === "fixed" || selectedPricingStatusValue === "confirmed";
+  const selectedPricingBasis = selectedBooking?.metadata?.pricing_basis
+    || selectedBooking?.metadata?.pest_pricing_formula
+    || selectedBooking?.metadata?.pest_pricing_note
+    || selectedBooking?.metadata?.pricing_note
+    || "";
   const pendingPaymentCount = bookingPayments.filter((payment) => payment.payment_status === "PENDING_VERIFICATION").length;
   const verifiedPaymentCount = bookingPayments.filter((payment) => payment.payment_status === "VERIFIED").length;
   const customers = Object.values(clientBookings.reduce((grouped, booking) => {
@@ -7380,22 +8194,254 @@ function ClientDashboard({
     }
     return grouped;
   }, {}));
+  const clientRecordBranches = [
+    ...new Set([
+      ...(Array.isArray(clientBusiness?.featureFlags?.branches) ? clientBusiness.featureFlags.branches : []),
+      ...facialUnlimitedBranches,
+      ...clientRecords.map((record) => record.assigned_branch).filter(Boolean),
+    ]),
+  ];
+  const filteredClientRecords = clientRecords.filter((record) => {
+    const haystack = `${record.full_name || ""} ${record.contact_number || ""} ${record.email || ""} ${record.assigned_branch || ""}`.toLowerCase();
+    const searchMatch = haystack.includes(clientRecordSearch.trim().toLowerCase());
+    const branchMatch = clientRecordBranchFilter === "All Branches" || record.assigned_branch === clientRecordBranchFilter;
+    return searchMatch && branchMatch;
+  });
+  const getClientRecordHistory = (record) => clientBookings.filter((booking) => {
+    const bookingEmail = String(booking.metadata?.customer_email || booking.metadata?.traveler_email || "").toLowerCase();
+    return (
+      (record.contact_number && booking.contact === record.contact_number)
+      || (record.email && bookingEmail && bookingEmail === record.email.toLowerCase())
+      || (record.full_name && booking.customer === record.full_name)
+    );
+  });
+  const availableManualServices = clientServices.filter((service) => service.status !== "Inactive");
+  const manualSelectedService = availableManualServices.find((service) => service.id === manualReservationForm.serviceId)
+    || availableManualServices.find((service) => service.name === manualReservationForm.serviceName)
+    || null;
+  const manualUsesPreferredSchedule = isBusinessOpen24Hours(clientAvailability);
+
+  useEffect(() => {
+    if (activeTab !== "updates" || !clientSession?.access_token || !selectedBusinessSlug || !visibleSlotwiseUpdates.length) return;
+    supabaseRpcRequest("mark_slotwise_updates_viewed", { business_slug_value: selectedBusinessSlug }, clientSession.access_token)
+      .then(() => setSlotwiseUpdateRead({
+        user_id: clientSession.user.id,
+        business_slug: selectedBusinessSlug,
+        last_viewed_at: new Date().toISOString(),
+      }))
+      .catch(() => {});
+  }, [activeTab, clientSession?.access_token, clientSession?.user?.id, selectedBusinessSlug, visibleSlotwiseUpdates.length]);
+
+  const openManualReservation = () => {
+    if (!capabilities.manualReservations) {
+      setStatusMessage("Create Reservation is available on the PRO package only.");
+      return;
+    }
+    const firstService = availableManualServices[0];
+    setManualReservationForm({
+      ...emptyManualReservationForm,
+      serviceId: firstService?.id || "",
+      serviceName: firstService?.name || "",
+      time: manualUsesPreferredSchedule ? "10:00 AM" : (clientAvailability.slots?.[0] || "10:00 AM"),
+    });
+    setManualReservationOpen(true);
+  };
+
+  const openManualReservationForClient = (record) => {
+    openManualReservation();
+    setManualReservationForm((current) => ({
+      ...current,
+      customerMode: "existing",
+      customer: record.full_name || "",
+      contact: record.contact_number || "",
+      email: record.email || "",
+      address: "",
+      branch: record.assigned_branch || "",
+    }));
+  };
+
+  const editClientRecord = (record = null) => {
+    setClientRecordForm(record ? {
+      id: record.id || "",
+      fullName: record.full_name || "",
+      contactNumber: record.contact_number || "",
+      email: record.email || "",
+      assignedBranch: record.assigned_branch || "",
+      notes: record.notes || "",
+    } : emptyClientRecordForm);
+  };
+
+  const submitClientRecord = async (event) => {
+    event.preventDefault();
+    if (!capabilities.clientRecords) {
+      setStatusMessage("Client Records is a paid add-on and is not enabled for this business.");
+      return;
+    }
+    if (!clientRecordForm.fullName.trim() || !clientRecordForm.contactNumber.trim() || !clientRecordForm.assignedBranch.trim()) {
+      setStatusMessage("Please enter the client name, contact number, and branch.");
+      return;
+    }
+    setStatusMessage("Saving client...");
+    try {
+      await onUpsertClientRecord({
+        client_record_id: clientRecordForm.id || `CR-${Date.now().toString().slice(-8)}`,
+        business_slug_value: selectedBusinessSlug,
+        full_name_value: clientRecordForm.fullName.trim(),
+        contact_number_value: clientRecordForm.contactNumber.trim(),
+        email_value: clientRecordForm.email.trim(),
+        assigned_branch_value: clientRecordForm.assignedBranch.trim(),
+        notes_value: clientRecordForm.notes.trim(),
+      }, clientSession?.access_token);
+      setClientRecordForm(emptyClientRecordForm);
+      await loadClientData(clientSession);
+      setStatusMessage("Client record saved.");
+    } catch (error) {
+      console.error("Client record save failed", error);
+      setStatusMessage("Unable to save client record. Please try again.");
+    }
+  };
+
+  const deleteClientRecord = async (record) => {
+    if (!record?.id || !window.confirm("Delete this client record?\n\nReservation history will not be deleted.")) return;
+    setStatusMessage("Deleting client...");
+    try {
+      await onDeleteClientRecord(record.id, clientSession?.access_token);
+      setSelectedClientRecord(null);
+      await loadClientData(clientSession);
+      setStatusMessage("Client record deleted.");
+    } catch (error) {
+      console.error("Client record delete failed", error);
+      setStatusMessage("Unable to delete client record. Please try again.");
+    }
+  };
+
+  const selectManualCustomer = (customerKey) => {
+    if (capabilities.clientRecords) {
+      const record = clientRecords.find((client) => client.id === customerKey);
+      setManualReservationForm((current) => ({
+        ...current,
+        existingCustomerKey: customerKey,
+        customer: record?.full_name || current.customer,
+        contact: record?.contact_number || current.contact,
+        email: record?.email || current.email,
+        branch: record?.assigned_branch || current.branch,
+      }));
+      return;
+    }
+    const existing = customers.find((customer) => `${customer.customer || "Customer"}-${customer.contact || ""}` === customerKey);
+    setManualReservationForm((current) => ({
+      ...current,
+      existingCustomerKey: customerKey,
+      customer: existing?.customer || current.customer,
+      contact: existing?.contact || current.contact,
+      email: existing?.history?.find((booking) => booking.metadata?.customer_email)?.metadata?.customer_email || current.email,
+      address: existing?.history?.find((booking) => booking.metadata?.customer_address)?.metadata?.customer_address || current.address,
+    }));
+  };
+
+  const submitManualReservation = async (event) => {
+    event.preventDefault();
+    setStatusMessage("");
+    if (!capabilities.manualReservations) {
+      setStatusMessage("Create Reservation is available on the PRO package only.");
+      return;
+    }
+    const serviceName = manualSelectedService?.name || manualReservationForm.serviceName.trim();
+    const selectedDate = manualReservationForm.date;
+    const selectedTime = manualReservationForm.time.trim();
+    if (!manualReservationForm.customer.trim() || !manualReservationForm.contact.trim() || !serviceName || !selectedDate || !selectedTime) {
+      setStatusMessage("Please complete the required reservation details.");
+      return;
+    }
+    if (capabilities.clientRecords && !manualReservationForm.branch) {
+      setStatusMessage("Please select the reservation branch.");
+      return;
+    }
+    if (isPastPreferredSchedule(selectedDate, selectedTime)) {
+      setStatusMessage("Please choose a future reservation date and time.");
+      return;
+    }
+    if (blockedDates.some((blockedDate) => blockedDate.blocked_date === selectedDate)) {
+      setStatusMessage("That date is blocked. Please choose another schedule.");
+      return;
+    }
+    const servicePrice = manualSelectedService?.price;
+    const lineTotal = servicePrice === null || servicePrice === undefined || servicePrice === "" ? null : Number(servicePrice);
+    const bookingId = `SW-MANUAL-${Date.now().toString().slice(-7)}`;
+    const metadata = {
+      booking_template: clientBusiness?.bookingTemplate,
+      source: "manual",
+      created_from: "client_dashboard",
+      internal_notes: manualReservationForm.internalNotes.trim(),
+      customer_email: manualReservationForm.email.trim(),
+      customer_address: manualReservationForm.address.trim(),
+      branch: manualReservationForm.branch || "",
+      assigned_branch: manualReservationForm.branch || "",
+      property_type: isClientPestControl ? manualReservationForm.propertyType : undefined,
+      service_area: isClientPestControl ? manualReservationForm.serviceArea : undefined,
+      service_location: isClientPestControl ? manualReservationForm.serviceLocation.trim() : undefined,
+      pest_concern: isClientPestControl ? serviceName : undefined,
+      area_sqm: isClientPestControl && manualReservationForm.areaSize ? Number(manualReservationForm.areaSize) : undefined,
+      manual_reservation: true,
+    };
+    const bookingPayload = {
+      id: bookingId,
+      customer: manualReservationForm.customer.trim(),
+      contact: manualReservationForm.contact.trim(),
+      business: clientBusiness?.business || "",
+      business_slug: clientBusiness?.slug || selectedBusinessSlug,
+      service: serviceName,
+      booking_date: selectedDate,
+      slot: selectedTime,
+      note: manualReservationForm.notes.trim(),
+      status: "CONFIRMED",
+      estimated_total: lineTotal,
+      metadata,
+    };
+    const itemPayload = [{
+      id: `${bookingId}-item-1`,
+      service_id: manualSelectedService?.id || null,
+      service_name_snapshot: serviceName,
+      pricing_type_snapshot: normalizePricingType(manualSelectedService?.pricing_type || manualSelectedService?.pricingType, manualSelectedService?.pricing_unit || manualSelectedService?.pricingUnit),
+      unit_price_snapshot: lineTotal,
+      quantity: 1,
+      selected_tier_snapshot: null,
+      line_total: lineTotal,
+    }];
+    setStatusMessage("Creating reservation...");
+    try {
+      await onCreateManualReservation({
+        booking_payload: bookingPayload,
+        items_payload: itemPayload,
+      }, clientSession?.access_token);
+      setManualReservationOpen(false);
+      setManualReservationForm(emptyManualReservationForm);
+      await loadClientData(clientSession);
+      setStatusMessage("Reservation created successfully.");
+    } catch (error) {
+      console.error("Manual reservation create failed", error);
+      setStatusMessage("Unable to create reservation. Please try again.");
+    }
+  };
 
   useEffect(() => {
     const tabAllowed = {
       dashboard: true,
       bookings: true,
       customers: capabilities.customers,
+      clients: capabilities.clientRecords,
       services: capabilities.services,
       schedule: capabilities.schedule,
       reservationCalendar: capabilities.reservationCalendar,
       blockedDates: capabilities.blockedDates,
       paymentSettings: capabilities.paymentVerification,
+      updates: true,
+      packages: true,
       account: true,
       guide: true,
     };
     if (!tabAllowed[activeTab]) setActiveTab("dashboard");
-  }, [activeTab, capabilities.customers, capabilities.services, capabilities.schedule, capabilities.reservationCalendar, capabilities.blockedDates, capabilities.paymentVerification]);
+  }, [activeTab, capabilities.customers, capabilities.clientRecords, capabilities.services, capabilities.schedule, capabilities.reservationCalendar, capabilities.blockedDates, capabilities.paymentVerification]);
 
   if (authState === "checking") {
     return (
@@ -7443,6 +8489,10 @@ function ClientDashboard({
     );
   }
 
+  if (clientBusiness && isDemoExpired(clientBusiness)) {
+    return <DemoExpiredPage business={clientBusiness} onBack={onBack} />;
+  }
+
   return (
     <main className="clientDashboardPage">
       <button className="backButton" onClick={onBack}><ArrowLeft size={18} /> Back to site</button>
@@ -7461,11 +8511,16 @@ function ClientDashboard({
           <button className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}>Dashboard</button>
           <button className={activeTab === "bookings" ? "active" : ""} onClick={() => setActiveTab("bookings")}>{isClientToursTravel ? "Reservations" : "Bookings / Requests"}</button>
           {capabilities.customers && <button className={activeTab === "customers" ? "active" : ""} onClick={() => setActiveTab("customers")}>{isClientToursTravel ? "Guests / Customers" : "Customers"}</button>}
+          {capabilities.clientRecords && <button className={activeTab === "clients" ? "active" : ""} onClick={() => setActiveTab("clients")}><Users size={16} /> Clients</button>}
           {capabilities.services && <button className={activeTab === "services" ? "active" : ""} onClick={() => setActiveTab("services")}>{isClientToursTravel ? "Tour Packages" : "Services"}</button>}
           {capabilities.schedule && <button className={activeTab === "schedule" ? "active" : ""} onClick={() => setActiveTab("schedule")}>{isClientToursTravel ? "Availability" : "Schedule"}</button>}
           {capabilities.reservationCalendar && <button className={activeTab === "reservationCalendar" ? "active" : ""} onClick={() => setActiveTab("reservationCalendar")}><CalendarDays size={16} /> Reservation Calendar</button>}
           {capabilities.blockedDates && <button className={activeTab === "blockedDates" ? "active" : ""} onClick={() => setActiveTab("blockedDates")}>Blocked Dates</button>}
           {capabilities.paymentVerification && <button className={activeTab === "paymentSettings" ? "active" : ""} onClick={() => setActiveTab("paymentSettings")}>Payment Settings</button>}
+          <button className={activeTab === "updates" ? "active" : ""} onClick={() => setActiveTab("updates")}>
+            <Info size={16} /> Updates {unreadUpdatesCount > 0 && <span className="updatesNavBadge">{unreadUpdatesCount}</span>}
+          </button>
+          <button className={activeTab === "packages" ? "active" : ""} onClick={() => setActiveTab("packages")}><BadgeDollarSign size={16} /> Packages</button>
           <button className={activeTab === "account" ? "active" : ""} onClick={() => setActiveTab("account")}>Account</button>
           <button className={activeTab === "guide" ? "active" : ""} onClick={() => setActiveTab("guide")}><CircleHelp size={16} /> Help &amp; Guide</button>
           <button onClick={logoutClient}>Logout</button>
@@ -7478,10 +8533,13 @@ function ClientDashboard({
           {activeTab === "dashboard" && (
             <>
               <div className="clientDashboardHeader">
-                <p className="eyebrow">Welcome back</p>
-                <h2>{clientBusiness?.business}</h2>
-                <p>{clientBusiness?.bookingMode === "inquiry" ? "Review new inquiries and customer messages." : "Review bookings and keep appointment statuses updated."}</p>
-                <span className="clientPackageBadge">{packageOptions.find((item) => item.value === capabilities.packageKey)?.label || "Starter"} package</span>
+                <div>
+                  <p className="eyebrow">Welcome back</p>
+                  <h2>{clientBusiness?.business}</h2>
+                  <p>{clientBusiness?.bookingMode === "inquiry" ? "Review new inquiries and customer messages." : "Review bookings and keep appointment statuses updated."}</p>
+                  <span className="clientPackageBadge">{packageOptions.find((item) => item.value === capabilities.packageKey)?.label || "Starter"} package</span>
+                </div>
+                {capabilities.manualReservations && <button type="button" className="clientPrimaryButton clientCreateReservationButton" onClick={openManualReservation}><Plus size={16} /> Create Reservation <span>PRO</span></button>}
               </div>
               <SmmOffersFeed offers={smmOffers} placement="CLIENT_DASHBOARD" compact business={clientBusiness} />
               <div className="clientMetricGrid">
@@ -7501,14 +8559,24 @@ function ClientDashboard({
           {activeTab === "bookings" && (
             <>
               <div className="clientDashboardHeader">
-                <p className="eyebrow">Bookings / Requests</p>
-                <h2>Customer activity</h2>
+                <div>
+                  <p className="eyebrow">Bookings / Requests</p>
+                  <h2>Customer activity</h2>
+                </div>
+                {capabilities.manualReservations && <button type="button" className="clientPrimaryButton clientCreateReservationButton" onClick={openManualReservation}><Plus size={16} /> Create Reservation <span>PRO</span></button>}
               </div>
               <div className="clientFilterRow">
                 {["All", ...bookingStatusOptions.map((item) => item.label)].map((item) => (
                   <button className={filter === item ? "active" : ""} onClick={() => setFilter(item)} key={item}>{item}</button>
                 ))}
               </div>
+              {capabilities.manualReservations && (
+                <div className="clientFilterRow sourceFilterRow" aria-label="Reservation source filters">
+                  {["All", "Online", "Manual"].map((item) => (
+                    <button className={sourceFilter === item ? "active" : ""} onClick={() => setSourceFilter(item)} key={item}>{item}</button>
+                  ))}
+                </div>
+              )}
               <BookingList bookings={filteredBookings} onSelect={setSelectedBooking} onStatusChange={updateStatus} onDelete={deleteBooking} />
             </>
           )}
@@ -7536,6 +8604,83 @@ function ClientDashboard({
                     )}
                   </article>
                 )) : <div className="clientEmptyState">No customers yet.</div>}
+              </div>
+            </section>
+          )}
+
+          {activeTab === "clients" && capabilities.clientRecords && (
+            <section className="clientRecordsPanel">
+              <div className="clientDashboardHeader">
+                <div>
+                  <p className="eyebrow">Client Records</p>
+                  <h2>Clients</h2>
+                  <p>Manage paid client records and view reservation history from existing Slotwise bookings.</p>
+                </div>
+                {selectedClientRecord && <button type="button" className="clientPrimaryButton clientCreateReservationButton" onClick={() => openManualReservationForClient(selectedClientRecord)}><Plus size={16} /> Create Reservation</button>}
+              </div>
+              <form className="clientRecordForm" onSubmit={submitClientRecord}>
+                <input value={clientRecordForm.fullName} onChange={(event) => setClientRecordForm((current) => ({ ...current, fullName: event.target.value }))} placeholder="Full name *" required />
+                <input value={clientRecordForm.contactNumber} onChange={(event) => setClientRecordForm((current) => ({ ...current, contactNumber: event.target.value }))} placeholder="Contact number *" required />
+                <input type="email" value={clientRecordForm.email} onChange={(event) => setClientRecordForm((current) => ({ ...current, email: event.target.value }))} placeholder="Email" />
+                <select value={clientRecordForm.assignedBranch} onChange={(event) => setClientRecordForm((current) => ({ ...current, assignedBranch: event.target.value }))} required>
+                  <option value="">Assigned branch *</option>
+                  {clientRecordBranches.map((branch) => <option key={branch}>{branch}</option>)}
+                </select>
+                <textarea value={clientRecordForm.notes} onChange={(event) => setClientRecordForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Notes" rows="2" />
+                <div className="clientRecordFormActions">
+                  <button type="submit" className="clientPrimaryButton">{clientRecordForm.id ? "Save Client" : "Add Client"}</button>
+                  {clientRecordForm.id && <button type="button" onClick={() => editClientRecord(null)}>Cancel Edit</button>}
+                </div>
+              </form>
+              <div className="clientRecordToolbar">
+                <input value={clientRecordSearch} onChange={(event) => setClientRecordSearch(event.target.value)} placeholder="Search clients..." />
+                <select value={clientRecordBranchFilter} onChange={(event) => setClientRecordBranchFilter(event.target.value)}>
+                  <option>All Branches</option>
+                  {clientRecordBranches.map((branch) => <option key={branch}>{branch}</option>)}
+                </select>
+              </div>
+              <div className="clientRecordsLayout">
+                <div className="clientBookingList">
+                  {filteredClientRecords.length ? filteredClientRecords.map((record) => {
+                    const history = getClientRecordHistory(record);
+                    return (
+                      <article className={`clientBookingCard clientRecordCard ${selectedClientRecord?.id === record.id ? "active" : ""}`} key={record.id}>
+                        <div>
+                          <strong>{record.full_name}</strong>
+                          <span>{record.assigned_branch || "No branch"}</span>
+                          <small>{record.contact_number}{record.email ? ` • ${record.email}` : ""}</small>
+                        </div>
+                        <p>{record.notes || `${history.length} reservation${history.length === 1 ? "" : "s"} found`}</p>
+                        <div className="clientBookingActions">
+                          <button type="button" onClick={() => setSelectedClientRecord(record)}>View Profile</button>
+                          <button type="button" onClick={() => editClientRecord(record)}>Edit</button>
+                        </div>
+                      </article>
+                    );
+                  }) : <div className="clientEmptyState"><strong>No client records yet.</strong><span>Add a client to start using this paid add-on.</span></div>}
+                </div>
+                {selectedClientRecord && (
+                  <aside className="clientRecordProfile">
+                    <p className="eyebrow">Client Profile</p>
+                    <h3>{selectedClientRecord.full_name}</h3>
+                    <p><strong>Branch:</strong> {selectedClientRecord.assigned_branch || "Not assigned"}</p>
+                    <p><strong>Contact:</strong> {selectedClientRecord.contact_number}</p>
+                    {selectedClientRecord.email && <p><strong>Email:</strong> {selectedClientRecord.email}</p>}
+                    {selectedClientRecord.notes && <p><strong>Notes:</strong> {selectedClientRecord.notes}</p>}
+                    <p><strong>Created:</strong> {selectedClientRecord.created_at ? formatBookingDate(selectedClientRecord.created_at) : "Not saved"}</p>
+                    <div className="clientRecordProfileActions">
+                      <button type="button" className="clientPrimaryButton" onClick={() => openManualReservationForClient(selectedClientRecord)}>Create Reservation</button>
+                      <button type="button" onClick={() => editClientRecord(selectedClientRecord)}>Edit</button>
+                      <button type="button" className="clientDeleteBookingButton" onClick={() => deleteClientRecord(selectedClientRecord)}>Delete</button>
+                    </div>
+                    <div className="clientHistoryList clientRecordHistory">
+                      <strong>Reservation / Service History</strong>
+                      {getClientRecordHistory(selectedClientRecord).length ? getClientRecordHistory(selectedClientRecord).slice(0, 8).map((booking) => (
+                        <small key={booking.id}>{formatBookingDate(booking.booking_date || booking.created_at)} / {getBookingServiceSummary(booking)} / {getBookingStatusLabel(booking.status)}</small>
+                      )) : <small>No reservations found yet.</small>}
+                    </div>
+                  </aside>
+                )}
               </div>
             </section>
           )}
@@ -7668,6 +8813,90 @@ function ClientDashboard({
             </section>
           )}
 
+          {activeTab === "updates" && (
+            <section className="slotwiseUpdatesPanel">
+              <div className="clientDashboardHeader">
+                <div>
+                  <p className="eyebrow">What's New</p>
+                  <h2>Slotwise updates</h2>
+                  <p>New features, fixes, and improvements available for your current package.</p>
+                  <p className="slotwiseUpdateScheduleNote"><Clock size={14} /> Regular Slotwise updates are typically released every Thursday at 3:00 AM.</p>
+                </div>
+                {unreadUpdatesCount > 0 && <span className="slotwiseUpdateNewPill">{unreadUpdatesCount} new</span>}
+              </div>
+              <div className="slotwiseUpdateList">
+                {visibleSlotwiseUpdates.length ? visibleSlotwiseUpdates.map((update) => {
+                  const updateDate = update.published_at || update.created_at;
+                  const updatePackages = normalizeUpdatePackages(update.applicable_packages || update.target_packages);
+                  const isUnread = new Date(updateDate || 0).getTime() > lastUpdatesViewedAt;
+                  return (
+                    <article className={`slotwiseUpdateCard ${isUnread ? "unread" : ""}`} key={update.id}>
+                      <div className="slotwiseUpdateMeta">
+                        <span className={`slotwiseUpdateType type-${getStatusClass(update.update_type)}`}>{getUpdateTypeLabel(update.update_type)}</span>
+                        {updateDate && <small>{formatReadableDate(updateDate)}</small>}
+                        {isUnread && <span className="slotwiseUpdateDot">New</span>}
+                      </div>
+                      <h3>{update.title}</h3>
+                      <p>{update.summary}</p>
+                      {update.content && <small className="slotwiseUpdateContent">{update.content}</small>}
+                      <div className="slotwiseUpdatePackages">
+                        {updatePackages.map((item) => <span key={item}>{getUpdatePackageBadgeLabel(item, capabilities.packageKey)}</span>)}
+                      </div>
+                    </article>
+                  );
+                }) : (
+                  <div className="clientEmptyState">
+                    <strong>No published updates yet.</strong>
+                    <span>Slotwise announcements will appear here when they are available for your package.</span>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {activeTab === "packages" && (
+            <section className="slotwisePackagesPanel">
+              <div className="clientDashboardHeader">
+                <div>
+                  <p className="eyebrow">Packages</p>
+                  <h2>Slotwise package guide</h2>
+                  <p>Compare Starter, Business, and Pro without changing your current dashboard permissions.</p>
+                </div>
+                <span className="clientPackageBadge">Current: {packageOptions.find((item) => item.value === capabilities.packageKey)?.label || "Starter"}</span>
+              </div>
+              <div className="slotwisePackagesGrid">
+                {dashboardPackageCards.map((packageCard) => {
+                  const isCurrent = packageCard.value === capabilities.packageKey;
+                  const canUpgrade = getPackageOrder(packageCard.value) > getPackageOrder(capabilities.packageKey);
+                  return (
+                    <article className={`slotwisePackageCard ${isCurrent ? "current" : ""}`} key={packageCard.value}>
+                      <div>
+                        <div className="slotwisePackageTopline">
+                          <span>{packageCard.label}</span>
+                          {isCurrent && <strong>Current package</strong>}
+                        </div>
+                        <h3>{packageCard.price}</h3>
+                        <small>{packageCard.note}</small>
+                        <p>{packageCard.summary}</p>
+                      </div>
+                      <ul>
+                        {packageCard.features.map((feature) => <li key={feature}><Check size={15} /> {feature}</li>)}
+                      </ul>
+                      {canUpgrade ? (
+                        <a className="slotwisePackageUpgrade" href={smmUpgradeHref} target={smmUpgradeHref.startsWith("http") ? "_blank" : undefined} rel={smmUpgradeHref.startsWith("http") ? "noopener noreferrer" : undefined}>
+                          Message SMM to Upgrade
+                        </a>
+                      ) : (
+                        <span className="slotwisePackageIncluded">{isCurrent ? "Active on your account" : "Included below your current package"}</span>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+              <p className="slotwisePackageNote">Paid add-ons are separate from standard packages and only appear when enabled for a specific business.</p>
+            </section>
+          )}
+
           {activeTab === "account" && (
             <section className="clientAccountPanel">
               <p className="eyebrow">Account</p>
@@ -7705,19 +8934,71 @@ function ClientDashboard({
 
           {helpOpen && <div className="clientHelpBackdrop" onMouseDown={(event) => event.target === event.currentTarget && setHelpOpen(false)}><aside className="clientHelpDrawer" role="dialog" aria-modal="true" aria-label={`${activeHelpTopic?.title || "Dashboard"} help`}><button type="button" className="clientHelpClose" onClick={() => setHelpOpen(false)}>Close</button><ClientHelpContent topic={activeHelpTopic} /></aside></div>}
 
+          {manualReservationOpen && capabilities.manualReservations && (
+            <ManualReservationModal
+              form={manualReservationForm}
+              setForm={setManualReservationForm}
+              services={availableManualServices}
+              selectedService={manualSelectedService}
+              customers={customers}
+              clientRecords={clientRecords}
+              branches={clientRecordBranches}
+              hasClientRecords={capabilities.clientRecords}
+              availability={clientAvailability}
+              usesPreferredSchedule={manualUsesPreferredSchedule}
+              isPestControl={isClientPestControl}
+              onSelectCustomer={selectManualCustomer}
+              onSubmit={submitManualReservation}
+              onClose={() => setManualReservationOpen(false)}
+            />
+          )}
+
           {selectedBooking && (
             <div className="clientBookingDetailsBackdrop" onMouseDown={(event) => event.target === event.currentTarget && setSelectedBooking(null)}>
             <section className="clientBookingDetails" role="dialog" aria-modal="true" aria-label="Booking or inquiry details">
               <div>
-                <p className="eyebrow">Booking / Inquiry Details</p>
+                <p className="eyebrow">{isClientPestControl ? "Service Request Details" : isClientRealEstate ? "Property Inquiry Details" : "Booking / Inquiry Details"}</p>
                 <h2>{selectedBooking.customer}</h2>
               </div>
               <p><strong>Reference Number:</strong> {selectedBooking.id || "Not provided"}</p>
               <p><strong>Status:</strong> {getBookingStatusLabel(selectedBooking.status)}</p>
+              <p><strong>Source:</strong> {String(selectedBooking.metadata?.source || "online").toLowerCase() === "manual" ? "Manual" : "Online"}</p>
+              {selectedBooking.metadata?.test_booking && <p><strong>Record Type:</strong> Test Booking</p>}
               <p><strong>Date Submitted:</strong> {selectedBooking.created_at ? formatFriendlyDateTime(selectedBooking.created_at) : "Not provided"}</p>
               <p><strong>Phone:</strong> {selectedBooking.contact}</p>
-              {selectedBooking.metadata?.traveler_email && <p><strong>Email:</strong> {selectedBooking.metadata.traveler_email}</p>}
-              {isClientToursTravel && selectedBooking.metadata?.customer_address && <p><strong>Address:</strong> {selectedBooking.metadata.customer_address}</p>}
+              {(selectedBooking.metadata?.customer_email || selectedBooking.metadata?.traveler_email) && <p><strong>Email:</strong> {selectedBooking.metadata.customer_email || selectedBooking.metadata.traveler_email}</p>}
+              {selectedBooking.metadata?.customer_address && <p><strong>Address:</strong> {selectedBooking.metadata.customer_address}</p>}
+              <div className="bookingPricingSummary">
+                <p className="eyebrow">Pricing Summary</p>
+                <div className="bookingPricingTotal">
+                  <span>Estimated Total</span>
+                  <strong>{selectedPricingIsCalculated && selectedBookingTotal !== null ? formatDashboardPeso(selectedBookingTotal) : "For Assessment"}</strong>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Pricing Status</dt>
+                    <dd>{selectedPricingIsCalculated && selectedBookingTotal !== null ? "Calculated" : "Assessment Required"}</dd>
+                  </div>
+                  {selectedPricingBasis && (
+                    <div>
+                      <dt>Pricing Basis</dt>
+                      <dd>{selectedPricingBasis}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+              {isClientRealEstate && selectedBooking.metadata?.property_type && <p><strong>Property Type:</strong> {selectedBooking.metadata.property_type}</p>}
+              {isClientRealEstate && selectedBooking.metadata?.preferred_location && <p><strong>Preferred Location:</strong> {selectedBooking.metadata.preferred_location}</p>}
+              {isClientRealEstate && selectedBooking.metadata?.budget_range && <p><strong>Budget Range:</strong> {selectedBooking.metadata.budget_range}</p>}
+              {isClientRealEstate && selectedBooking.metadata?.property_purpose && <p><strong>Purpose:</strong> {selectedBooking.metadata.property_purpose}</p>}
+              {isClientRealEstate && selectedBooking.metadata?.additional_requirements && <p><strong>Additional Requirements:</strong> {selectedBooking.metadata.additional_requirements}</p>}
+              {isClientPestControl && selectedBooking.metadata?.pest_concern && <p><strong>Pest Concern / Service:</strong> {selectedBooking.metadata.pest_concern}</p>}
+              {isClientPestControl && selectedBooking.metadata?.property_type && <p><strong>Property Type:</strong> {selectedBooking.metadata.property_type}</p>}
+              {isClientPestControl && selectedBooking.metadata?.service_area && <p><strong>Service Area:</strong> {selectedBooking.metadata.service_area}</p>}
+              {isClientPestControl && (selectedBooking.metadata?.pest_area_sqm || selectedBooking.metadata?.area_sqm) && <p><strong>Area:</strong> {selectedBooking.metadata.pest_area_sqm || selectedBooking.metadata.area_sqm} sqm</p>}
+              {isClientPestControl && (selectedBooking.metadata?.pest_number_of_floors || selectedBooking.metadata?.floor_count) && <p><strong>Floors:</strong> {selectedBooking.metadata.pest_number_of_floors || selectedBooking.metadata.floor_count}</p>}
+              {isClientPestControl && selectedBooking.metadata?.service_location && <p><strong>Service Location:</strong> {selectedBooking.metadata.service_location}</p>}
+              {selectedBooking.metadata?.internal_notes && <p><strong>Internal Notes:</strong> {selectedBooking.metadata.internal_notes}</p>}
               <div className="bookingItemsPanel">
                 <strong>Services</strong>
                 {selectedBookingItems.map((item) => (
@@ -7743,7 +9024,7 @@ function ClientDashboard({
               {isClientToursTravel && selectedBooking.metadata?.selected_tier && <p><strong>Selected Group Rate:</strong> {selectedBooking.metadata.selected_tier.minGuests}-{selectedBooking.metadata.selected_tier.maxGuests} pax - {formatPeso(selectedBooking.metadata.selected_tier.price)}</p>}
               {isClientToursTravel && <p><strong>Estimated Total:</strong> {selectedBookingTotal !== null ? formatPeso(selectedBookingTotal) : "Rate only"}</p>}
               {isClientToursTravel && selectedBooking.metadata?.pickup_location && <p><strong>Pickup Location:</strong> {selectedBooking.metadata.pickup_location}</p>}
-              <p><strong>{isClientToursTravel ? "Special Requests" : "Notes"}:</strong> {selectedBooking.note || "No notes"}</p>
+              <p><strong>{isClientPestControl ? "Additional Notes" : isClientRealEstate ? "Additional Requirements" : isClientToursTravel ? "Special Requests" : "Notes"}:</strong> {selectedBooking.note || "No notes"}</p>
               {capabilities.paymentVerification && (
                 <div className="paymentDashboardPanel">
                   <p className="eyebrow">Payment</p>
@@ -7779,6 +9060,134 @@ function ClientDashboard({
         </section>
       </section>
     </main>
+  );
+}
+
+function ManualReservationModal({
+  form,
+  setForm,
+  services,
+  selectedService,
+  customers,
+  clientRecords = [],
+  branches = [],
+  hasClientRecords = false,
+  availability,
+  usesPreferredSchedule,
+  isPestControl,
+  onSelectCustomer,
+  onSubmit,
+  onClose,
+}) {
+  const customerOptions = customers.map((customer) => ({
+    key: `${customer.customer || "Customer"}-${customer.contact || ""}`,
+    label: `${customer.customer || "Customer"}${customer.contact ? ` • ${customer.contact}` : ""}`,
+  }));
+  const clientRecordOptions = clientRecords.map((record) => ({
+    key: record.id,
+    label: `${record.full_name || "Client"}${record.assigned_branch ? ` • ${record.assigned_branch}` : ""}${record.contact_number ? ` • ${record.contact_number}` : ""}`,
+  }));
+  const scheduleOptions = usesPreferredSchedule ? [] : (availability.slots || slots);
+  const selectedPrice = selectedService?.price;
+  const priceLabel = selectedPrice === null || selectedPrice === undefined || selectedPrice === "" ? "Contact for Rate" : formatPeso(selectedPrice);
+  return (
+    <div className="clientBookingDetailsBackdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <section className="manualReservationModal" role="dialog" aria-modal="true" aria-label="Create reservation">
+        <div className="manualReservationHeader">
+          <div>
+            <p className="eyebrow">Create Reservation</p>
+            <h2>Add an offline reservation</h2>
+            <p>Add a reservation received through phone, Messenger, walk-in, or other offline channels.</p>
+          </div>
+          <button type="button" onClick={onClose}>Cancel</button>
+        </div>
+        <form className="manualReservationForm" onSubmit={onSubmit}>
+          <section>
+            <h3><span>1</span> Customer</h3>
+            <div className="manualToggleRow">
+              {["new", "existing"].map((mode) => (
+                <label key={mode}><input type="radio" name="manualCustomerMode" checked={form.customerMode === mode} onChange={() => setForm((current) => ({ ...current, customerMode: mode }))} /><span>{mode === "new" ? "New Customer" : "Existing Customer"}</span></label>
+              ))}
+            </div>
+            {form.customerMode === "existing" && (
+              <select value={form.existingCustomerKey} onChange={(event) => onSelectCustomer(event.target.value)}>
+                <option value="">{hasClientRecords ? "Search client records" : "Search saved customers"}</option>
+                {(hasClientRecords ? clientRecordOptions : customerOptions).map((customer) => <option key={customer.key} value={customer.key}>{customer.label}</option>)}
+              </select>
+            )}
+            <div className="manualFormGrid">
+              <input value={form.customer} onChange={(event) => setForm((current) => ({ ...current, customer: event.target.value }))} placeholder="Full name *" required />
+              <input value={form.contact} onChange={(event) => setForm((current) => ({ ...current, contact: event.target.value }))} placeholder="Contact number *" required />
+              <input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="Email" />
+              <input value={form.address} onChange={(event) => setForm((current) => ({ ...current, address: event.target.value }))} placeholder="Address" />
+            </div>
+          </section>
+
+          <section>
+            <h3><span>2</span> Reservation</h3>
+            <select value={form.serviceId} onChange={(event) => {
+              const nextService = services.find((service) => service.id === event.target.value);
+              setForm((current) => ({ ...current, serviceId: event.target.value, serviceName: nextService?.name || "" }));
+            }} required>
+              <option value="">Select service</option>
+              {services.map((service) => <option key={service.id || service.name} value={service.id}>{service.name} - {service.price === null || service.price === undefined || service.price === "" ? "Contact for Rate" : formatPeso(service.price)}</option>)}
+            </select>
+            {selectedService && <div className="manualSelectedService"><strong>{selectedService.name}</strong><span>{priceLabel}</span></div>}
+            {isPestControl && (
+              <div className="manualFormGrid">
+                <select value={form.propertyType} onChange={(event) => setForm((current) => ({ ...current, propertyType: event.target.value }))}>
+                  {dmonsterPropertyTypes.map((propertyType) => <option key={propertyType}>{propertyType}</option>)}
+                </select>
+                <input type="number" min="1" step="1" value={form.areaSize} onChange={(event) => setForm((current) => ({ ...current, areaSize: event.target.value }))} placeholder="Area in sqm" />
+                <select value={form.serviceArea} onChange={(event) => setForm((current) => ({ ...current, serviceArea: event.target.value }))}>
+                  {dmonsterServiceAreas.map((serviceArea) => <option key={serviceArea}>{serviceArea}</option>)}
+                </select>
+                <input value={form.serviceLocation} onChange={(event) => setForm((current) => ({ ...current, serviceLocation: event.target.value }))} placeholder="Service location" />
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h3><span>3</span> Schedule</h3>
+            {usesPreferredSchedule && <span className="manualScheduleBadge">24/7 service available</span>}
+            <div className="manualFormGrid">
+              {hasClientRecords && (
+                <select value={form.branch} onChange={(event) => setForm((current) => ({ ...current, branch: event.target.value }))} required>
+                  <option value="">Reservation branch *</option>
+                  {branches.map((branch) => <option key={branch}>{branch}</option>)}
+                </select>
+              )}
+              <input type="date" min={getTodayDateValue()} value={form.date} onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))} required />
+              {usesPreferredSchedule ? (
+                <input type="time" value={displayTimeToInput(form.time)} min={form.date === getTodayDateValue() ? getCurrentTimeInputValue() : undefined} onChange={(event) => setForm((current) => ({ ...current, time: timeInputToDisplay(event.target.value) }))} required />
+              ) : (
+                <select value={form.time} onChange={(event) => setForm((current) => ({ ...current, time: event.target.value }))} required>
+                  <option value="">Select time</option>
+                  {scheduleOptions.map((slotValue) => <option key={slotValue}>{slotValue}</option>)}
+                </select>
+              )}
+            </div>
+            <p className="manualHint">{usesPreferredSchedule ? "Open 24/7. Requested schedules are subject to business confirmation." : "Uses your configured Slotwise availability."}</p>
+          </section>
+
+          <section>
+            <h3><span>4</span> Review</h3>
+            <div className="manualReviewBox">
+              <strong>{form.customer || "Customer name"}</strong>
+              <span>{selectedService?.name || "Selected service"} • {form.date || "Date"} {form.time ? `at ${form.time}` : ""}</span>
+              <small>{priceLabel} • Source: Manual</small>
+            </div>
+            <textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Customer notes" rows="2" />
+            <textarea value={form.internalNotes} onChange={(event) => setForm((current) => ({ ...current, internalNotes: event.target.value }))} placeholder="Internal notes, not shown publicly" rows="2" />
+          </section>
+
+          <div className="manualReservationActions">
+            <button type="button" onClick={onClose}>Cancel</button>
+            <button type="submit" className="clientPrimaryButton"><Plus size={16} /> Create Reservation</button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
 
@@ -7942,6 +9351,8 @@ function BookingList({ bookings, onSelect, onStatusChange, onDelete }) {
           </div>
           <p>{booking.note || "No notes provided"}</p>
           <div className="clientBookingActions">
+            <span className={`clientSourcePill ${String(booking.metadata?.source || "online").toLowerCase()}`}>{String(booking.metadata?.source || "online").toLowerCase() === "manual" ? "Manual" : "Online"}</span>
+            {booking.metadata?.test_booking && <span className="clientSourcePill demo">Test Booking</span>}
             <span className={`clientStatusPill ${getStatusClass(booking.status)}`}>{getBookingStatusLabel(booking.status)}</span>
             <select value={(booking.status || "PENDING").toUpperCase()} onChange={(event) => onStatusChange(booking, event.target.value)}>
               {bookingStatusOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
