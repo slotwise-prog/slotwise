@@ -4397,7 +4397,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
         ...normalizePricingTiers(detail?.pricingTiers),
       ],
       schedule: normalizeServiceSchedule(detail?.schedule),
-      departureDates: normalizeDepartureDates(detail?.departureDates || detail?.departures || detail?.pricingTiers),
+      departureDates: normalizeDepartureDates(detail?.departureDates || detail?.departures),
       maxGuests: detail?.maxGuests ?? null,
       includedGuests: detail?.includedGuests ?? null,
       extraGuestFee: detail?.extraGuestFee ?? null,
@@ -4713,8 +4713,19 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
       },
       bookingItems: submittedCalculation.lineItems,
     };
-    if (!booking.customer || !booking.contact || !booking.business_slug || !selectedServiceNames.length || !booking.slot || (flags.requireDate && !booking.booking_date) || (hasSavedDepartures && !hasSelectedDeparture) || (needsGuestCount && currentTotalGuests < 1)) {
-      setBookingError("Please complete the required booking details before submitting.");
+    const missingBookingFields = [];
+    if (!booking.customer) missingBookingFields.push({ label: "Full Name", selector: '[name="customer"]' });
+    if (!booking.contact) missingBookingFields.push({ label: "Mobile Number", selector: '[name="contact"]' });
+    if (!booking.business_slug) missingBookingFields.push({ label: "Business", selector: null });
+    if (!selectedServiceNames.length) missingBookingFields.push({ label: "Travel Service", selector: null });
+    if (!booking.slot) missingBookingFields.push({ label: "Preferred Time", selector: '[name="preferredTime"]' });
+    if (flags.requireDate && !booking.booking_date) missingBookingFields.push({ label: "Travel Date", selector: '[name="preferredDate"]' });
+    if (hasSavedDepartures && !hasSelectedDeparture) missingBookingFields.push({ label: "Available Departure", selector: null });
+    if (needsGuestCount && currentTotalGuests < 1) missingBookingFields.push({ label: "Number of Travelers", selector: '[name="guestCount"]' });
+    if (missingBookingFields.length) {
+      const firstMissing = missingBookingFields[0];
+      setBookingError(`Please complete: ${firstMissing.label}.`);
+      if (firstMissing.selector) document.querySelector(firstMissing.selector)?.focus();
       setSubmitting(false);
       return;
     }
