@@ -1,6 +1,7 @@
 :root {
   --font-display: "Manrope", "DM Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: "DM Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-script: "Lobster", cursive;
   font-family: var(--font-body);
   color: #14182f;
   background: #f7f8ff;
@@ -3287,7 +3288,7 @@ h2 {
   display: grid;
   place-items: center;
   color: #ffe0c5;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-script);
   font-size: 36px;
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(8px);
@@ -3316,7 +3317,7 @@ h2 {
   max-width: 420px;
   margin: 18px 0 22px;
   color: #ffffff;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-script);
   font-size: clamp(46px, 6.8vw, 74px);
   font-weight: 500;
   line-height: 0.95;
@@ -3399,7 +3400,7 @@ h2 {
 .bookingFormHeader h2 {
   margin: 0 0 8px;
   color: #251927;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-script);
   font-size: clamp(34px, 4.7vw, 50px);
   font-weight: 500;
   line-height: 1.02;
@@ -3836,6 +3837,20 @@ h2 {
   align-content: center;
   gap: 4px;
   box-shadow: 0 12px 28px rgba(88, 55, 64, 0.08);
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+  border: 1px solid transparent;
+}
+
+.datePickerSurface:hover {
+  border-color: color-mix(in srgb, var(--booking-primary) 34%, #dfe6df);
+  background: color-mix(in srgb, var(--booking-accent) 12%, white);
+}
+
+.datePickerSurface:focus-within,
+.datePickerSurface:has(input:focus) {
+  border-color: var(--booking-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--booking-primary) 18%, transparent);
 }
 
 .selectedDateCard svg {
@@ -3863,6 +3878,22 @@ h2 {
   background: rgba(255, 255, 255, 0.82);
   font: inherit;
   cursor: pointer;
+  min-height: 48px;
+}
+
+.selectedDateCard input::-webkit-calendar-picker-indicator {
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.premiumInput.datePickerSurface {
+  cursor: pointer;
+}
+
+.premiumInput.datePickerSurface input {
+  min-height: 48px;
+  cursor: pointer;
 }
 
 .preferredSchedulePanel {
@@ -3888,6 +3919,12 @@ h2 {
 .preferredScheduleGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.partyEventFields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -4404,6 +4441,35 @@ h2 {
   font-weight: 900;
   text-decoration: none;
   cursor: pointer;
+}
+
+.bookingSuccessActions .customerBookingPdfButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #182b26;
+}
+
+.customerPdfMessage {
+  display: block;
+  margin-top: 8px;
+  color: #285f4f;
+  font-weight: 700;
+}
+
+.customerEmailNotice,
+.paymentConfigurationWarning {
+  margin: 10px 0 0;
+  color: #6a5a2b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.paymentConfigurationWarning {
+  padding: 10px 12px;
+  border: 1px solid #e8d49a;
+  border-radius: 8px;
+  background: #fff9e8;
 }
 
 .privacyNote {
@@ -5568,6 +5634,21 @@ h2 {
   background: linear-gradient(135deg, #0877ff, #6d3cff);
 }
 
+.customAddonMark {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+  color: #6d3cff;
+  font-size: .86em;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: text-top;
+}
+
+.clientDashboardNav button.active .customAddonMark {
+  color: rgba(255, 255, 255, .82);
+}
+
 .clientDashboardContent {
   padding: 22px;
 }
@@ -5685,6 +5766,7 @@ h2 {
 }
 
 .slotwiseUpdateType,
+.slotwiseUpdateFeatureBadge,
 .slotwiseUpdateDot,
 .slotwiseUpdatePackages span,
 .slotwisePackageTopline strong,
@@ -5719,6 +5801,25 @@ h2 {
   color: #c2410c;
 }
 
+.slotwiseUpdateFeatureBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  border: 1px solid #d8defe;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: #f3f4ff;
+  color: #4338a8;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.slotwiseUpdateFeatureBadge svg {
+  flex: 0 0 auto;
+}
+
 .slotwiseUpdateDot {
   background: #6d3cff;
   color: #fff;
@@ -5741,6 +5842,7 @@ h2 {
   display: block;
   margin-top: 8px;
   line-height: 1.5;
+  white-space: pre-line;
 }
 
 .slotwiseUpdatePackages {
@@ -6066,6 +6168,29 @@ h2 {
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
+.bookingDetailSubsection {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 10px;
+  padding: 14px 16px;
+  border: 1px solid #dbe7fb;
+  border-radius: 8px;
+  background: #fbfdff;
+}
+
+.bookingDetailSubsection h3 {
+  margin: 0;
+  color: #172044;
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bookingDetailSubsection p {
+  margin: 0;
+}
+
 .bookingPricingSummary .eyebrow {
   margin: 0;
 }
@@ -6188,9 +6313,19 @@ h2 {
   gap: 10px;
 }
 
+.manualFormGrid .manualFull {
+  grid-column: 1 / -1;
+}
+
 .manualReservationForm input,
 .manualReservationForm select,
-.manualReservationForm textarea {
+.manualReservationForm textarea,
+.clientRecordModal input,
+.clientRecordModal select,
+.clientRecordModal textarea,
+.clientServiceRecordModal input,
+.clientServiceRecordModal select,
+.clientServiceRecordModal textarea {
   width: 100%;
   min-height: 42px;
   border-radius: 8px;
@@ -6276,10 +6411,9 @@ h2 {
   gap: 16px;
 }
 
-.clientRecordForm,
 .clientRecordToolbar {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 220px);
   gap: 10px;
   border: 1px solid #e4e9f7;
   border-radius: 12px;
@@ -6287,13 +6421,6 @@ h2 {
   background: #f8faff;
 }
 
-.clientRecordForm textarea {
-  grid-column: span 2;
-}
-
-.clientRecordForm input,
-.clientRecordForm select,
-.clientRecordForm textarea,
 .clientRecordToolbar input,
 .clientRecordToolbar select {
   width: 100%;
@@ -6325,32 +6452,148 @@ h2 {
   cursor: pointer;
 }
 
-.clientRecordToolbar {
-  grid-template-columns: minmax(0, 1fr) minmax(180px, 260px);
+.clientRecordsHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.clientRecordsLayout {
+.clientDirectoryPanel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-  gap: 14px;
-  align-items: start;
+  gap: 10px;
+  min-width: 0;
 }
 
-.clientRecordCard.active {
-  border-color: #6d3cff;
-  box-shadow: 0 14px 30px rgba(109, 60, 255, 0.12);
+.clientDirectoryCount {
+  color: #5b6581;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.clientDirectoryList {
+  display: grid;
+  gap: 10px;
+}
+
+.clientRecordCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #e4e9f7;
+  border-radius: 12px;
+  padding: 14px;
+  background: #ffffff;
+  color: #151934;
+  text-align: left;
+  box-shadow: 0 10px 24px rgba(31, 52, 122, 0.06);
+  cursor: pointer;
+}
+
+.clientRecordWideCard {
+  min-height: 112px;
+  padding: 18px 20px;
+}
+
+.clientRecordCardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.clientRecordCardTop strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+}
+
+.clientRecordCardTop span {
+  flex: 0 0 auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #4f46e5;
+  background: #eef2ff;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.clientRecordCardMain {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.clientRecordCardFooter {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-width: 150px;
+}
+
+.clientRecordCardFooter span {
+  color: #4f46e5;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.clientRecordCard small,
+.clientRecordCard em,
+.clientProfileContactLine {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #5d6887;
+  font-size: 13px;
+  font-style: normal;
+}
+
+.clientRecordCard em {
+  color: #26346f;
+  font-weight: 900;
+}
+
+.clientRecordDetailView {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.clientBackButton {
+  justify-self: start;
+  min-height: 38px;
+  border: 0;
+  background: transparent;
+  color: #4f46e5;
+  font-weight: 950;
+  cursor: pointer;
 }
 
 .clientRecordProfile {
   position: sticky;
   top: 16px;
   display: grid;
-  gap: 9px;
+  gap: 12px;
+  min-width: 0;
   border: 1px solid #e4e9f7;
   border-radius: 12px;
   padding: 16px;
   background: #ffffff;
   box-shadow: 0 18px 40px rgba(31, 52, 122, 0.08);
+}
+
+.clientRecordProfileFull {
+  position: static;
+  width: 100%;
 }
 
 .clientRecordProfile h3 {
@@ -6369,6 +6612,200 @@ h2 {
   padding-top: 10px;
 }
 
+.clientRecordProfileTop,
+.clientServiceRecordHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.clientProfileTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.clientProfileTitleRow span {
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: #4f46e5;
+  background: #eef2ff;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.clientProfileTopActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clientProfileTopActions button,
+.clientServiceRecordHeader button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  border-radius: 8px;
+  border: 1px solid #dce3f3;
+  padding: 0 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.clientOverflowButton {
+  width: 42px;
+  padding: 0;
+  justify-content: center;
+}
+
+.clientProfileSection,
+.clientServiceRecordSection {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e4e9f7;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8faff;
+}
+
+.clientProfileSection > strong,
+.clientServiceRecordHeader strong,
+.clientRecordHistory > strong {
+  color: #141a33;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.clientProfileSection p {
+  display: grid;
+  gap: 5px;
+  align-items: start;
+  color: #1f2947;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.clientProfileSection {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.clientProfileSection > strong,
+.clientProfileSection p:nth-of-type(4),
+.clientProfileSection p:nth-of-type(5) {
+  grid-column: 1 / -1;
+}
+
+.clientProfileSection span,
+.clientServiceRecordHeader span {
+  color: #6a748f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.clientServiceRecordTableWrap {
+  overflow: auto;
+  border: 1px solid #e4e9f7;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.clientServiceRecordTable {
+  width: 100%;
+  min-width: 0;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.clientServiceRecordTable th,
+.clientServiceRecordTable td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #eef2fb;
+  text-align: left;
+  vertical-align: top;
+}
+
+.clientServiceRecordTable td[data-label="Notes"] {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clientServiceRecordTable th {
+  color: #5b6581;
+  font-size: 11px;
+  text-transform: uppercase;
+  background: #f8faff;
+}
+
+.clientServiceRecordTable tr:last-child td {
+  border-bottom: 0;
+}
+
+.clientServiceRecordTable button {
+  min-height: 32px;
+  border: 1px solid #dce3f3;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+  color: #26346f;
+  font-weight: 900;
+}
+
+.clientRecordBalanceDue {
+  color: #9f5d00;
+  font-weight: 950;
+}
+
+.clientRecordBalancePaid {
+  color: #047857;
+  font-weight: 950;
+}
+
+.clientRecordHistory small {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.clientRecordHistory small button {
+  min-height: 28px;
+  border: 1px solid #dce3f3;
+  border-radius: 999px;
+  padding: 0 10px;
+  background: #fff;
+  color: #26346f;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.clientServiceRecordBalance {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #dce3f3;
+  border-radius: 12px;
+  background: #f8faff;
+}
+
+.clientServiceRecordBalance span {
+  color: #59627c;
+  font-weight: 850;
+}
+
+.clientServiceRecordBalance strong {
+  color: #141a33;
+  font-size: 20px;
+}
+
 .clientBookingDetails label {
   display: grid;
   gap: 6px;
@@ -6376,6 +6813,20 @@ h2 {
   color: #4e587c;
   font-size: 13px;
   font-weight: 850;
+}
+
+.clientBookingDetails .bookingPdfButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.clientBookingDetails .bookingPdfFeedback {
+  margin: 0;
+  color: #4e587c;
+  font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 600px) {
@@ -6392,11 +6843,70 @@ h2 {
   .clientRecordsLayout {
     grid-template-columns: 1fr;
   }
-  .clientRecordForm textarea {
-    grid-column: auto;
-  }
   .clientRecordProfile {
     position: static;
+  }
+  .clientRecordsHeaderActions,
+  .clientRecordProfileTop,
+  .clientRecordProfileActions {
+    width: 100%;
+  }
+  .clientRecordsHeaderActions button,
+  .clientRecordProfileTop .clientPrimaryButton,
+  .clientRecordProfileActions button {
+    width: 100%;
+    justify-content: center;
+  }
+  .clientRecordCardTop {
+    display: grid;
+  }
+  .clientRecordCardTop strong,
+  .clientRecordCardTop span {
+    max-width: 100%;
+    white-space: normal;
+  }
+  .clientProfileSection p {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+  .clientServiceRecordTable,
+  .clientServiceRecordTable thead,
+  .clientServiceRecordTable tbody,
+  .clientServiceRecordTable tr,
+  .clientServiceRecordTable th,
+  .clientServiceRecordTable td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  .clientServiceRecordTable {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .clientServiceRecordTable thead {
+    display: none;
+  }
+  .clientServiceRecordTable tr {
+    padding: 12px;
+    border-bottom: 1px solid #eef2fb;
+  }
+  .clientServiceRecordTable td {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 0;
+    overflow-wrap: anywhere;
+  }
+  .clientServiceRecordTable td::before {
+    content: attr(data-label);
+    color: #6a748f;
+    font-size: 11px;
+    font-weight: 950;
+    text-transform: uppercase;
+  }
+  .clientServiceRecordTable td[data-label="Date"] {
+    font-weight: 950;
   }
 }
 
@@ -6887,6 +7397,12 @@ h1,
   line-height: 1.06;
 }
 
+.brandMark,
+.brandStory h1,
+.bookingFormHeader h2 {
+  font-family: var(--font-script);
+}
+
 h1 {
   font-size: clamp(34px, 5.2vw, 64px);
 }
@@ -7160,6 +7676,98 @@ button,
   font-size: 13px;
 }
 
+.xtreme-dancers .paymentInstructions {
+  border-color: rgba(185, 245, 61, 0.45);
+  background: #f7fbeF;
+  box-shadow: 0 12px 26px rgba(9, 12, 9, 0.08);
+}
+
+.xtreme-dancers .paymentInstructions > span,
+.xtreme-dancers .paymentScreenTitle {
+  color: #101510;
+  font-family: "Bebas Neue", Inter, sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.xtreme-dancers .publicPaymentChoices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.xtreme-dancers .publicPaymentChoices button,
+.xtreme-dancers .paymentBackButton {
+  min-height: 46px;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font: 700 14px Inter, sans-serif;
+  cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.xtreme-dancers .paymentNowChoice {
+  border: 1px solid #b9f53d;
+  color: #0a0d0a;
+  background: #b9f53d;
+}
+
+.xtreme-dancers .paymentLaterChoice,
+.xtreme-dancers .paymentBackButton {
+  border: 1px solid #101510;
+  color: #101510;
+  background: transparent;
+}
+
+.xtreme-dancers .paymentNowChoice:hover,
+.xtreme-dancers .paymentLaterChoice:hover,
+.xtreme-dancers .paymentBackButton:hover {
+  border-color: #101510;
+  color: #101510;
+  background: #dff9a3;
+}
+
+.xtreme-dancers .paymentFollowUpNotice {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 13px;
+  border-left: 3px solid #b9f53d;
+  background: #fff;
+}
+
+.xtreme-dancers .paymentFollowUpNotice span {
+  display: block;
+  font-size: 13px;
+}
+
+.xtreme-dancers .paymentAmountDue {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-block: 1px solid #e3e8df;
+}
+
+.xtreme-dancers .paymentBackButton {
+  margin-top: 8px;
+}
+
+.xtreme-dancers .paymentSubmittedNotice {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-left: 3px solid #b9f53d;
+  background: #f3fbe5;
+}
+
+@media (max-width: 520px) {
+  .xtreme-dancers .publicPaymentChoices {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .paymentSettingsForm label {
   display: flex;
   align-items: center;
@@ -7170,6 +7778,86 @@ button,
   border-radius: 12px;
   background: #fff;
 }
+
+.paymentProofUpload { display: grid; gap: 8px; padding: 14px; border: 1px dashed #b9f53d; border-radius: 12px; background: #f3fbe5; color: #111511; }
+.paymentProofUpload input[type="file"] { width: 100%; padding: 10px; border: 1px solid #d7dfd1; border-radius: 8px; background: #fff; }
+.paymentProofUpload small { color: #536052; }
+.paymentProofPreview { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+.paymentProofPreview img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid #d7dfd1; grid-row: span 2; }
+.paymentProofPreview button { justify-self: start; }
+
+/* Xtreme post-booking payment module */
+.xtreme-dancers .paymentShell { max-width: 720px; margin: 28px auto 0; padding: 24px; background: #fff; border: 1px solid #e3e8df; border-radius: 18px; color: #101410; box-shadow: 0 16px 38px rgba(14,18,14,.08); }
+.xtreme-dancers .paymentHeader { display: grid; gap: 5px; margin-bottom: 18px; }
+.xtreme-dancers .paymentHeader strong, .xtreme-dancers .paymentScreenTitle, .xtreme-dancers .paymentStateCard > strong { font-family: var(--font-display, "Bebas Neue", sans-serif); letter-spacing: .03em; font-size: 28px; line-height: 1; }
+.xtreme-dancers .paymentHeader p, .xtreme-dancers .paymentFollowUpNotice p { margin: 0; color: #59635a; font-family: Inter, sans-serif; }
+.xtreme-dancers .paymentEyebrow { color: #6fae16; font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+.xtreme-dancers .publicPaymentChoices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.xtreme-dancers .paymentChoiceCard, .xtreme-dancers .paymentLaterChoice { min-height: 132px; display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 12px; padding: 18px; text-align: left; border-radius: 14px; cursor: pointer; transition: transform 180ms ease, border-color 180ms ease, background 180ms ease; }
+.xtreme-dancers .paymentChoiceCard:hover, .xtreme-dancers .paymentLaterChoice:hover { transform: translateY(-2px); }
+.xtreme-dancers .paymentChoiceCard { background: #0e120e; color: white; border: 1px solid #b9f53d; }
+.xtreme-dancers .paymentLaterChoice { background: #fff; color: #101410; border: 1px solid #d5ddd1; }
+.xtreme-dancers .paymentChoiceCard span, .xtreme-dancers .paymentLaterChoice span { display: grid; gap: 6px; }
+.xtreme-dancers .paymentChoiceCard strong, .xtreme-dancers .paymentLaterChoice strong { font-family: var(--font-display, "Bebas Neue", sans-serif); font-size: 22px; letter-spacing: .04em; }
+.xtreme-dancers .paymentChoiceCard small, .xtreme-dancers .paymentLaterChoice small { line-height: 1.4; font-weight: 500; }
+.xtreme-dancers .paymentChoiceCard em, .xtreme-dancers .paymentLaterChoice em { font-style: normal; font-size: 11px; color: #8bd21e; font-weight: 700; }
+.xtreme-dancers .paymentLaterChoice em { color: #657064; }
+.xtreme-dancers .paymentScreenHeading { display: grid; gap: 7px; }
+.xtreme-dancers .paymentBackButton { justify-self: start; padding: 0; border: 0; background: transparent; color: #6fae16; font-weight: 800; letter-spacing: .08em; font-size: 11px; cursor: pointer; }
+.xtreme-dancers .paymentBookingReference { margin: 8px 0 16px; color: #59635a; font-family: Inter, sans-serif; }
+.xtreme-dancers .paymentAmountDue { display: flex; justify-content: space-between; align-items: end; padding: 16px 0; border-top: 1px solid #e3e8df; border-bottom: 1px solid #e3e8df; }
+.xtreme-dancers .paymentAmountDue span { color: #687268; font-size: 11px; font-weight: 800; letter-spacing: .12em; }
+.xtreme-dancers .paymentAmountDue strong { color: #101410; font-size: 28px; }
+.xtreme-dancers .paymentVerificationNotice { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0; padding: 13px; background: #f6f8f4; border: 1px solid #e1e8dd; border-radius: 12px; color: #59635a; }
+.xtreme-dancers .paymentVerificationNotice svg { color: #72ad17; flex: 0 0 auto; }
+.xtreme-dancers .paymentVerificationNotice span { display: grid; gap: 3px; }
+.xtreme-dancers .paymentVerificationNotice strong { color: #101410; font-size: 12px; letter-spacing: .08em; }
+.xtreme-dancers .paymentVerificationNotice small { line-height: 1.45; }
+.xtreme-dancers .paymentMethodList { display: grid; gap: 10px; }
+.xtreme-dancers .paymentMethodCard { padding: 16px; border: 1px solid #dce4d9; border-radius: 13px; background: #fff; display: grid; gap: 5px; }
+.xtreme-dancers .paymentMethodCard > div { display: flex; justify-content: space-between; align-items: center; }
+.xtreme-dancers .paymentMethodCard em { color: #6fae16; font-size: 10px; font-style: normal; font-weight: 800; letter-spacing: .1em; }
+.xtreme-dancers .paymentMethodCard small { font-size: 14px; }
+.xtreme-dancers .paymentMethodCard p { margin: 6px 0 0; color: #59635a; }
+.xtreme-dancers .paymentMethodCard small { display: flex; gap: 6px; align-items: baseline; }
+.xtreme-dancers .paymentMethodCard small b { color: #687268; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.xtreme-dancers .copyPaymentNumber { justify-self: start; display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; color: #6fae16; padding: 3px 0; font-weight: 800; cursor: pointer; }
+.xtreme-dancers .paymentOpenButton, .xtreme-dancers .paymentSubmitButton { width: 100%; min-height: 48px; margin-top: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px; background: #b9f53d; color: #0e120e; font-weight: 850; cursor: pointer; }
+.xtreme-dancers .paymentDetailForm { display: grid; gap: 13px; margin-top: 16px; padding-top: 18px; border-top: 1px solid #e3e8df; }
+.xtreme-dancers .paymentDetailForm h3 { margin: 0; font-family: var(--font-display, "Bebas Neue", sans-serif); letter-spacing: .06em; font-size: 22px; }
+.xtreme-dancers .paymentDetailForm label { display: grid; gap: 6px; color: #4f594f; font-size: 11px; font-weight: 850; letter-spacing: .09em; }
+.xtreme-dancers .paymentDetailForm input, .xtreme-dancers .paymentDetailForm select, .xtreme-dancers .paymentDetailForm textarea { box-sizing: border-box; width: 100%; min-height: 48px; padding: 11px 13px; border: 1px solid #d5ddd1; border-radius: 10px; background: #fff; color: #101410; font: 15px Inter, sans-serif; letter-spacing: 0; }
+.xtreme-dancers .paymentDetailForm textarea { min-height: 88px; resize: vertical; }
+.xtreme-dancers .paymentDetailForm input:focus, .xtreme-dancers .paymentDetailForm select:focus, .xtreme-dancers .paymentDetailForm textarea:focus { outline: 0; border-color: #8fca28; box-shadow: 0 0 0 3px rgba(185,245,61,.22); }
+.xtreme-dancers .paymentProofUpload { letter-spacing: 0; }
+.xtreme-dancers .paymentProofUpload > span { display: flex; align-items: center; gap: 7px; font-weight: 850; letter-spacing: .09em; }
+.xtreme-dancers .paymentPendingHint { display: flex; align-items: center; justify-content: center; gap: 6px; color: #687268; text-align: center; }
+.xtreme-dancers .paymentStateCard { display: grid; gap: 9px; padding: 18px; background: #fff; border: 1px solid #dce4d9; border-radius: 13px; }
+.xtreme-dancers .paymentStateCard dl { display: grid; gap: 8px; margin: 4px 0; }
+.xtreme-dancers .paymentStateCard dl div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #edf0eb; padding-bottom: 7px; }
+.xtreme-dancers .paymentStateCard dt { color: #687268; font-size: 12px; }
+.xtreme-dancers .paymentStateCard dd { margin: 0; font-weight: 750; text-align: right; }
+.xtreme-dancers .paymentStateActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.xtreme-dancers .paymentStateActions button { min-height: 42px; padding: 0 14px; border-radius: 9px; border: 1px solid #b9f53d; background: #b9f53d; color: #0e120e; font-weight: 800; cursor: pointer; }
+.xtreme-dancers .paymentStateActions button + button { background: #fff; border-color: #d5ddd1; }
+.xtreme-dancers .paymentHowToPay { margin: 18px 0; padding: 16px; border-top: 1px solid #e3e8df; border-bottom: 1px solid #e3e8df; }
+.xtreme-dancers .paymentHowToHeader { display: grid; gap: 3px; margin-bottom: 12px; }
+.xtreme-dancers .paymentHowToHeader small, .xtreme-dancers .paymentHowToNote { color: #687268; }
+.xtreme-dancers .paymentHowToGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.xtreme-dancers .paymentHowToGrid article { display: grid; align-content: start; gap: 6px; padding: 11px; background: #fafcf9; border: 1px solid #e3e8df; border-radius: 10px; }
+.xtreme-dancers .paymentHowToGrid article > span { display: flex; align-items: center; gap: 5px; color: #72ad17; font-size: 11px; font-weight: 850; letter-spacing: .08em; }
+.xtreme-dancers .paymentHowToGrid article strong { font-size: 11px; letter-spacing: .06em; }
+.xtreme-dancers .paymentHowToGrid article p { margin: 0; color: #59635a; font-size: 12px; line-height: 1.42; }
+.xtreme-dancers .paymentHowToGrid article em { color: #5d8e15; font-size: 11px; font-style: normal; font-weight: 750; }
+.xtreme-dancers .paymentHowToNote { display: block; margin-top: 12px; line-height: 1.4; }
+.xtreme-dancers .paymentProofUpload > span em { margin-left: auto; color: #6fae16; font-size: 10px; font-style: normal; letter-spacing: .08em; }
+.xtreme-dancers .paymentSubmittedNotice { display: grid; gap: 6px; padding: 16px; border: 1px solid #b9f53d; border-radius: 13px; background: #f7fbef; color: #101410; }
+.xtreme-dancers .paymentSubmittedNotice strong { font-family: var(--font-display, "Bebas Neue", sans-serif); font-size: 22px; letter-spacing: .05em; }
+.xtreme-dancers .paymentSubmittedNotice b { color: #5d8e15; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.xtreme-dancers .paymentSubmittedNotice span { color: #59635a; }
+@media (max-width: 620px) { .xtreme-dancers .paymentShell { padding: 17px; } .xtreme-dancers .publicPaymentChoices { grid-template-columns: 1fr; } .xtreme-dancers .paymentChoiceCard, .xtreme-dancers .paymentLaterChoice { min-height: 112px; } .xtreme-dancers .paymentAmountDue strong { font-size: 24px; } }
+@media (max-width: 760px) { .xtreme-dancers .paymentHowToGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .xtreme-dancers .paymentHowToGrid { grid-template-columns: 1fr; } }
 
 .paymentMethodCards {
   display: grid;
@@ -8110,11 +8798,41 @@ button,
 .clientGuideTopics details > div { padding:0 16px 16px; }
 .clientGuideTopics h2 { font-size:18px; }
 .clientGuideTopics h3 { margin:18px 0 6px; font-size:13px; text-transform:uppercase; }
+.clientRecordsHelpDrawer { width:min(860px,100%); padding:28px; }
+.clientRecordsManual { display:grid; gap:18px; color:#34405f; }
+.clientRecordsManualHeader { display:grid; gap:7px; padding-bottom:16px; border-bottom:1px solid #e4e9f7; }
+.clientRecordsManualHeader h2 { margin:0; color:#080d28; font-size:clamp(28px,4vw,42px); letter-spacing:0; }
+.clientRecordsManualHeader p { max-width:680px; margin:0; color:#566285; line-height:1.6; }
+.clientRecordsManualNav { position:sticky; top:0; z-index:2; display:flex; flex-wrap:wrap; gap:8px; padding:12px 0; background:#fff; border-bottom:1px solid #edf1fb; }
+.clientRecordsManualNav a { display:inline-flex; align-items:center; min-height:34px; border:1px solid #dce3f3; border-radius:999px; padding:6px 11px; background:#f8faff; color:#27315a; font-size:13px; font-weight:850; text-decoration:none; }
+.clientRecordsManualSections { display:grid; gap:14px; }
+.clientRecordsManualSection { scroll-margin-top:74px; display:grid; gap:10px; border:1px solid #e4e9f7; border-radius:14px; padding:18px; background:#fff; box-shadow:0 10px 26px rgba(31,52,122,.06); }
+.clientRecordsManualSection h3 { margin:0; color:#121936; font-size:18px; text-transform:none; letter-spacing:0; }
+.clientRecordsManualSection p { margin:0; line-height:1.6; }
+.clientRecordsManualSection ul,.clientRecordsManualSection ol { margin:0; padding-left:20px; }
+.clientRecordsManualSection li { margin:7px 0; line-height:1.55; }
+.clientRecordsSteps { counter-reset:client-record-step; display:grid; gap:8px; padding-left:0 !important; list-style:none; }
+.clientRecordsSteps li { position:relative; margin:0; padding:10px 12px 10px 42px; border:1px solid #edf1fb; border-radius:10px; background:#f8faff; }
+.clientRecordsSteps li::before { counter-increment:client-record-step; content:counter(client-record-step); position:absolute; left:12px; top:10px; display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; background:#4f46e5; color:#fff; font-size:11px; font-weight:950; }
+.clientRecordsFieldGrid,.clientRecordsComparison,.clientRecordsWorkflows { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.clientRecordsFieldGrid div,.clientRecordsComparison article,.clientRecordsWorkflows article { display:grid; gap:5px; border:1px solid #edf1fb; border-radius:10px; padding:12px; background:#f8faff; }
+.clientRecordsFieldGrid strong,.clientRecordsComparison strong,.clientRecordsWorkflows strong { color:#111735; }
+.clientRecordsFieldGrid span,.clientRecordsComparison p { margin:0; color:#566285; line-height:1.5; }
+.clientRecordsExamples { display:grid; gap:7px; }
+.clientRecordsExamples span { border-left:3px solid #4f46e5; padding:8px 10px; border-radius:0 8px 8px 0; background:#f8faff; color:#27315a; font-weight:800; }
+.clientRecordsManualCallout { display:flex; align-items:flex-start; gap:8px; border:1px solid #d7e4ff; border-radius:10px; padding:12px; background:#f4f7ff; color:#263463; }
+.clientRecordsManualCallout svg { flex:0 0 auto; margin-top:2px; color:#4f46e5; }
+.clientRecordsManualCallout p { margin:0; }
 
 @media (max-width:600px) {
   .clientHelpBackdrop { align-items:flex-end; }
   .clientHelpDrawer { width:100%; height:min(88vh,720px); border-radius:12px 12px 0 0; padding:18px; }
   .clientHowToButton,.clientHelpClose { min-height:44px; }
+  .clientRecordsHelpDrawer { height:min(92vh,760px); padding:18px; }
+  .clientRecordsManualNav { gap:6px; overflow-x:auto; flex-wrap:nowrap; padding-bottom:10px; }
+  .clientRecordsManualNav a { white-space:nowrap; }
+  .clientRecordsFieldGrid,.clientRecordsComparison,.clientRecordsWorkflows { grid-template-columns:1fr; }
+  .clientRecordsManualSection { padding:14px; }
 }
 
 /* Reusable Health & Wellness public template */
@@ -8392,6 +9110,260 @@ button,
   .proBeautyBookingProgress > span.active small { font-size: 13px; }
   .proBeautyBookingProgress > b { display: none; }
   .proBeautyBookingProgress::after { content: ""; display: block; width: var(--beauty-progress); max-width: 100%; height: 3px; margin-top: 10px; border-radius: 3px; background: linear-gradient(90deg,#3b3b91,#d982b5); }
+}
+
+/* Reusable Optical Clinic public template */
+.premiumBookingPage.optical-clinic {
+  --optical-blue: var(--booking-primary, #173fa3);
+  --optical-navy: #102653;
+  --optical-red: #c92b2b;
+  --optical-soft: var(--booking-accent, #e8effd);
+  color: #171b2c;
+}
+.premiumBookingPage.optical-clinic .premiumPublicBooking {
+  max-width: 1220px;
+  grid-template-columns: minmax(330px, 0.9fr) minmax(560px, 1.1fr);
+  border: 1px solid rgba(23, 63, 163, .12);
+  border-radius: 8px;
+  box-shadow: 0 24px 70px rgba(16, 38, 83, .12);
+}
+.premiumBookingPage.optical-clinic .premiumBrandPanel {
+  min-height: 700px;
+  border-radius: 8px 0 0 8px;
+  background-color: #102653;
+  background-image: none !important;
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.premiumBookingPage.optical-clinic .opticalHeroBackground {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+}
+.premiumBookingPage.optical-clinic .premiumBrandPanel::before {
+  background:
+    linear-gradient(90deg, rgba(6, 20, 48, .84) 0%, rgba(10, 31, 71, .74) 42%, rgba(20, 60, 120, .48) 100%),
+    linear-gradient(180deg, rgba(23, 63, 163, .1), rgba(6, 18, 43, .68));
+  z-index: 1;
+}
+.premiumBookingPage.optical-clinic .premiumBrandPanel > * {
+  position: relative;
+  z-index: 2;
+}
+.premiumBookingPage.optical-clinic .premiumBrandPanel > .opticalHeroBackground {
+  position: absolute;
+  z-index: 0;
+}
+.premiumBookingPage.optical-clinic .brandLogoLockup {
+  padding: 9px;
+  width: fit-content;
+  border: 1px solid rgba(255,255,255,.38);
+  border-radius: 24px;
+  background: rgba(255,255,255,.22);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .22);
+  backdrop-filter: blur(16px);
+}
+.premiumBookingPage.optical-clinic .brandMark {
+  width: 92px;
+  height: 92px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,.6);
+  border-radius: 18px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 14px 30px rgba(0,0,0,.18);
+}
+.premiumBookingPage.optical-clinic .brandMark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+}
+.premiumBookingPage.optical-clinic .brandStory {
+  max-width: 440px;
+  margin-top: auto;
+}
+.premiumBookingPage.optical-clinic .brandStory > span,
+.opticalBusinessName {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.premiumBookingPage.optical-clinic .brandStory > span {
+  width: fit-content;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(201,43,43,.82);
+}
+.opticalBusinessName {
+  display: block;
+  margin-top: 12px;
+  color: #dce8ff;
+}
+.premiumBookingPage.optical-clinic .brandStory h1 {
+  max-width: 420px;
+  margin-top: 18px;
+  color: #fff;
+  font-size: clamp(38px, 4vw, 58px);
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+.premiumBookingPage.optical-clinic .brandStory p {
+  max-width: 410px;
+  color: rgba(255,255,255,.9);
+}
+.opticalHeroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 22px;
+}
+.opticalHeroActions a {
+  min-height: 44px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255,255,255,.7);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+}
+.opticalHeroActions a:first-child {
+  border-color: #fff;
+  color: var(--optical-blue);
+  background: #fff;
+}
+.premiumBookingPage.optical-clinic .bookingTrustCard {
+  counter-reset: optical-step;
+  margin-top: 22px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.9);
+  backdrop-filter: blur(10px);
+}
+.premiumBookingPage.optical-clinic .bookingTrustCard > div {
+  counter-increment: optical-step;
+}
+.premiumBookingPage.optical-clinic .bookingTrustCard svg {
+  display: none;
+}
+.premiumBookingPage.optical-clinic .bookingTrustCard > div::before {
+  content: "0" counter(optical-step);
+  flex: 0 0 auto;
+  color: var(--optical-red);
+  font-size: 12px;
+  font-weight: 950;
+}
+.premiumBookingPage.optical-clinic .premiumPublicForm {
+  padding: 34px 38px 40px;
+  background: #fff;
+}
+.premiumBookingPage.optical-clinic .bookingFormHeader h2 {
+  color: #171b2c;
+}
+.premiumBookingPage.optical-clinic .bookingFormHeader p {
+  color: #667085;
+}
+.premiumBookingPage.optical-clinic .bookingContactLine span,
+.premiumBookingPage.optical-clinic .bookingContactLine a {
+  background: #f5f8fc;
+  color: #102653;
+}
+.premiumBookingPage.optical-clinic .bookingContactLine svg,
+.premiumBookingPage.optical-clinic .bookingHeaderIcon,
+.premiumBookingPage.optical-clinic .bookingStepTitle > span,
+.premiumBookingPage.optical-clinic .serviceIcon {
+  color: var(--optical-blue);
+  background: var(--optical-soft);
+}
+.premiumBookingPage.optical-clinic .bookingHeaderIcon {
+  border: 1px solid rgba(23,63,163,.12);
+}
+.premiumBookingPage.optical-clinic .bookingStep {
+  padding: 22px 0;
+  border-top: 1px solid #e7edf7;
+}
+.premiumBookingPage.optical-clinic .bookingStep:first-of-type {
+  border-top: 0;
+}
+.premiumBookingPage.optical-clinic .bookingStepTitle strong {
+  color: var(--optical-navy);
+}
+.sampleServiceNotice {
+  margin: -4px 0 14px;
+  padding: 11px 12px;
+  border: 1px solid #dbe6fb;
+  border-left: 3px solid var(--optical-red);
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #536176;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.opticalPackageGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.premiumBookingPage.optical-clinic .premiumService {
+  min-height: 164px;
+  border: 1px solid #dce5f4;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(16, 38, 83, .04);
+}
+.premiumBookingPage.optical-clinic .premiumService.active {
+  border-color: var(--optical-blue);
+  background: #f6f9ff;
+  box-shadow: 0 12px 28px rgba(23,63,163,.1);
+}
+.premiumBookingPage.optical-clinic .premiumService small {
+  margin-top: auto;
+  color: var(--optical-blue);
+  font-size: 14px;
+  font-weight: 850;
+}
+.premiumBookingPage.optical-clinic .premiumSlot.active {
+  border-color: var(--optical-blue);
+  background: var(--optical-blue);
+  color: #fff;
+}
+.premiumBookingPage.optical-clinic .premiumConfirmButton {
+  background: linear-gradient(135deg, var(--optical-blue), var(--optical-navy));
+  color: #fff;
+}
+.premiumBookingPage.optical-clinic .reservationSummary {
+  border-color: #d9e3f5;
+  background: #f8fbff;
+}
+.premiumBookingPage.optical-clinic :is(a, button, input, textarea, select):focus-visible {
+  outline: 3px solid rgba(23,63,163,.25);
+  outline-offset: 3px;
+}
+
+@media (max-width: 980px) {
+  .premiumBookingPage.optical-clinic .premiumPublicBooking { grid-template-columns: 1fr; }
+  .premiumBookingPage.optical-clinic .premiumBrandPanel { min-height: 460px; border-radius: 8px 8px 0 0; background-position: 58% center; }
+  .premiumBookingPage.optical-clinic .premiumPublicForm { border-radius: 0 0 8px 8px; }
+}
+
+@media (max-width: 620px) {
+  .premiumBookingPage.optical-clinic .premiumPublicBooking { width: 100%; }
+  .premiumBookingPage.optical-clinic .premiumBrandPanel { min-height: 430px; padding: 24px; border-radius: 0; background-position: 58% center; }
+  .premiumBookingPage.optical-clinic .brandMark { width: 72px; height: 72px; }
+  .premiumBookingPage.optical-clinic .brandStory h1 { font-size: 34px; }
+  .premiumBookingPage.optical-clinic .brandStory p { font-size: 14px; }
+  .premiumBookingPage.optical-clinic .bookingTrustCard { display: none; }
+  .premiumBookingPage.optical-clinic .premiumPublicForm { padding: 26px 20px 32px; border-radius: 0; }
+  .opticalPackageGrid { grid-template-columns: 1fr; }
+  .premiumBookingPage.optical-clinic .premiumService { min-height: 142px; }
 }
 
 /* Real Estate / Property Inquiry template */
@@ -8828,7 +9800,8 @@ button,
   .premiumBookingPage.pest-control .brandStory h1 { max-width: 330px; font-size: 34px; }
   .premiumBookingPage.pest-control .bookingTrustCard { display: none; }
   .premiumBookingPage.pest-control .premiumPublicForm { padding: 26px 20px 32px; }
-  .preferredScheduleGrid { grid-template-columns: 1fr; }
+  .preferredScheduleGrid,
+  .partyEventFields { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 430px) {
@@ -9096,6 +10069,122 @@ button,
   box-shadow: 0 16px 34px color-mix(in srgb, var(--booking-primary) 24%, transparent);
 }
 
+/* Xtreme Dancers Starter test demo: presentation only; booking behavior stays shared. */
+.premiumBookingPage.xtreme-dancers {
+  --xtreme-ink: #111514;
+  --xtreme-green: #c9f45a;
+  background: #f3f5f2;
+  color: var(--xtreme-ink);
+}
+.premiumBookingPage.xtreme-dancers .premiumPublicBooking {
+  max-width: 1200px;
+  grid-template-columns: minmax(320px, .86fr) minmax(540px, 1.14fr);
+  border-color: #dce3da;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(14, 22, 18, .1);
+}
+.premiumBookingPage.xtreme-dancers .premiumBrandPanel {
+  position: relative;
+  isolation: isolate;
+  min-height: 680px;
+  overflow: hidden;
+  border-radius: 8px 0 0 8px;
+  background-color: #121715;
+  background-image:
+    repeating-linear-gradient(132deg, transparent 0 42px, rgba(201, 244, 90, .035) 43px 44px, transparent 45px 86px),
+    radial-gradient(ellipse at 88% 88%, rgba(201, 244, 90, .12), transparent 46%),
+    url("/xtreme-dancers-hero.png") !important;
+  background-position: center, center, 54% center;
+  background-size: auto, cover, cover;
+  background-repeat: repeat, no-repeat, no-repeat;
+}
+.premiumBookingPage.xtreme-dancers .premiumBrandPanel::before {
+  z-index: 0;
+  background:
+    linear-gradient(90deg, rgba(8, 11, 10, .9) 0%, rgba(8, 11, 10, .78) 43%, rgba(8, 11, 10, .4) 100%),
+    linear-gradient(180deg, rgba(8, 11, 10, .12), rgba(8, 11, 10, .42));
+}
+.premiumBookingPage.xtreme-dancers .premiumBrandPanel > * { position: relative; z-index: 1; }
+.premiumBookingPage.xtreme-dancers .brandLogoLockup {
+  padding: 7px;
+  border: 1px solid rgba(201, 244, 90, .45);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .06);
+  box-shadow: none;
+}
+.premiumBookingPage.xtreme-dancers .brandMark {
+  width: 64px;
+  height: 64px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--xtreme-green);
+  color: var(--xtreme-ink);
+  font-size: 19px;
+  font-weight: 900;
+  box-shadow: none;
+}
+.premiumBookingPage.xtreme-dancers .brandStory { max-width: 420px; margin-top: auto; }
+.premiumBookingPage.xtreme-dancers .brandStory > span {
+  padding: 5px 8px;
+  border: 1px solid rgba(201, 244, 90, .42);
+  border-radius: 4px;
+  background: rgba(201, 244, 90, .08);
+  color: var(--xtreme-green);
+  font-size: 11px;
+  font-weight: 800;
+}
+.premiumBookingPage.xtreme-dancers .xtremeBusinessName { display: block; margin-top: 18px; color: #fff; font-size: 15px; font-weight: 800; }
+.premiumBookingPage.xtreme-dancers .brandStory h1 { max-width: 380px; margin-top: 12px; color: #fff; font-size: clamp(40px, 4.5vw, 58px); font-weight: 900; line-height: .98; }
+.premiumBookingPage.xtreme-dancers .brandStory > i { width: 54px; height: 4px; margin: 18px 0 12px; background: var(--xtreme-green); }
+.premiumBookingPage.xtreme-dancers .brandStory p { max-width: 350px; color: rgba(255,255,255,.78); }
+.premiumBookingPage.xtreme-dancers .xtremeDays { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 17px; color: #fff; font-size: 11px; font-weight: 800; }
+.premiumBookingPage.xtreme-dancers .xtremeDays svg { color: var(--xtreme-green); }
+.premiumBookingPage.xtreme-dancers .xtremeDays span { color: rgba(255,255,255,.62); font-weight: 500; }
+.premiumBookingPage.xtreme-dancers .xtremeHeroCta { display: inline-flex; min-height: 44px; align-items: center; gap: 12px; margin-top: 20px; padding: 0 15px; border: 1px solid var(--xtreme-green); border-radius: 5px; background: var(--xtreme-green); color: #101410; font-size: 12px; font-weight: 900; text-decoration: none; }
+.premiumBookingPage.xtreme-dancers .bookingTrustCard { border: 1px solid rgba(255,255,255,.16); border-radius: 6px; background: rgba(255,255,255,.07); box-shadow: none; backdrop-filter: blur(8px); }
+.premiumBookingPage.xtreme-dancers .bookingTrustCard svg { color: var(--xtreme-green); background: rgba(201,244,90,.12); }
+.premiumBookingPage.xtreme-dancers .bookingTrustCard strong { color: #fff; }
+.premiumBookingPage.xtreme-dancers .bookingTrustCard small { color: rgba(255,255,255,.68); }
+.premiumBookingPage.xtreme-dancers .premiumPublicForm { background: #fff; }
+.premiumBookingPage.xtreme-dancers .bookingFormHeader h2 { color: #171c19; }
+.premiumBookingPage.xtreme-dancers .bookingFormHeader p { color: #667067; }
+.premiumBookingPage.xtreme-dancers .bookingContactLine span,
+.premiumBookingPage.xtreme-dancers .bookingContactLine a { border-color: #e4e9e2; background: #f6f8f5; color: #333d35; }
+.premiumBookingPage.xtreme-dancers .bookingContactLine strong,
+.premiumBookingPage.xtreme-dancers .bookingContactLine svg { color: #26342a; }
+.premiumBookingPage.xtreme-dancers .bookingStep { border-color: #e8ece7; }
+.premiumBookingPage.xtreme-dancers .bookingStepTitle > span { background: var(--xtreme-green); color: #15200f; }
+.premiumBookingPage.xtreme-dancers .bookingStepTitle strong { color: #202721; letter-spacing: 0; }
+.premiumBookingPage.xtreme-dancers .premiumServiceGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.premiumBookingPage.xtreme-dancers .premiumService { min-height: 165px; gap: 9px; padding: 14px; border: 1px solid #e0e6de; border-radius: 6px; background: #fff; box-shadow: none; }
+.premiumBookingPage.xtreme-dancers .premiumService:hover { border-color: #9fca3d; box-shadow: 0 8px 20px rgba(34, 54, 20, .08); }
+.premiumBookingPage.xtreme-dancers .premiumService.active { border-color: #9fc83c; background: #f5fbe9; box-shadow: inset 0 0 0 1px #9fc83c; }
+.premiumBookingPage.xtreme-dancers .premiumService .serviceIcon { border-radius: 5px; background: #eff6df; color: #34441d; }
+.premiumBookingPage.xtreme-dancers .premiumService strong { color: #1b211c; font-size: 15px; }
+.premiumBookingPage.xtreme-dancers .premiumService .serviceDescription { color: #616b62; font-size: 12px; }
+.premiumBookingPage.xtreme-dancers .premiumService small { color: #33441b; font-size: 12px; font-weight: 800; }
+.premiumBookingPage.xtreme-dancers .premiumService em { background: #c9f45a; color: #101410; }
+.premiumBookingPage.xtreme-dancers .xtremeFixedScheduleCard { display: grid; gap: 5px; max-width: 520px; margin: 0 0 12px; padding: 14px 16px; border: 1px solid #dbe6cf; border-left: 4px solid #9fc83c; border-radius: 8px; background: #fbfdf8; }
+.premiumBookingPage.xtreme-dancers .xtremeFixedScheduleCard .xtremeScheduleEyebrow { color: #53633e; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.premiumBookingPage.xtreme-dancers .xtremeFixedScheduleCard strong { color: #182016; font-size: 19px; line-height: 1.25; }
+.premiumBookingPage.xtreme-dancers .xtremeFixedScheduleCard small { color: #65705f; font-size: 12px; line-height: 1.4; }
+.premiumBookingPage.xtreme-dancers .xtremeOptionPanel { display: grid; gap: 10px; margin-top: 14px; padding: 14px; border: 1px solid #dfe8d9; border-radius: 6px; background: #f8fbf5; }
+.premiumBookingPage.xtreme-dancers .xtremeOptionPanel > strong { color: #26351e; font-size: 12px; letter-spacing: .04em; }
+.premiumBookingPage.xtreme-dancers .xtremeOptionGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.premiumBookingPage.xtreme-dancers .xtremeOption { display: flex; min-height: 68px; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 11px; border: 1px solid #dbe5d6; border-radius: 5px; background: #fff; color: #202721; text-align: left; cursor: pointer; }
+.premiumBookingPage.xtreme-dancers .xtremeOption.active { border-color: #9fc83c; background: #eff8dc; box-shadow: inset 0 0 0 1px #9fc83c; }
+.premiumBookingPage.xtreme-dancers .xtremeOption span { display: grid; gap: 4px; }
+.premiumBookingPage.xtreme-dancers .xtremeOption b { font-size: 12px; }
+.premiumBookingPage.xtreme-dancers .xtremeOption small { color: #647064; font-size: 11px; line-height: 1.35; }
+.premiumBookingPage.xtreme-dancers .xtremeOption em { margin: 0; padding: 0; background: transparent; color: #3a551c; font-size: 11px; font-style: normal; font-weight: 900; white-space: nowrap; }
+.premiumBookingPage.xtreme-dancers .xtremeOptionHint { display: block; color: #647064; font-size: 11px; line-height: 1.45; }
+.premiumBookingPage.xtreme-dancers .xtremeRentalDuration { margin-top: 4px; }
+.premiumBookingPage.xtreme-dancers .premiumSlot.active { border-color: #96bf31; background: #c9f45a; color: #101410; }
+.premiumBookingPage.xtreme-dancers .premiumConfirmButton { min-height: 50px; border: 0; border-radius: 5px; background: #b7e746; color: #141a12; box-shadow: none; font-weight: 900; }
+.premiumBookingPage.xtreme-dancers .clientStatusNotice.demo { border-color: #d8e9ae; background: #f5fbe9; color: #33421e; }
+.premiumBookingPage.xtreme-dancers .clientStatusNotice.demo strong { color: #31421a; }
+.premiumBookingPage.xtreme-dancers .bookingStep:target { scroll-margin-top: 18px; }
+
 .premiumBookingPage.general .premiumPublicBooking,
 .premiumBookingPage.clinic .premiumPublicBooking,
 .premiumBookingPage.home-service .premiumPublicBooking,
@@ -9257,4 +10346,405 @@ button,
   .slotwisePackageUpgrade {
     width: 100%;
   }
+}
+
+.brandMark,
+.brandStory h1,
+.bookingFormHeader h2,
+.premiumBookingPage .brandMark,
+.premiumBookingPage .brandStory h1,
+.premiumBookingPage .bookingFormHeader h2 {
+  font-family: var(--font-script);
+}
+
+.clientInquiriesPanel {
+  display: grid;
+  gap: 16px;
+}
+
+.inquiryFilterRow input,
+.inquiryFilterRow select {
+  min-height: 42px;
+  border: 1px solid rgba(15, 23, 42, .12);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #151934;
+  font: inherit;
+}
+
+.inquiryServicePicker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.inquiryServicePicker label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 23, 42, .1);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.clientDetailsGroup,
+.inquiryConversionPanel {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, .08);
+  border-radius: 14px;
+  background: #f8faff;
+}
+
+.clientDetailsGroup p,
+.inquiryConversionPanel p {
+  margin: 0;
+}
+
+.inquiryList .clientBookingActions button:disabled,
+.inquiryDetailsModal .clientBookingActions button:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+@media (max-width: 620px) {
+  .inquiryServicePicker {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .premiumBookingPage.xtreme-dancers .premiumBrandPanel { min-height: 450px; border-radius: 8px 8px 0 0; background-position: center, center, 50% center; }
+}
+@media (max-width: 520px) {
+  .premiumBookingPage.xtreme-dancers .premiumBrandPanel { min-height: 390px; padding: 22px; border-radius: 0; background-position: center, center, 50% center; }
+  .premiumBookingPage.xtreme-dancers .premiumBrandPanel::before {
+    background:
+      linear-gradient(90deg, rgba(8, 11, 10, .97) 0%, rgba(8, 11, 10, .91) 48%, rgba(8, 11, 10, .62) 100%),
+      linear-gradient(180deg, rgba(8, 11, 10, .2), rgba(8, 11, 10, .55));
+  }
+  .premiumBookingPage.xtreme-dancers .brandStory h1 { max-width: 330px; font-size: 38px; }
+  .premiumBookingPage.xtreme-dancers .brandStory p { font-size: 14px; }
+  .premiumBookingPage.xtreme-dancers .bookingTrustCard { display: none; }
+  .premiumBookingPage.xtreme-dancers .premiumServiceGrid { grid-template-columns: 1fr; }
+  .premiumBookingPage.xtreme-dancers .xtremeOptionGrid { grid-template-columns: 1fr; }
+  .premiumBookingPage.xtreme-dancers .premiumService { min-height: 140px; }
+}
+
+/* Final Xtreme PRO polish: layout and hierarchy only. */
+.premiumBookingPage.xtreme-dancers .xtremeFormEyebrow {
+  display: block;
+  margin-bottom: 8px;
+  color: #7bad1d;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.premiumBookingPage.xtreme-dancers .bookingFormHeader { padding-bottom: 4px; border-bottom: 1px solid #edf1eb; }
+.premiumBookingPage.xtreme-dancers .bookingContactLine { margin-top: 14px; }
+.premiumBookingPage.xtreme-dancers .bookingContactLine span,
+.premiumBookingPage.xtreme-dancers .bookingContactLine a { min-height: 32px; padding: 6px 10px; }
+.premiumBookingPage.xtreme-dancers .premiumServiceGrid { gap: 12px; }
+.premiumBookingPage.xtreme-dancers .premiumService { min-height: 144px; padding: 16px; }
+.premiumBookingPage.xtreme-dancers .premiumService .serviceIcon { width: 38px; height: 38px; }
+.premiumBookingPage.xtreme-dancers .premiumService strong { font-size: 14px; line-height: 1.25; }
+.premiumBookingPage.xtreme-dancers .premiumService .serviceDescription { max-width: 28ch; line-height: 1.42; }
+.premiumBookingPage.xtreme-dancers .premiumService em { top: 14px; right: 14px; width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border-radius: 50%; }
+.premiumBookingPage.xtreme-dancers .xtremeOptionPanel { margin-top: 16px; padding: 16px; }
+.premiumBookingPage.xtreme-dancers .xtremeOptionGrid { gap: 10px; }
+.premiumBookingPage.xtreme-dancers .xtremeOption { min-height: 82px; padding: 13px; }
+.premiumBookingPage.xtreme-dancers .timeAndDate { display: grid; gap: 14px; grid-template-columns: minmax(190px, .8fr) minmax(0, 1.2fr); align-items: start; }
+.premiumBookingPage.xtreme-dancers .selectedDateCard { min-height: 176px; margin: 0; padding: 18px; border: 1px solid #e3e8df; border-radius: 14px; background: #fbfcfa; }
+.premiumBookingPage.xtreme-dancers .selectedDateCard strong { font-size: 16px; }
+.premiumBookingPage.xtreme-dancers .premiumSlotGrid { min-height: 176px; margin: 0; padding: 14px; border: 1px solid #dfe8d9; border-radius: 14px; background: #f3fbe5; }
+.premiumBookingPage.xtreme-dancers .xtremeFixedScheduleCard { min-height: 176px; margin: 0; align-content: center; }
+.premiumBookingPage.xtreme-dancers .reservationSummary { border: 1px solid #cfe3ad; border-radius: 16px; background: #f8fced; padding: 20px; }
+.premiumBookingPage.xtreme-dancers .reservationSummary > span { color: #42552d; font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.premiumBookingPage.xtreme-dancers .reservationSummary > strong { display: block; margin-top: 8px; color: #162016; font-size: 19px; }
+.premiumBookingPage.xtreme-dancers .bookingLineItems { border-top-color: #dfe8d9; border-bottom-color: #dfe8d9; }
+.premiumBookingPage.xtreme-dancers .bookingLineItems strong { color: #567d16; font-size: 16px; }
+.premiumBookingPage.xtreme-dancers .premiumConfirmButton { width: 100%; min-height: 52px; border-radius: 11px; font-size: 13px; letter-spacing: .02em; }
+@media (max-width: 760px) {
+  .premiumBookingPage.xtreme-dancers .timeAndDate { grid-template-columns: 1fr; }
+  .premiumBookingPage.xtreme-dancers .selectedDateCard,
+  .premiumBookingPage.xtreme-dancers .premiumSlotGrid,
+  .premiumBookingPage.xtreme-dancers .xtremeFixedScheduleCard { min-height: 0; }
+}
+
+/* Xtreme PRO preview: premium split-shell presentation only. */
+.premiumBookingPage.xtreme-dancers {
+  --xtreme-green: #b9f53d;
+  --xtreme-black: #090c09;
+  --xtreme-charcoal: #111511;
+  background: #090c09;
+  color: #171b18;
+}
+.premiumBookingPage.xtreme-dancers .premiumPublicBooking {
+  width: min(100% - 32px, 1480px);
+  max-width: 1480px;
+  grid-template-columns: minmax(390px, .68fr) minmax(620px, 1.32fr);
+  gap: 0;
+  border: 1px solid #263026;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .36);
+}
+.premiumBookingPage.xtreme-dancers .premiumBrandPanel {
+  min-height: 820px;
+  padding: 42px;
+  border-radius: 23px 0 0 23px;
+  background-position: 58% center;
+}
+.premiumBookingPage.xtreme-dancers .premiumBrandPanel::before {
+  background:
+    linear-gradient(180deg, rgba(5, 8, 5, .30) 0%, rgba(5, 8, 5, .58) 48%, rgba(5, 8, 5, .96) 100%),
+    linear-gradient(90deg, rgba(5, 8, 5, .72) 0%, rgba(5, 8, 5, .32) 58%, rgba(5, 8, 5, .66) 100%);
+}
+.premiumBookingPage.xtreme-dancers .brandMark {
+  width: clamp(138px, 13vw, 182px);
+  height: auto;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  backdrop-filter: none;
+  overflow: hidden;
+}
+.premiumBookingPage.xtreme-dancers .brandMark img { object-fit: contain; }
+.premiumBookingPage.xtreme-dancers .brandStory { max-width: 500px; margin-top: auto; }
+.premiumBookingPage.xtreme-dancers .brandStory > span {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--xtreme-green);
+  font-size: 11px;
+  letter-spacing: .14em;
+}
+.premiumBookingPage.xtreme-dancers .xtremeBusinessName {
+  margin-top: 18px;
+  color: #fff;
+  font-size: clamp(19px, 2vw, 26px);
+  letter-spacing: .02em;
+}
+.premiumBookingPage.xtreme-dancers .brandStory h1 {
+  max-width: 480px;
+  margin: 20px 0 18px;
+  color: #fff;
+  font-family: var(--font-sans), sans-serif;
+  font-size: clamp(54px, 6vw, 86px);
+  font-weight: 950;
+  line-height: .88;
+  letter-spacing: .01em;
+}
+.premiumBookingPage.xtreme-dancers .brandStory h1::first-line { color: #fff; }
+.premiumBookingPage.xtreme-dancers .brandStory > i { width: 0; height: 0; margin: 0; }
+.premiumBookingPage.xtreme-dancers .brandStory p { max-width: 390px; color: rgba(255,255,255,.88); font-size: 15px; line-height: 1.5; text-transform: uppercase; letter-spacing: .08em; }
+.premiumBookingPage.xtreme-dancers .xtremeDays { margin-top: 18px; color: #fff; font-size: 12px; letter-spacing: .08em; }
+.premiumBookingPage.xtreme-dancers .xtremeDays span { flex-basis: 100%; margin-left: 22px; color: rgba(255,255,255,.68); letter-spacing: .03em; }
+.premiumBookingPage.xtreme-dancers .xtremeHeroCta { display: none; }
+.premiumBookingPage.xtreme-dancers .bookingTrustCard {
+  max-width: 390px;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(185,245,61,.18);
+  border-radius: 14px;
+  background: rgba(9,12,9,.52);
+  box-shadow: none;
+}
+.premiumBookingPage.xtreme-dancers .bookingTrustCard div { gap: 11px; padding: 7px; border-radius: 9px; background: rgba(255,255,255,.045); }
+.premiumBookingPage.xtreme-dancers .bookingTrustCard svg { width: 34px; height: 34px; padding: 8px; border-radius: 9px; color: var(--xtreme-green); background: rgba(185,245,61,.12); }
+.premiumBookingPage.xtreme-dancers .bookingTrustCard strong { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+.premiumBookingPage.xtreme-dancers .bookingTrustCard small { font-size: 11px; line-height: 1.35; }
+.premiumBookingPage.xtreme-dancers .premiumPublicForm { padding: clamp(30px, 4vw, 58px); background: #fff; }
+.premiumBookingPage.xtreme-dancers .bookingFormHeader h2 { font-family: var(--font-sans), sans-serif; font-size: clamp(34px, 4vw, 52px); font-weight: 900; letter-spacing: -.02em; }
+.premiumBookingPage.xtreme-dancers .bookingFormHeader p { color: #667067; font-size: 16px; }
+.premiumBookingPage.xtreme-dancers .bookingContactLine span,
+.premiumBookingPage.xtreme-dancers .bookingContactLine a { border: 1px solid #e3e8df; background: #f7f9f6; color: #172018; }
+.premiumBookingPage.xtreme-dancers .bookingContactLine strong { color: #52614e; }
+.premiumBookingPage.xtreme-dancers .bookingStep { gap: 14px; }
+.premiumBookingPage.xtreme-dancers .bookingStepTitle { gap: 10px; }
+.premiumBookingPage.xtreme-dancers .bookingStepTitle > span { width: 27px; height: 27px; border: 0; background: var(--xtreme-green); color: #17200f; }
+.premiumBookingPage.xtreme-dancers .bookingStepTitle strong { color: #151b16; font-size: 12px; letter-spacing: .08em; }
+.premiumBookingPage.xtreme-dancers .premiumService { min-height: 150px; border-radius: 14px; border-color: #e3e8df; transition: border-color .18s, box-shadow .18s, background .18s; }
+.premiumBookingPage.xtreme-dancers .premiumService.active { border-color: #8dbb27; background: #111511; box-shadow: inset 0 0 0 1px #b9f53d; }
+.premiumBookingPage.xtreme-dancers .premiumService.active strong,
+.premiumBookingPage.xtreme-dancers .premiumService.active .serviceDescription { color: #fff; }
+.premiumBookingPage.xtreme-dancers .premiumService.active small { color: var(--xtreme-green); }
+.premiumBookingPage.xtreme-dancers .premiumService.active .serviceIcon { color: var(--xtreme-green); background: rgba(185,245,61,.12); }
+.premiumBookingPage.xtreme-dancers .xtremeOptionPanel { border-radius: 14px; background: #f3fbe5; }
+.premiumBookingPage.xtreme-dancers .xtremeOption { min-height: 74px; border-radius: 12px; }
+.premiumBookingPage.xtreme-dancers .xtremeOption.active { background: #f3fbe5; border-color: #9bcf2c; box-shadow: inset 0 0 0 1px #b9f53d; }
+.premiumBookingPage.xtreme-dancers .xtremeFixedScheduleCard { max-width: none; border-radius: 14px; background: #f3fbe5; border-color: #d9e8bd; border-left-color: #9bcf2c; }
+.premiumBookingPage.xtreme-dancers .premiumSlot { min-height: 48px; border-radius: 10px; border-color: #dfe7dc; background: #fff; }
+.premiumBookingPage.xtreme-dancers .premiumSlot.active { color: #17200f; border-color: #90be29; background: var(--xtreme-green); }
+.premiumBookingPage.xtreme-dancers .premiumInput input,
+.premiumBookingPage.xtreme-dancers .premiumInput textarea,
+.premiumBookingPage.xtreme-dancers .premiumInput select { min-height: 50px; border-color: #dfe7dc; border-radius: 10px; }
+.premiumBookingPage.xtreme-dancers .premiumInput input:focus,
+.premiumBookingPage.xtreme-dancers .premiumInput textarea:focus,
+.premiumBookingPage.xtreme-dancers .premiumInput select:focus { border-color: #8fbe2a; box-shadow: 0 0 0 3px rgba(185,245,61,.2); }
+.premiumBookingPage.xtreme-dancers .premiumConfirmButton { min-height: 54px; border-radius: 12px; background: var(--xtreme-green); color: #111711; box-shadow: 0 8px 18px rgba(106,145,25,.18); }
+
+/* Xtreme uses a distinct display voice while keeping all supporting UI readable. */
+.premiumBookingPage.xtreme-dancers {
+  --font-display: "Bebas Neue", Impact, sans-serif;
+  --font-body: "Inter", "DM Sans", "Segoe UI", system-ui, sans-serif;
+}
+
+.premiumBookingPage.xtreme-dancers .brandStory h1,
+.premiumBookingPage.xtreme-dancers .bookingFormHeader h2,
+.premiumBookingPage.xtreme-dancers .bookingStepTitle strong,
+.premiumBookingPage.xtreme-dancers .premiumService strong,
+.premiumBookingPage.xtreme-dancers .xtremeBusinessName,
+.premiumBookingPage.xtreme-dancers .xtremeOptionPanel > strong,
+.premiumBookingPage.xtreme-dancers .xtremeOption b,
+.premiumBookingPage.xtreme-dancers .xtremeFixedScheduleCard strong,
+.premiumBookingPage.xtreme-dancers .reservationSummary > strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: .035em;
+  line-height: 1.02;
+  text-transform: uppercase;
+}
+
+.premiumBookingPage.xtreme-dancers .brandStory h1 {
+  font-size: clamp(42px, 5.2vw, 68px);
+  letter-spacing: .025em;
+}
+
+.premiumBookingPage.xtreme-dancers .bookingFormHeader h2 {
+  font-size: clamp(34px, 4vw, 48px);
+  letter-spacing: .025em;
+}
+
+.premiumBookingPage.xtreme-dancers .bookingStepTitle strong,
+.premiumBookingPage.xtreme-dancers .xtremeOptionPanel > strong {
+  font-size: 16px;
+}
+
+.premiumBookingPage.xtreme-dancers .premiumService strong {
+  font-size: 22px;
+}
+
+.premiumBookingPage.xtreme-dancers .xtremeFixedScheduleCard strong,
+.premiumBookingPage.xtreme-dancers .reservationSummary > strong {
+  font-size: 24px;
+}
+
+.premiumBookingPage.xtreme-dancers .bookingFormHeader p,
+.premiumBookingPage.xtreme-dancers .bookingContactLine,
+.premiumBookingPage.xtreme-dancers .premiumService p,
+.premiumBookingPage.xtreme-dancers .premiumService small,
+.premiumBookingPage.xtreme-dancers .xtremeOption small,
+.premiumBookingPage.xtreme-dancers .xtremeOption em,
+.premiumBookingPage.xtreme-dancers .xtremeOptionHint,
+.premiumBookingPage.xtreme-dancers .premiumInput,
+.premiumBookingPage.xtreme-dancers .selectedDateCard,
+.premiumBookingPage.xtreme-dancers .reservationSummary,
+.premiumBookingPage.xtreme-dancers .premiumConfirmButton {
+  font-family: var(--font-body);
+}
+
+@media (max-width: 430px) {
+  .premiumBookingPage.xtreme-dancers .brandStory h1 {
+    font-size: clamp(38px, 13vw, 54px);
+  }
+
+  .premiumBookingPage.xtreme-dancers .bookingFormHeader h2 {
+    font-size: 36px;
+  }
+
+  .premiumBookingPage.xtreme-dancers .premiumService strong {
+    font-size: 19px;
+  }
+}
+
+.premiumBookingPage.xtreme-dancers .xtremeSocialCta {
+  display: grid;
+  gap: 8px;
+  max-width: 390px;
+  margin-top: 34px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(185, 245, 61, .34);
+}
+
+.premiumBookingPage.xtreme-dancers .xtremeSocialEyebrow {
+  color: var(--xtreme-green);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+
+.premiumBookingPage.xtreme-dancers .xtremeSocialCta > strong {
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 27px;
+  font-weight: 400;
+  letter-spacing: .05em;
+  line-height: 1;
+}
+
+.premiumBookingPage.xtreme-dancers .xtremeSocialCta p {
+  max-width: 300px;
+  margin: 0;
+  color: rgba(255, 255, 255, .7);
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.premiumBookingPage.xtreme-dancers .xtremeSocialCta a {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 38px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 0 12px;
+  border: 1px solid var(--xtreme-green);
+  border-radius: 7px;
+  background: rgba(8, 14, 8, .42);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.premiumBookingPage.xtreme-dancers .xtremeSocialCta a:hover,
+.premiumBookingPage.xtreme-dancers .xtremeSocialCta a:focus-visible {
+  background: var(--xtreme-green);
+  color: #101410;
+}
+
+.premiumBookingPage.xtreme-dancers .xtremeSocialCta small {
+  color: rgba(255, 255, 255, .45);
+  font-family: var(--font-body);
+  font-size: 9px;
+  letter-spacing: .16em;
+}
+
+@media (max-width: 960px) {
+  .premiumBookingPage.xtreme-dancers .xtremeSocialCta {
+    margin-top: 26px;
+  }
+}
+@media (max-width: 900px) {
+  .premiumBookingPage.xtreme-dancers .premiumPublicBooking { width: min(100% - 24px, 760px); grid-template-columns: 1fr; }
+  .premiumBookingPage.xtreme-dancers .premiumBrandPanel { min-height: 480px; padding: 30px; border-radius: 23px 23px 0 0; }
+}
+@media (max-width: 520px) {
+  .premiumBookingPage.xtreme-dancers .premiumPublicBooking { width: 100%; border-radius: 0; }
+  .premiumBookingPage.xtreme-dancers .premiumBrandPanel { min-height: 430px; padding: 24px; border-radius: 0; }
+  .premiumBookingPage.xtreme-dancers .brandMark { width: 118px; }
+  .premiumBookingPage.xtreme-dancers .brandStory h1 { max-width: 330px; font-size: 48px; }
+  .premiumBookingPage.xtreme-dancers .premiumPublicForm { padding: 24px 18px; }
 }
