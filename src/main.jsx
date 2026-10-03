@@ -4271,10 +4271,12 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
   const [submitting, setSubmitting] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState("");
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
   const [paymentChoice, setPaymentChoice] = useState("");
   const [paymentForm, setPaymentForm] = useState({ method: "", amount: "", reference: "", note: "" });
   const [paymentProofFile, setPaymentProofFile] = useState(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState("");
+  const paymentFormRef = useRef(null);
   const [copiedPaymentMethod, setCopiedPaymentMethod] = useState("");
   const [bookingPossessionToken, setBookingPossessionToken] = useState("");
   const [travelActiveStep, setTravelActiveStep] = useState(1);
@@ -4788,11 +4790,23 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
 
   const submitPaymentDetails = async (event) => {
     event.preventDefault();
+    event.stopPropagation();
     if (!confirmed?.id) return;
-    const data = new FormData(event.currentTarget);
-    const amountSubmitted = Number(data.get("amountSubmitted"));
+    const readPaymentField = (name) => paymentFormRef.current?.querySelector(`[name="${name}"]`)?.value ?? "";
+    const paymentMethod = readPaymentField("paymentMethod");
+    if (!paymentMethod) {
+      setPaymentStatus("Please select a payment method before submitting.");
+      return;
+    }
+    const amountRaw = readPaymentField("amountSubmitted");
+    const amountSubmitted = Number(amountRaw);
     if (!Number.isFinite(amountSubmitted) || amountSubmitted <= 0) {
       setPaymentStatus("Enter a valid payment amount greater than zero.");
+      return;
+    }
+    const referenceNumber = readPaymentField("referenceNumber").trim();
+    if (!referenceNumber) {
+      setPaymentStatus("Enter the transaction or reference number from your payment receipt.");
       return;
     }
     const proofFile = paymentProofFile;
@@ -4805,41 +4819,64 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
       setPaymentStatus("Please upload your payment proof before submitting.");
       return;
     }
+    if (!bookingPossessionToken) {
+      setPaymentStatus("This booking session has expired. Please start a new booking.");
+      return;
+    }
     setPaymentStatus("");
+    setPaymentSubmitting(true);
     let proofStoragePath = "";
+    const withPaymentTimeout = (promise, message) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error(message)), 20000)),
+    ]);
     try {
       if (proofFile) {
-        proofStoragePath = await supabasePaymentProofUpload({ bookingId: confirmed.id, businessSlug: business.slug, possessionToken: bookingPossessionToken, file: proofFile });
+        proofStoragePath = await withPaymentTimeout(
+          supabasePaymentProofUpload({ bookingId: confirmed.id, businessSlug: business.slug, possessionToken: bookingPossessionToken, file: proofFile }),
+          "Payment proof upload timed out. Please try again.",
+        );
       }
-      const paymentResult = await onSubmitPayment({
+      const paymentRequest = onSubmitPayment({
         booking_id_value: confirmed.id,
         business_slug_value: business.slug,
-        payment_method_value: data.get("paymentMethod"),
+        payment_method_value: paymentMethod,
         amount_submitted_value: amountSubmitted,
-        reference_number_value: data.get("referenceNumber"),
-        customer_note_value: data.get("paymentNote") || "",
+        reference_number_value: referenceNumber,
+        customer_note_value: readPaymentField("paymentNote"),
         proof_storage_path_value: proofStoragePath || null,
         booking_possession_token_value: bookingPossessionToken,
       });
+      const paymentResult = await withPaymentTimeout(paymentRequest, "Payment submission timed out. Please try again.");
       setConfirmedPayment({
         payment_status: paymentResult?.payment_status || "PENDING_VERIFICATION",
-        payment_method: data.get("paymentMethod"),
+        payment_method: paymentMethod,
         amount_submitted: amountSubmitted,
-        reference_number: data.get("referenceNumber"),
+        reference_number: referenceNumber,
         submitted_at: new Date().toISOString(),
         proof_storage_path: proofStoragePath || null,
         proof_submitted: Boolean(proofStoragePath),
         payment_option: "PAY_NOW",
       });
-      setPaymentStatus("Payment details submitted. Payment is pending business verification.");
+      setPaymentStatus("");
       setPaymentOpen(false);
-    setPaymentProofFile(null);
-    setPaymentProofPreview("");
-    setBookingPossessionToken("");
+      setPaymentProofFile(null);
+      setPaymentProofPreview("");
+      setBookingPossessionToken("");
     } catch (error) {
       if (proofStoragePath) await supabasePrivateStorageDelete(proofStoragePath).catch(() => {});
-      console.error("Payment detail submission failed", error);
-      setPaymentStatus("Payment details could not be submitted. Please contact the business.");
+      console.error("Payment detail submission failed", {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        booking_id: confirmed.id,
+        business_slug: business.slug,
+        possession_token: bookingPossessionToken ? "present" : "missing",
+      });
+      setPaymentStatus(error.message || "Payment details could not be submitted. Please try again.");
+    } finally {
+      setPaymentSubmitting(false);
     }
   };
 
@@ -4986,7 +5023,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
           {isToursTravel && <TravelBusinessInfo business={business} />}
         </aside>
 
-        <form className="publicForm premiumPublicForm" id={isRealEstate ? "property-inquiry" : isPestControl ? "pest-service-request" : undefined} onSubmit={submitBooking}>
+        <div className="publicForm premiumPublicForm">
           {(isDemoPreview || isAwaitingActivation) && (
             <div className={isDemoPreview ? "clientStatusNotice demo" : "clientStatusNotice unpaid"}>
               <strong>{isDemoPreview ? "Demo preview" : "Awaiting activation"}</strong>
@@ -4997,6 +5034,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
               </span>
             </div>
           )}
+          <form id={isRealEstate ? "property-inquiry" : isPestControl ? "pest-service-request" : undefined} onSubmit={submitBooking}>
           <div className="bookingFormHeader">
             <div>
               {isXtremeDancers && <span className="xtremeFormEyebrow">XTREME DANCERS STUDIO</span>}
@@ -5519,6 +5557,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
               </section>
             </div>
           )}
+          </form>
           {confirmed && (
             <div className="formSuccess premiumSuccess">
               <strong>{isXtremeDancersDemo ? "Test Booking Received" : isProductionActive ? (isPestControl ? "Service Request Received" : isRealEstate ? "Property Inquiry Received" : isToursTravel ? "Reservation Request Received" : "Booking Request Received") : "Demo booking completed"}</strong>
@@ -5553,19 +5592,13 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                 <div><dt>Name</dt><dd>{confirmed.customer}</dd></div>
                 <div><dt>Reference</dt><dd>{confirmed.id || "Request received"}</dd></div>
               </dl>
-              <div className="bookingSuccessActions">
-                <button type="button" onClick={() => setConfirmed(null)}>Book Another</button>
-                {capabilities.downloadBookingPdf && confirmed.id && (
-                  <button type="button" onClick={handleCustomerBookingPdf} className="customerBookingPdfButton">
-                    <FileDown size={17} /> Download Booking PDF
-                  </button>
-                )}
-                {business.messengerLink && <a href={business.messengerLink} target="_blank" rel="noreferrer">Contact Business</a>}
-              </div>
-              {customerPdfMessage && <small className="customerPdfMessage" role="status">{customerPdfMessage}</small>}
               {paymentAvailable && (
-                <div className="paymentInstructions paymentShell">
-                  <div className="paymentHeader"><span className="paymentEyebrow">PAYMENT</span><strong>HOW WOULD YOU LIKE TO PROCEED?</strong><p>Your booking is already submitted. Choose how you’d like to handle the payment.</p></div>
+                <div className={`paymentInstructions paymentShell ${!paymentRequired ? "paymentOptionalNextStep" : ""}`}>
+                  <div className="paymentHeader">
+                    <span className="paymentEyebrow">{paymentRequired ? "PAYMENT REQUIRED" : "OPTIONAL NEXT STEP"}</span>
+                    <strong>{paymentRequired ? "COMPLETE YOUR PAYMENT" : "WOULD YOU LIKE TO MAKE A PAYMENT NOW?"}</strong>
+                    <p>{paymentRequired ? "Your booking request has been submitted. Complete the payment details to continue." : "Your booking request has already been submitted. Payment is optional and can be completed now or arranged with the business later."}</p>
+                  </div>
                   {paymentRequired && <p><strong>Required {normalizePaymentRequirement(paymentSettings.requirement_type) === "DEPOSIT_REQUIRED" ? "Deposit" : "Payment"}:</strong> {formatPeso(requiredPaymentAmount)}</p>}
                   {!paymentChoice && <div className="publicPaymentChoices">
                     <button type="button" className="paymentNowChoice paymentChoiceCard" onClick={() => setPaymentChoice("PAY_NOW")}><CreditCard size={20} /><span><strong>PAY NOW</strong><small>Submit your payment details now for manual verification.</small><em>GCash available</em></span><ArrowRight size={19} /></button>
@@ -5574,7 +5607,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                       setConfirmedPayment({ payment_status: "NOT_SUBMITTED", payment_option: "PAY_LATER" });
                     }}><Clock size={20} /><span><strong>PAY LATER</strong><small>Wait for the business to contact you regarding payment.</small><em>Booking remains submitted</em></span><ArrowRight size={19} /></button>}
                   </div>}
-                  {paymentChoice === "PAY_LATER" && <div className="paymentFollowUpNotice paymentStateCard"><span className="paymentEyebrow">PAYMENT</span><strong>PAY LATER SELECTED</strong><p>Your booking request is already saved. The business may contact you to confirm your booking and payment instructions.</p><dl><div><dt>Booking Reference</dt><dd>{confirmed.id || "Request received"}</dd></div><div><dt>Payment Status</dt><dd>NOT SUBMITTED</dd></div></dl><div className="paymentStateActions"><button type="button" onClick={handleCustomerBookingPdf}><FileDown size={17} /> Download Booking PDF</button><button type="button" onClick={() => setConfirmed(null)}>Book Another</button></div></div>}
+                  {paymentChoice === "PAY_LATER" && <div className="paymentFollowUpNotice paymentStateCard"><span className="paymentEyebrow">PAYMENT ARRANGED FOR LATER</span><strong>PAYMENT WILL BE ARRANGED WITH THE BUSINESS</strong><p>Your booking request is already submitted. The business may contact you regarding payment and booking confirmation.</p><dl><div><dt>Booking Reference</dt><dd>{confirmed.id || "Request received"}</dd></div><div><dt>Payment Status</dt><dd>NOT SUBMITTED</dd></div></dl></div>}
                   {paymentChoice === "PAY_NOW" && <>
                     <div className="paymentScreenHeading"><button type="button" className="paymentBackButton" onClick={() => { setPaymentChoice(""); setPaymentOpen(false); setPaymentStatus(""); }}>← PAYMENT OPTIONS</button><span className="paymentEyebrow">PAYMENT</span><strong className="paymentScreenTitle">COMPLETE YOUR PAYMENT</strong></div>
                     <p className="paymentBookingReference">Booking Reference: {confirmed.id || "Request received"}</p>
@@ -5603,7 +5636,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                   </section>
                   {!paymentOpen && <button type="button" className="paymentOpenButton" onClick={() => setPaymentOpen(true)}>Enter Payment Details <ArrowRight size={17} /></button>}
                   {paymentOpen && (
-                    <form className="paymentDetailForm" onSubmit={submitPaymentDetails}>
+                    <div className="paymentDetailForm" ref={paymentFormRef} role="group" aria-label="Payment details">
                       {paymentMethods.length > 1 && <label>PAYMENT METHOD<select name="paymentMethod" required>
                         {paymentMethods.map((method) => <option value={method.method_type} key={method.id || `${method.method_type}-${method.method_name}`}>{method.method_name || method.method_type}</option>)}
                       </select></label>}
@@ -5622,21 +5655,32 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                         {paymentProofFile && <div className="paymentProofPreview"><strong>{paymentProofFile.name}</strong><span>{(paymentProofFile.size / 1024 / 1024).toFixed(2)} MB</span>{paymentProofPreview && <img src={paymentProofPreview} alt="Payment proof preview" />}<button type="button" onClick={() => { setPaymentProofFile(null); setPaymentProofPreview(""); }}>Remove</button></div>}
                       </label>
                       <p>Submitting payment details does not automatically confirm your reservation. Payment will be verified by the business.</p>
-                      <button type="submit" className="paymentSubmitButton">SUBMIT PAYMENT FOR VERIFICATION <ArrowRight size={17} /></button>
+                      <button type="button" className="paymentSubmitButton" onClick={submitPaymentDetails} disabled={paymentSubmitting}>{paymentSubmitting ? "SUBMITTING PAYMENT..." : "SUBMIT PAYMENT FOR VERIFICATION"} {!paymentSubmitting && <ArrowRight size={17} />}</button>
                       <small className="paymentPendingHint"><ShieldCheck size={16} /> Your payment will remain Pending Verification until the business confirms it.</small>
-                    </form>
+                    </div>
                   )}
                   </>}
                 </div>
               )}
+              <div className="bookingSuccessActions">
+                {capabilities.downloadBookingPdf && confirmed.id && (
+                  <button type="button" onClick={handleCustomerBookingPdf} className="customerBookingPdfButton">
+                    <FileDown size={17} /> Download Booking PDF
+                  </button>
+                )}
+                <button type="button" onClick={() => setConfirmed(null)}>Book Another</button>
+                {business.messengerLink && <a href={business.messengerLink} target="_blank" rel="noreferrer">Contact Business</a>}
+              </div>
+              {customerPdfMessage && <small className="customerPdfMessage" role="status">{customerPdfMessage}</small>}
               {!travelDetails.customerEmail.trim() && isProductionActive && <p className="customerEmailNotice">No email provided. Booking and payment updates cannot be sent by email. Please keep your booking reference and wait for the business to contact you through your mobile number.</p>}
-              {paymentStatus && <div className="paymentSubmittedNotice"><strong>PAYMENT SUBMITTED</strong><b>Pending Verification</b><span>We've received your payment details. The business will verify your payment before confirming it as paid.</span></div>}
+              {confirmedPayment?.payment_option === "PAY_NOW" && confirmedPayment?.payment_status === "PENDING_VERIFICATION" && <div className="paymentSubmittedNotice"><strong>PAYMENT SUBMITTED</strong><b>Pending Verification</b><span>We've received your payment details. The business will verify your payment before confirming it as paid.</span></div>}
+              {paymentStatus && !confirmedPayment?.payment_status && <div className="paymentErrorNotice" role="alert"><strong>Payment submission could not be completed.</strong><span>{paymentStatus}</span></div>}
               {(isDemoPreview || isAwaitingActivation) && smmOffers?.enabled && smmOffers?.show_on_demo !== false && (
                 <SmmOffersFeed offers={smmOffers} placement="DEMO_PREVIEW" compact />
               )}
             </div>
           )}
-        </form>
+        </div>
       </section>
       {isHealthWellness && <footer className="wellnessFooter"><strong>{business.business}</strong><span>{business.featureFlags?.wellnessFooterTagline || business.businessType}</span></footer>}
       <p className="privacyNote">We respect your time and privacy.</p>
@@ -10590,7 +10634,7 @@ function ClientDashboard({
                       <p><strong>Note:</strong> {latestSelectedPayment.customer_note || "No note"}</p>
                       {latestSelectedPayment.submitted_at && <p><strong>Submitted At:</strong> {formatFriendlyDateTime(latestSelectedPayment.submitted_at)}</p>}
                       {latestSelectedPayment.verified_at && <p><strong>Verified At:</strong> {formatFriendlyDateTime(latestSelectedPayment.verified_at)}</p>}
-                      {latestSelectedPayment.proof_storage_path && <button type="button" className="clientSecondaryButton" onClick={() => openPaymentProof(latestSelectedPayment)}>View Payment Proof</button>}
+                      {String(latestSelectedPayment.proof_storage_path || "").trim() && <button type="button" className="clientSecondaryButton" onClick={() => openPaymentProof(latestSelectedPayment)}>View Payment Proof</button>}
                       {latestSelectedPayment.rejection_note && <p><strong>Rejection Note:</strong> {latestSelectedPayment.rejection_note}</p>}
                       {latestSelectedPayment.payment_status === "PENDING_VERIFICATION" && (
                         <div className="clientBookingActions">
