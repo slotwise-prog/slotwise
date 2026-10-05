@@ -86,7 +86,7 @@ begin
   end if;
 
   alter table businesses add constraint businesses_booking_template_allowed
-  check (booking_template in ('GENERAL', 'BEAUTY', 'CLINIC', 'PROFESSIONAL_SERVICES', 'HOME_SERVICE', 'AUTO', 'CAR_WASH', 'LAUNDRY', 'TOURS_TRAVEL', 'STAYCATION_ACCOMMODATION')) not valid;
+  check (booking_template in ('GENERAL', 'BEAUTY', 'CLINIC', 'HEALTH_WELLNESS', 'REAL_ESTATE', 'PEST_CONTROL', 'PROFESSIONAL_SERVICES', 'HOME_SERVICE', 'AUTO', 'CAR_WASH', 'LAUNDRY', 'TOURS_TRAVEL', 'STAYCATION_ACCOMMODATION')) not valid;
 end $$;
 do $$
 begin
@@ -198,6 +198,7 @@ create table if not exists business_services (
 );
 
 alter table business_services add column if not exists pricing_type text not null default 'FIXED';
+alter table business_services add column if not exists schedule jsonb not null default '{}'::jsonb;
 alter table business_services add column if not exists pricing_unit text not null default 'FLAT';
 alter table business_services add column if not exists pricing_tiers jsonb not null default '[]'::jsonb;
 alter table business_services add column if not exists departures jsonb not null default '[]'::jsonb;
@@ -304,6 +305,29 @@ create trigger prevent_accommodation_double_booking_trigger
 before insert on bookings
 for each row execute function public.prevent_accommodation_double_booking();
 
+create or replace function public.can_accept_public_bookings(target_slug text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.businesses
+    where slug = target_slug
+      and (
+        upper(status) = 'ACTIVE'
+        or (
+          upper(status) = 'DEMO'
+          and (demo_expires_at is null or now() < demo_expires_at)
+        )
+      )
+  );
+$$;
+
+grant execute on function public.can_accept_public_bookings(text) to anon, authenticated;
+
 create or replace function public.normalize_booking_item_snapshot()
 returns trigger
 language plpgsql
@@ -318,13 +342,8 @@ declare
   extra_guest_count numeric;
   nightly_extra_fee numeric;
 begin
-  if not exists (
-    select 1
-    from businesses
-    where businesses.slug = new.business_slug
-      and upper(businesses.status) = 'ACTIVE'
-  ) then
-    raise exception 'Booking items can only be saved for active businesses.';
+  if not public.can_accept_public_bookings(new.business_slug) then
+    raise exception 'Booking items can only be saved for active businesses or active demos.';
   end if;
 
   if not exists (
@@ -767,7 +786,14 @@ as $$
     select 1
     from businesses
     where slug = target_slug
-      and upper(status) = 'ACTIVE'
+      and (
+        upper(status) = 'ACTIVE'
+        or (
+          upper(status) = 'DEMO'
+          and demo_expires_at is not null
+          and now() < demo_expires_at
+        )
+      )
   );
 $$;
 
@@ -813,6 +839,8 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  target_slug text;
 begin
   if upper(next_status) not in (
     'PENDING',
@@ -824,6 +852,24 @@ begin
     'CANCELLED'
   ) then
     raise exception 'Invalid booking status';
+  end if;
+
+  select bookings.business_slug into target_slug
+  from bookings
+  where bookings.id = booking_id;
+
+  if target_slug is null then
+    raise exception 'Booking was not found.';
+  end if;
+
+  if exists (
+    select 1
+    from businesses
+    where slug = target_slug
+      and upper(status) = 'DEMO'
+      and (demo_expires_at is null or now() >= demo_expires_at)
+  ) then
+    raise exception 'This demo has expired.';
   end if;
 
   return query
@@ -857,11 +903,145 @@ as $$
           upper(capability) in ('BOOKINGS', 'STATUS')
           or (upper(capability) in ('SERVICES', 'SCHEDULE', 'CUSTOMERS', 'BASIC_STATS')
             and businesses.business_package in ('BUSINESS', 'PRO'))
-          or (upper(capability) in ('BLOCKED_DATES', 'CUSTOMER_HISTORY', 'ENHANCED_STATS', 'RESERVATION_CALENDAR', 'PAYMENT_VERIFICATION')
+          or (upper(capability) in ('BLOCKED_DATES', 'CUSTOMER_HISTORY', 'ENHANCED_STATS', 'RESERVATION_CALENDAR', 'PAYMENT_VERIFICATION', 'MANUAL_RESERVATIONS')
             and businesses.business_package = 'PRO')
+          or (
+            upper(capability) = 'CLIENT_RECORDS'
+            and lower(coalesce(
+              businesses.feature_flags->>'clientRecords',
+              businesses.feature_flags->>'client_records',
+              businesses.feature_flags->>'client_records_enabled',
+              'false'
+            )) in ('true', '1', 'yes', 'enabled')
+          )
         )
     );
 $$;
+
+create or replace function public.create_manual_reservation(booking_payload jsonb, items_payload jsonb default '[]'::jsonb)
+returns table (
+  id text,
+  customer text,
+  contact text,
+  business text,
+  business_slug text,
+  service text,
+  booking_date text,
+  slot text,
+  note text,
+  metadata jsonb,
+  status text,
+  estimated_total numeric,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_slug text := booking_payload->>'business_slug';
+  target_id text := booking_payload->>'id';
+  item jsonb;
+begin
+  if target_slug is null or target_slug = '' then
+    raise exception 'Business is required.';
+  end if;
+
+  if not public.business_has_package_capability(target_slug, 'MANUAL_RESERVATIONS') then
+    raise exception 'Manual reservations are available for PRO businesses only.';
+  end if;
+
+  if public.business_has_package_capability(target_slug, 'CLIENT_RECORDS')
+    and coalesce(booking_payload->'metadata'->>'branch', booking_payload->'metadata'->>'assigned_branch', '') <> ''
+    and not public.can_manage_business_branch(target_slug, coalesce(booking_payload->'metadata'->>'branch', booking_payload->'metadata'->>'assigned_branch')) then
+    raise exception 'You are not authorized to create reservations for this branch.';
+  end if;
+
+  if target_id is null or target_id = '' then
+    raise exception 'Reservation ID is required.';
+  end if;
+
+  insert into public.bookings (
+    id,
+    customer,
+    contact,
+    business,
+    business_slug,
+    service,
+    booking_date,
+    slot,
+    note,
+    metadata,
+    status,
+    estimated_total
+  ) values (
+    target_id,
+    nullif(booking_payload->>'customer', ''),
+    nullif(booking_payload->>'contact', ''),
+    nullif(booking_payload->>'business', ''),
+    target_slug,
+    nullif(booking_payload->>'service', ''),
+    coalesce(booking_payload->>'booking_date', ''),
+    coalesce(booking_payload->>'slot', 'Inquiry only'),
+    booking_payload->>'note',
+    coalesce(booking_payload->'metadata', '{}'::jsonb)
+      || jsonb_build_object('source', 'manual', 'created_by', auth.uid()),
+    coalesce(nullif(upper(booking_payload->>'status'), ''), 'CONFIRMED'),
+    nullif(booking_payload->>'estimated_total', '')::numeric
+  );
+
+  if jsonb_typeof(items_payload) = 'array' then
+    for item in select * from jsonb_array_elements(items_payload)
+    loop
+      insert into public.booking_items (
+        id,
+        booking_id,
+        business_slug,
+        service_id,
+        service_name_snapshot,
+        pricing_type_snapshot,
+        unit_price_snapshot,
+        quantity,
+        selected_tier_snapshot,
+        line_total
+      ) values (
+        coalesce(item->>'id', target_id || '-item-' || floor(random() * 1000000)::text),
+        target_id,
+        target_slug,
+        nullif(item->>'service_id', ''),
+        coalesce(nullif(item->>'service_name_snapshot', ''), booking_payload->>'service', 'Service'),
+        coalesce(nullif(item->>'pricing_type_snapshot', ''), 'FIXED'),
+        nullif(item->>'unit_price_snapshot', '')::numeric,
+        coalesce(nullif(item->>'quantity', '')::numeric, 1),
+        item->'selected_tier_snapshot',
+        nullif(item->>'line_total', '')::numeric
+      );
+    end loop;
+  end if;
+
+  return query
+  select
+    bookings.id,
+    bookings.customer,
+    bookings.contact,
+    bookings.business,
+    bookings.business_slug,
+    bookings.service,
+    bookings.booking_date,
+    bookings.slot,
+    bookings.note,
+    bookings.metadata,
+    bookings.status,
+    bookings.estimated_total,
+    bookings.created_at
+  from public.bookings
+  where bookings.id = target_id
+    and bookings.business_slug = target_slug;
+end;
+$$;
+
+revoke all on function public.create_manual_reservation(jsonb, jsonb) from public;
+grant execute on function public.create_manual_reservation(jsonb, jsonb) to authenticated;
 
 do $$
 declare
@@ -1351,6 +1531,203 @@ grant execute on function public.submit_public_booking_payment(text, text, text,
 grant execute on function public.verify_booking_payment(text) to authenticated;
 grant execute on function public.reject_booking_payment(text, text) to authenticated;
 
+alter table public.business_users
+add column if not exists authorized_branches jsonb not null default '["ALL"]'::jsonb;
+
+create table if not exists public.client_records (
+  id text primary key,
+  business_slug text not null references public.businesses(slug) on delete cascade,
+  full_name text not null,
+  contact_number text not null,
+  email text,
+  assigned_branch text not null,
+  notes text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists client_records_business_slug_idx
+on public.client_records (business_slug);
+
+create index if not exists client_records_branch_idx
+on public.client_records (business_slug, assigned_branch);
+
+alter table public.client_records enable row level security;
+
+create or replace function public.can_manage_business_branch(target_slug text, target_branch text default null)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select public.is_smm_admin()
+    or exists (
+      select 1
+      from public.business_users
+      where user_id = auth.uid()
+        and business_slug = target_slug
+        and active = true
+        and (
+          target_branch is null
+          or coalesce(authorized_branches, '["ALL"]'::jsonb) ? 'ALL'
+          or coalesce(authorized_branches, '["ALL"]'::jsonb) ? target_branch
+        )
+    );
+$$;
+
+drop policy if exists "Allow entitled client record reads" on public.client_records;
+create policy "Allow entitled client record reads"
+on public.client_records for select
+to authenticated
+using (
+  public.business_has_package_capability(client_records.business_slug, 'CLIENT_RECORDS')
+  and public.can_manage_business_branch(client_records.business_slug, client_records.assigned_branch)
+);
+
+drop policy if exists "Allow entitled client record inserts" on public.client_records;
+create policy "Allow entitled client record inserts"
+on public.client_records for insert
+to authenticated
+with check (
+  public.business_has_package_capability(client_records.business_slug, 'CLIENT_RECORDS')
+  and public.can_manage_business_branch(client_records.business_slug, client_records.assigned_branch)
+);
+
+drop policy if exists "Allow entitled client record updates" on public.client_records;
+create policy "Allow entitled client record updates"
+on public.client_records for update
+to authenticated
+using (
+  public.business_has_package_capability(client_records.business_slug, 'CLIENT_RECORDS')
+  and public.can_manage_business_branch(client_records.business_slug, client_records.assigned_branch)
+)
+with check (
+  public.business_has_package_capability(client_records.business_slug, 'CLIENT_RECORDS')
+  and public.can_manage_business_branch(client_records.business_slug, client_records.assigned_branch)
+);
+
+drop policy if exists "Allow entitled client record deletes" on public.client_records;
+create policy "Allow entitled client record deletes"
+on public.client_records for delete
+to authenticated
+using (
+  public.business_has_package_capability(client_records.business_slug, 'CLIENT_RECORDS')
+  and public.can_manage_business_branch(client_records.business_slug, client_records.assigned_branch)
+);
+
+create or replace function public.upsert_client_record(
+  client_record_id text,
+  business_slug_value text,
+  full_name_value text,
+  contact_number_value text,
+  email_value text default '',
+  assigned_branch_value text default '',
+  notes_value text default ''
+)
+returns table (
+  id text,
+  business_slug text,
+  full_name text,
+  contact_number text,
+  email text,
+  assigned_branch text,
+  notes text,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.business_has_package_capability(business_slug_value, 'CLIENT_RECORDS') then
+    raise exception 'Client Records add-on is not enabled for this business.';
+  end if;
+
+  if not public.can_manage_business_branch(business_slug_value, assigned_branch_value) then
+    raise exception 'You are not authorized to manage this branch.';
+  end if;
+
+  insert into public.client_records (
+    id, business_slug, full_name, contact_number, email, assigned_branch, notes, created_by, updated_at
+  ) values (
+    client_record_id, business_slug_value, full_name_value, contact_number_value, nullif(email_value, ''), assigned_branch_value, notes_value, auth.uid(), now()
+  )
+  on conflict (id) do update set
+    full_name = excluded.full_name,
+    contact_number = excluded.contact_number,
+    email = excluded.email,
+    assigned_branch = excluded.assigned_branch,
+    notes = excluded.notes,
+    updated_at = now()
+  where client_records.business_slug = business_slug_value
+    and public.can_manage_business_branch(client_records.business_slug, excluded.assigned_branch);
+
+  return query
+  select client_records.id, client_records.business_slug, client_records.full_name, client_records.contact_number, client_records.email, client_records.assigned_branch, client_records.notes, client_records.created_at, client_records.updated_at
+  from public.client_records
+  where client_records.id = client_record_id
+    and client_records.business_slug = business_slug_value;
+end;
+$$;
+
+create or replace function public.delete_client_record(client_record_id_value text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_slug text;
+  target_branch text;
+begin
+  select business_slug, assigned_branch into target_slug, target_branch
+  from public.client_records
+  where id = client_record_id_value;
+
+  if target_slug is null then
+    raise exception 'Client record was not found.';
+  end if;
+
+  if not public.business_has_package_capability(target_slug, 'CLIENT_RECORDS')
+    or not public.can_manage_business_branch(target_slug, target_branch) then
+    raise exception 'You are not authorized to delete this client record.';
+  end if;
+
+  delete from public.client_records
+  where id = client_record_id_value
+    and business_slug = target_slug;
+end;
+$$;
+
+update public.businesses
+set feature_flags = coalesce(feature_flags, '{}'::jsonb)
+  || jsonb_build_object(
+    'clientRecords', true,
+    'client_records', true,
+    'client_records_enabled', true,
+    'branches', jsonb_build_array('Pateros', 'Parañaque', 'Taguig / Lakeshore', 'Antipolo')
+  )
+where slug = 'the-facial-unlimited-ph';
+
+update public.business_users
+set authorized_branches = '["ALL"]'::jsonb
+where business_slug = 'the-facial-unlimited-ph'
+  and active = true
+  and (
+    authorized_branches is null
+    or jsonb_array_length(authorized_branches) = 0
+  );
+
+revoke all on function public.can_manage_business_branch(text, text) from public;
+revoke all on function public.upsert_client_record(text, text, text, text, text, text, text) from public;
+revoke all on function public.delete_client_record(text) from public;
+
+grant execute on function public.can_manage_business_branch(text, text) to authenticated;
+grant execute on function public.upsert_client_record(text, text, text, text, text, text, text) to authenticated;
+grant execute on function public.delete_client_record(text) to authenticated;
+
 insert into businesses (slug, business, industry, booking_link, cover_url)
 values
   ('glowbeauty', 'Glow Beauty Studio', 'Salon & Beauty', 'glowbeauty.slotwise.app', ''),
@@ -1361,3 +1738,103 @@ on conflict (slug) do nothing;
 insert into storage.buckets (id, name, public)
 values ('business-media', 'business-media', true)
 on conflict (id) do update set public = excluded.public;
+
+create table if not exists public.slotwise_updates (
+  id text primary key,
+  title text not null,
+  summary text not null,
+  content text,
+  update_type text not null default 'UPDATE',
+  applicable_packages text[] not null default array['ALL']::text[],
+  feature_badge text,
+  is_published boolean not null default false,
+  published_at timestamptz,
+  created_at timestamptz not null default now(),
+  constraint slotwise_updates_type_allowed
+    check (update_type in ('UPDATE', 'NEW_FEATURE', 'IMPROVEMENT', 'FIX', 'IMPORTANT')),
+  constraint slotwise_updates_packages_allowed
+    check (
+      applicable_packages <@ array['ALL', 'STARTER', 'BUSINESS', 'PRO']::text[]
+      and array_length(applicable_packages, 1) is not null
+    )
+);
+
+create index if not exists slotwise_updates_published_idx
+  on public.slotwise_updates (is_published, published_at desc);
+
+alter table public.slotwise_updates enable row level security;
+
+drop policy if exists "Authenticated users can read published Slotwise updates" on public.slotwise_updates;
+create policy "Authenticated users can read published Slotwise updates"
+  on public.slotwise_updates
+  for select
+  to authenticated
+  using (is_published = true);
+
+create table if not exists public.slotwise_update_reads (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  business_slug text not null references public.businesses(slug) on delete cascade,
+  last_viewed_at timestamptz not null default now(),
+  primary key (user_id, business_slug)
+);
+
+alter table public.slotwise_update_reads enable row level security;
+
+drop policy if exists "Business users can read their Slotwise update state" on public.slotwise_update_reads;
+create policy "Business users can read their Slotwise update state"
+  on public.slotwise_update_reads
+  for select
+  to authenticated
+  using (
+    user_id = auth.uid()
+    and public.can_manage_business(business_slug)
+  );
+
+drop policy if exists "Business users can upsert their Slotwise update state" on public.slotwise_update_reads;
+create policy "Business users can upsert their Slotwise update state"
+  on public.slotwise_update_reads
+  for insert
+  to authenticated
+  with check (
+    user_id = auth.uid()
+    and public.can_manage_business(business_slug)
+  );
+
+drop policy if exists "Business users can update their Slotwise update state" on public.slotwise_update_reads;
+create policy "Business users can update their Slotwise update state"
+  on public.slotwise_update_reads
+  for update
+  to authenticated
+  using (
+    user_id = auth.uid()
+    and public.can_manage_business(business_slug)
+  )
+  with check (
+    user_id = auth.uid()
+    and public.can_manage_business(business_slug)
+  );
+
+create or replace function public.mark_slotwise_updates_viewed(business_slug_value text)
+returns public.slotwise_update_reads
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  updated_row public.slotwise_update_reads;
+begin
+  if not public.can_manage_business(business_slug_value) then
+    raise exception 'Not allowed to update this business update state.';
+  end if;
+
+  insert into public.slotwise_update_reads (user_id, business_slug, last_viewed_at)
+  values (auth.uid(), business_slug_value, now())
+  on conflict (user_id, business_slug) do update
+    set last_viewed_at = excluded.last_viewed_at
+  returning * into updated_row;
+
+  return updated_row;
+end;
+$$;
+
+grant execute on function public.mark_slotwise_updates_viewed(text) to authenticated;

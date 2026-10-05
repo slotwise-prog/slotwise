@@ -79,7 +79,7 @@ using (
 drop policy if exists "Allow public booking inserts" on bookings;
 create policy "Allow public booking inserts"
 on bookings for insert
-with check (public.is_active_business(bookings.business_slug));
+with check (public.can_accept_public_bookings(bookings.business_slug));
 
 drop policy if exists "Allow admin booking reads" on bookings;
 drop policy if exists "Allow authenticated booking reads" on bookings;
@@ -91,7 +91,7 @@ using (public.can_manage_business(bookings.business_slug));
 drop policy if exists "Allow public booking item inserts" on booking_items;
 create policy "Allow public booking item inserts"
 on booking_items for insert
-with check (public.is_active_business(booking_items.business_slug));
+with check (public.can_accept_public_bookings(booking_items.business_slug));
 
 drop policy if exists "Allow authenticated booking item reads" on booking_items;
 create policy "Allow authenticated booking item reads"
@@ -146,6 +146,25 @@ drop policy if exists "Allow admin service inserts" on business_services;
 create policy "Allow admin service inserts"
 on business_services for insert
 to authenticated
+with check (
+  exists (
+    select 1 from admin_users
+    where admin_users.user_id = auth.uid()
+      and admin_users.active = true
+  )
+);
+
+drop policy if exists "Allow admin service updates" on business_services;
+create policy "Allow admin service updates"
+on business_services for update
+to authenticated
+using (
+  exists (
+    select 1 from admin_users
+    where admin_users.user_id = auth.uid()
+      and admin_users.active = true
+  )
+)
 with check (
   exists (
     select 1 from admin_users

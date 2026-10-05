@@ -116,7 +116,9 @@ const slots = ["9:30 AM", "10:15 AM", "1:00 PM", "3:30 PM"];
 
 const defaultFeatureFlags = {
   bookingEnabled: true,
-  inquiryEnabled: true,
+  inquiryEnabled: false,
+  acceptBookings: true,
+  acceptInquiries: false,
   showPrices: true,
   requireDate: true,
   requireTime: true,
@@ -1320,6 +1322,9 @@ const bookingStatusOptions = [
 
 const inquiryStatusOptions = [
   { value: "NEW", label: "New" },
+  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "REPLIED", label: "Replied" },
+  { value: "CLOSED", label: "Closed" },
   { value: "CONTACTED", label: "Contacted" },
   { value: "PENDING", label: "Pending" },
   { value: "CONFIRMED", label: "Confirmed" },
@@ -1659,6 +1664,7 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     messengerLink: row.messenger_link || (row.slug === "the-facial-unlimited-ph" ? "https://www.facebook.com/profile.php?id=61592702334620" : ""),
     mobileNumbers: row.feature_flags?.mobileNumbers || "",
     primaryEmail: row.feature_flags?.primaryEmail || "",
+    notificationEmail: row.notification_email || "",
     additionalEmails: row.feature_flags?.additionalEmails || "",
     website: row.feature_flags?.website || "",
     address: row.address || "",
@@ -2436,6 +2442,12 @@ function getPublicSlugFromLocation() {
   return path.split("/")[0];
 }
 
+function getPublicRouteFromLocation() {
+  const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
+  const parts = path.split("/").filter(Boolean);
+  return { slug: getPublicSlugFromLocation(), mode: parts[1] === "inquiry" ? "inquiry" : parts[1] === "book" ? "book" : "gateway" };
+}
+
 const templates = [
   { ...koolmateBusiness, icon: <Wrench /> },
   {
@@ -3002,6 +3014,7 @@ function App() {
   const [selectedOffer, setSelectedOffer] = useState("3-day trial");
   const [selectedBusinessSlug, setSelectedBusinessSlug] = useState("glowbeauty");
   const [publicBusinessSlug, setPublicBusinessSlug] = useState("");
+  const [publicBusinessMode, setPublicBusinessMode] = useState("gateway");
   const [leadSubmitted, setLeadSubmitted] = useState(false);
   const [leadMessage, setLeadMessage] = useState("");
   const [leads, setLeads] = useState(() => JSON.parse(localStorage.getItem("slotwiseLeads") || "[]"));
@@ -3044,8 +3057,9 @@ function App() {
 
   const loadBusinessConfigs = async (scopeSlug = "", accessToken = "") => {
     if (!supabaseUrl || !supabaseAnonKey) return [];
+    const publicBusinessFields = "slug,industry,business_type,business,booking_link,logo_url,primary_color,accent_color,page_background_type,phone,messenger_link,address,description,booking_mode,booking_template,demo_started_at,demo_expires_at,status,business_package,feature_flags,cover_url,page_background_color,page_background_color_2";
     const businessQuery = scopeSlug
-      ? `?select=*&slug=eq.${encodeURIComponent(scopeSlug)}`
+      ? `?select=${!accessToken ? publicBusinessFields : "*"}&slug=eq.${encodeURIComponent(scopeSlug)}`
       : "?select=*&order=created_at.desc";
     const serviceQuery = scopeSlug
       ? `?select=*&business_slug=eq.${encodeURIComponent(scopeSlug)}&order=display_order.asc`
@@ -3158,9 +3172,11 @@ function App() {
     if (window.location.hash === "#setup") {
       setPage("setup");
     }
-    const routeSlug = getPublicSlugFromLocation();
+    const publicRoute = getPublicRouteFromLocation();
+    const routeSlug = publicRoute.slug;
     if (routeSlug) {
       setPublicBusinessSlug(routeSlug);
+      setPublicBusinessMode(publicRoute.mode);
       setPage("publicBusiness");
     }
 
@@ -3527,6 +3543,11 @@ function App() {
     return supabaseRpcRequest("submit_public_booking_payment", payment);
   };
 
+  const submitPublicInquiry = async (inquiry) => {
+    const result = await supabaseRpcRequest("submit_public_inquiry", inquiry);
+    return Array.isArray(result) ? result[0] : result;
+  };
+
   const saveClientPaymentSettings = async (settingsData, accessToken = "") => {
     return supabaseRpcRequest("upsert_client_payment_settings", settingsData, accessToken);
   };
@@ -3628,7 +3649,20 @@ function App() {
       return <DemoExpiredPage business={publicBusiness} onBack={() => setPage("home")} />;
     }
     return publicBusiness ? (
-      <BookingPrototype business={publicBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} smmOffers={smmOffers} />
+      <PublicBusinessEntry
+        business={publicBusiness}
+        mode={publicBusinessMode}
+        onNavigate={(nextMode) => {
+          const nextPath = nextMode === "gateway" ? `/${publicBusiness.slug}` : `/${publicBusiness.slug}/${nextMode}`;
+          window.history.pushState(null, "", nextPath);
+          setPublicBusinessMode(nextMode);
+        }}
+        onBack={() => setPage("home")}
+        onSaveBooking={saveBooking}
+        onSubmitPayment={submitPublicPayment}
+        onSubmitInquiry={submitPublicInquiry}
+        smmOffers={smmOffers}
+      />
     ) : (
       <BusinessNotFoundPage slug={publicBusinessSlug} onBack={() => setPage("home")} onSetup={() => setPage("setup")} />
     );
@@ -4172,6 +4206,76 @@ function TravelBusinessInfo({ business }) {
   );
 }
 
+function getPublicEntryCapabilities(business) {
+  const flags = business?.featureFlags || {};
+  const bookingEnabled = flags.acceptBookings === false ? false : (flags.acceptBookings === true || (flags.bookingEnabled !== false && business?.bookingMode !== "inquiry"));
+  const inquiryEnabled = flags.acceptInquiries !== undefined ? flags.acceptInquiries === true : business?.bookingMode === "inquiry";
+  return { bookingEnabled, inquiryEnabled };
+}
+
+function PublicIntentGateway({ business, onNavigate }) {
+  const capabilities = getPublicEntryCapabilities(business);
+  return (
+    <main className="publicIntentGateway" style={{ "--business-primary": business.primaryColor, "--business-accent": business.accentColor }}>
+      <section className="publicIntentShell">
+        <div className="publicIntentBrand">
+          {business.logo ? <img src={business.logo} alt={`${business.business} logo`} /> : <span>{String(business.business || "S").charAt(0)}</span>}
+          <p className="eyebrow">{business.businessType || "Customer portal"}</p>
+          <h1>{business.business}</h1>
+          <p>{business.description || "How can we help you today?"}</p>
+        </div>
+        <div className="publicIntentIntro"><h2>How can we help you today?</h2><p>Choose what you would like to do.</p></div>
+        <div className="publicIntentGrid">
+          {capabilities.bookingEnabled && <button type="button" className="publicIntentCard primary" onClick={() => onNavigate("book")}><CalendarCheck size={24} /><span><strong>I want to book now</strong><small>Choose a service, preferred date and time, then submit your booking request.</small></span><ArrowRight size={20} /></button>}
+          {capabilities.inquiryEnabled && <button type="button" className="publicIntentCard secondary" onClick={() => onNavigate("inquiry")}><MessageSquare size={24} /><span><strong>I want to inquire for now</strong><small>Have a question or need more information first? Send the business an inquiry.</small></span><ArrowRight size={20} /></button>}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function PublicInquiryPrototype({ business, onNavigate, onSubmitInquiry }) {
+  const [form, setForm] = useState({ service_interest: "General Inquiry", customer_name: "", phone: "", email: "", message: "" });
+  const [status, setStatus] = useState({ state: "idle", message: "", reference: "" });
+  const capabilities = getPublicEntryCapabilities(business);
+  const services = (business.serviceDetails || [])
+    .filter((item) => String(item.status || "Active").toLowerCase() !== "inactive")
+    .map((item) => ({ id: item.id || item.name, name: item.name }))
+    .filter((item) => item.name);
+  const submit = async (event) => {
+    event.preventDefault();
+    const email = form.email.trim();
+    if (!form.customer_name.trim() || !form.phone.trim() || !email || !form.message.trim()) {
+      setStatus({ state: "error", message: "Please enter your name, contact number, email address, and inquiry details.", reference: "" });
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setStatus({ state: "error", message: "Please enter a valid email address.", reference: "" });
+      return;
+    }
+    setStatus({ state: "saving", message: "Sending your inquiry...", reference: "" });
+    try {
+      const saved = await onSubmitInquiry({ business_slug_value: business.slug, customer_name_value: form.customer_name.trim(), phone_value: form.phone.trim(), email_value: email, service_interest_value: form.service_interest || "General Inquiry", message_value: form.message.trim() });
+      setStatus({ state: "success", message: "Your inquiry has been sent. The business will contact you using the information you provided.", reference: saved?.reference || "" });
+    } catch (error) {
+      setStatus({ state: "error", message: error.message || "We could not send your inquiry. Please try again.", reference: "" });
+    }
+  };
+  if (!capabilities.inquiryEnabled) return <BusinessUnavailablePage business={business} onBack={() => onNavigate("gateway")} />;
+  if (status.state === "success") return <main className="publicInquiryPage"><section className="publicInquirySuccess"><p className="eyebrow">Inquiry received</p><h1>Thank you, {business.business} will be in touch.</h1><p>{status.message}</p>{status.reference && <p><strong>Inquiry Reference:</strong> {status.reference}</p>}<button type="button" onClick={() => onNavigate("gateway")}>Back to main page</button><button type="button" onClick={() => setStatus({ state: "idle", message: "", reference: "" })}>Send another inquiry</button></section></main>;
+  return <main className="publicInquiryPage" style={{ "--business-primary": business.primaryColor, "--business-accent": business.accentColor }}><section className="publicInquiryShell"><button type="button" className="publicInquiryBack" onClick={() => onNavigate("gateway")}><ArrowLeft size={16} /> Back</button><div className="publicInquiryBrand">{business.logo && <img src={business.logo} alt={`${business.business} logo`} />}<p className="eyebrow">{business.business}</p><h1>Send an inquiry</h1><p>Have a question or need more information? Send us your details and we'll get back to you.</p></div><form className="publicInquiryForm" onSubmit={submit}><label>What are you inquiring about?{services.length ? <select value={form.service_interest} onChange={(event) => setForm((current) => ({ ...current, service_interest: event.target.value }))}><option value="General Inquiry">General Inquiry</option>{services.map((service) => <option value={service.name} key={service.id}>{service.name}</option>)}</select> : <input value="General Inquiry" readOnly />}</label><label>Full name *<input value={form.customer_name} onChange={(event) => setForm((current) => ({ ...current, customer_name: event.target.value }))} required /></label><label>Contact number *<input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} required /></label><label>Email address *<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required autoComplete="email" /><small>We'll use this email to send updates about your inquiry.</small></label><label>Message / details *<textarea rows="5" value={form.message} onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))} required /></label><button type="submit" disabled={status.state === "saving"}>{status.state === "saving" ? "Sending..." : "SUBMIT INQUIRY"}</button>{status.state === "error" && <p role="alert">{status.message}</p>}</form></section></main>;
+}
+
+function PublicBusinessEntry({ business, mode, onNavigate, onBack, onSaveBooking, onSubmitPayment, onSubmitInquiry, smmOffers = null }) {
+  const capabilities = getPublicEntryCapabilities(business);
+  if (mode === "inquiry") return <PublicInquiryPrototype business={business} onNavigate={onNavigate} onSubmitInquiry={onSubmitInquiry} />;
+  if (mode === "book") return capabilities.bookingEnabled ? <BookingPrototype business={business} onBack={onBack} onSaveBooking={onSaveBooking} onSubmitPayment={onSubmitPayment} smmOffers={smmOffers} /> : <BusinessUnavailablePage business={business} onBack={() => onNavigate("gateway")} />;
+  if (capabilities.bookingEnabled && capabilities.inquiryEnabled) return <PublicIntentGateway business={business} onNavigate={onNavigate} />;
+  if (capabilities.bookingEnabled) return <BookingPrototype business={business} onBack={onBack} onSaveBooking={onSaveBooking} onSubmitPayment={onSubmitPayment} smmOffers={smmOffers} />;
+  if (capabilities.inquiryEnabled) return <PublicInquiryPrototype business={business} onNavigate={onNavigate} onSubmitInquiry={onSubmitInquiry} />;
+  return <BusinessUnavailablePage business={business} onBack={onBack} />;
+}
+
 function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, onSubmitPayment, smmOffers = null }) {
   if (normalizeBookingTemplate(incomingBusiness?.bookingTemplate) === "AIRCON_SERVICES") {
     return <AirconBooking business={normalizeBusinessConfig(incomingBusiness)} onBack={onBack} onSaveBooking={onSaveBooking} helpers={{ calculateBookingTotal, formatPeso, formatDashboardPeso, getTodayDateValue, formatBookingDate, timeInputToDisplay, displayTimeToInput, isPastPreferredSchedule, isBusinessOpen24Hours, getPackageCapabilities, isDemoExpired }} />;
@@ -4586,7 +4690,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
     const pickupLocation = String(data.get("address") || "").trim();
     const customerEmail = String(data.get("email") || "").trim();
     const customerAddress = String(data.get("customerAddress") || "").trim();
-    if ((!isXtremeDancers || customerEmail) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+    if (!customerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
       setBookingError("Please enter a valid email address.");
       setSubmitting(false);
       return;
@@ -5455,7 +5559,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
             <div className="bookingStepTitle"><span>{detailsStepNumber}</span><strong>{detailsStepLabel}</strong></div>
             <label className="premiumInput"><User size={20} /><span>{isAccommodation ? "Full Name" : "Your name"}<input name="customer" required placeholder="Maria Santos" /></span></label>
             <label className="premiumInput"><Phone size={20} /><span>{isAccommodation ? "Mobile Number" : "Phone or contact number"}<input name="contact" required placeholder="0912 345 6789" /></span></label>
-            <label className="premiumInput"><Mail size={20} /><span>Email Address {isXtremeDancers && <small>(Optional)</small>}<input name="email" type="email" value={travelDetails.customerEmail} onChange={(event) => setTravelDetails((current) => ({ ...current, customerEmail: event.target.value }))} required={!isXtremeDancers} autoComplete="email" placeholder="name@example.com" /><small>Add your email to receive booking and payment status notifications when enabled.</small></span></label>
+                <label className="premiumInput"><Mail size={20} /><span>Email Address *<input name="email" type="email" value={travelDetails.customerEmail} onChange={(event) => setTravelDetails((current) => ({ ...current, customerEmail: event.target.value }))} required autoComplete="email" placeholder="name@example.com" /><small>We'll use this email to send updates about your booking.</small></span></label>
             {!isXtremeDancers && <label className="premiumInput"><House size={20} /><span>Address<textarea name="customerAddress" value={travelDetails.customerAddress} onChange={(event) => setTravelDetails((current) => ({ ...current, customerAddress: event.target.value }))} required minLength="5" autoComplete="street-address" rows="2" placeholder="House/Unit No., Street, Barangay, City/Municipality, Province" /></span></label>}
             {isAccommodation ? (
               <div className="accommodationGuestGrid">
@@ -8331,7 +8435,7 @@ function ClientDashboard({
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [clientServiceEntries, setClientServiceEntries] = useState(emptyStructuredServices());
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
-  const [profileForm, setProfileForm] = useState({ businessName: "", description: "", phone: "", mobileNumbers: "", primaryEmail: "", additionalEmails: "", website: "", messengerLink: "", logo: "", primaryColor: "#b68a2c", accentColor: "#f6e8ba" });
+  const [profileForm, setProfileForm] = useState({ businessName: "", description: "", phone: "", mobileNumbers: "", primaryEmail: "", notificationEmail: "", additionalEmails: "", website: "", messengerLink: "", logo: "", primaryColor: "#b68a2c", accentColor: "#f6e8ba" });
   const [blockedDateForm, setBlockedDateForm] = useState({ blockedDate: "", reason: "" });
   const [paymentMethodForm, setPaymentMethodForm] = useState({ method_type: "GCASH", method_name: "GCash", account_name: "", account_number: "", instructions: "", active: true });
   const [serviceImageUploading, setServiceImageUploading] = useState(false);
@@ -8480,6 +8584,7 @@ function ClientDashboard({
       phone: normalizedClientBusiness.phone || "",
       mobileNumbers: normalizedClientBusiness.mobileNumbers || "",
       primaryEmail: normalizedClientBusiness.primaryEmail || "",
+      notificationEmail: normalizedClientBusiness.notificationEmail || "",
       additionalEmails: normalizedClientBusiness.additionalEmails || "",
       website: normalizedClientBusiness.website || "",
       messengerLink: normalizedClientBusiness.messengerLink || "",
@@ -8967,6 +9072,11 @@ function ClientDashboard({
 
   const submitBusinessProfile = async (event) => {
     event.preventDefault();
+    const notificationEmail = profileForm.notificationEmail.trim();
+    if (notificationEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notificationEmail)) {
+      setStatusMessage("Enter a valid Automatic Notifications email address.");
+      return;
+    }
     setStatusMessage("Saving business details...");
     try {
       await onSaveBusinessProfile({
@@ -8976,6 +9086,7 @@ function ClientDashboard({
         phone_value: profileForm.phone,
         mobile_numbers_value: profileForm.mobileNumbers,
         primary_email_value: profileForm.primaryEmail,
+        notification_email_value: notificationEmail,
         additional_emails_value: profileForm.additionalEmails,
         website_value: profileForm.website,
         messenger_link_value: profileForm.messengerLink,
@@ -10343,6 +10454,10 @@ function ClientDashboard({
                   const updateDate = update.published_at || update.created_at;
                   const updatePackages = normalizeUpdatePackages(update.applicable_packages || update.target_packages);
                   const isUnread = new Date(updateDate || 0).getTime() > lastUpdatesViewedAt;
+                  const setupNoticeMarker = "IMPORTANT SETUP REQUIRED";
+                  const setupNoticeIndex = String(update.content || "").indexOf(setupNoticeMarker);
+                  const updateContent = setupNoticeIndex >= 0 ? String(update.content || "").slice(0, setupNoticeIndex).trim() : String(update.content || "");
+                  const setupNotice = setupNoticeIndex >= 0 ? String(update.content || "").slice(setupNoticeIndex + setupNoticeMarker.length).trim() : "";
                   return (
                     <article className={`slotwiseUpdateCard ${isUnread ? "unread" : ""}`} key={update.id}>
                       <div className="slotwiseUpdateMeta">
@@ -10353,7 +10468,8 @@ function ClientDashboard({
                       </div>
                       <h3>{update.title}</h3>
                       <p>{update.summary}</p>
-                      {update.content && <small className="slotwiseUpdateContent">{update.content}</small>}
+                      {updateContent && <small className="slotwiseUpdateContent">{updateContent}</small>}
+                      {setupNotice && <div className="slotwiseUpdateCallout"><Info size={16} aria-hidden="true" /><div><strong>{setupNoticeMarker}</strong><span>{setupNotice}</span></div></div>}
                       <div className="slotwiseUpdatePackages">
                         {updatePackages.map((item) => <span key={item}>{getUpdatePackageBadgeLabel(item, capabilities.packageKey)}</span>)}
                       </div>
@@ -10422,6 +10538,7 @@ function ClientDashboard({
                 <input value={profileForm.phone} onChange={(event) => setProfileForm((current) => ({ ...current, phone: event.target.value }))} placeholder="Office phone" />
                 <input value={profileForm.mobileNumbers} onChange={(event) => setProfileForm((current) => ({ ...current, mobileNumbers: event.target.value }))} placeholder="Mobile numbers" />
                 <input type="email" value={profileForm.primaryEmail} onChange={(event) => setProfileForm((current) => ({ ...current, primaryEmail: event.target.value }))} placeholder="Primary business email" />
+                <label>Automatic Notifications<input type="email" value={profileForm.notificationEmail} onChange={(event) => setProfileForm((current) => ({ ...current, notificationEmail: event.target.value }))} placeholder="Notification email (optional)" /><small>Automatic booking, inquiry, and payment notifications will be sent to this email. This does not change the email shown to customers.</small>{!profileForm.notificationEmail.trim() && profileForm.primaryEmail.trim() && <small>Currently using: {profileForm.primaryEmail}</small>}</label>
                 <input value={profileForm.additionalEmails} onChange={(event) => setProfileForm((current) => ({ ...current, additionalEmails: event.target.value }))} placeholder="Additional emails" />
                 <input type="url" value={profileForm.website} onChange={(event) => setProfileForm((current) => ({ ...current, website: event.target.value }))} placeholder="Official website" />
                 <input value={profileForm.messengerLink} onChange={(event) => setProfileForm((current) => ({ ...current, messengerLink: event.target.value }))} placeholder="Messenger link" />
@@ -10778,6 +10895,8 @@ function InquiryFormModal({ form, setForm, services = [], onSubmit, onClose }) {
 
 function InquiryDetailsModal({ inquiry, bookings = [], onEdit, onClose, onStatusChange, onConvert, canDownloadPdf = false, onDownloadPdf, pdfMessage = "" }) {
   const convertedBooking = bookings.find((booking) => booking.id === inquiry.booking_id);
+  const hasEventDetails = [inquiry.event_date, inquiry.event_time, inquiry.event_location, inquiry.event_type].some((value) => String(value || "").trim());
+  const inquiryAbout = getInquiryServiceSummary(inquiry) || "General Inquiry";
   return (
     <div className="clientBookingDetailsBackdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="clientBookingDetails inquiryDetailsModal" role="dialog" aria-modal="true" aria-label="Inquiry details">
@@ -10786,44 +10905,40 @@ function InquiryDetailsModal({ inquiry, bookings = [], onEdit, onClose, onStatus
           <h2>{inquiry.customer_name}</h2>
         </div>
         <div className="clientDetailsGroup">
+          <p className="eyebrow">Inquiry Reference</p>
+          <p><strong>{inquiry.reference || inquiry.id}</strong></p>
+        </div>
+        <div className="clientDetailsGroup">
           <p className="eyebrow">Customer Information</p>
           <p><strong>Full Name:</strong> {inquiry.customer_name}</p>
           <p><strong>Phone:</strong> {inquiry.phone}</p>
           {inquiry.email && <p><strong>Email:</strong> {inquiry.email}</p>}
         </div>
         <div className="clientDetailsGroup">
+          <p className="eyebrow">Inquiry About</p>
+          <p><strong>{inquiryAbout}</strong></p>
+        </div>
+        {hasEventDetails && <div className="clientDetailsGroup">
           <p className="eyebrow">Event Details</p>
-          <p><strong>Event Date:</strong> {inquiry.event_date || "Not provided"}</p>
-          <p><strong>Event Time:</strong> {inquiry.event_time || "Not provided"}</p>
-          <p><strong>Event Location:</strong> {inquiry.event_location || "Not provided"}</p>
-          <p><strong>Event Type:</strong> {inquiry.event_type || "Not provided"}</p>
-        </div>
-        <div className="bookingItemsPanel">
-          <strong>Interested Products / Services</strong>
-          {(inquiry.inquiry_items || []).length ? inquiry.inquiry_items.map((item) => (
-            <p key={item.id || item.item_name}><span>{item.item_name}</span><em>Qty {item.quantity || 1}</em></p>
-          )) : <p><span>{inquiry.service_interest || "No selected services"}</span></p>}
-        </div>
-        <p><strong>Message / Special Requests:</strong> {inquiry.message || "No message"}</p>
-        <p><strong>Internal Notes:</strong> {inquiry.internal_notes || "No internal notes"}</p>
-        <p><strong>Source:</strong> {inquiry.source || "Manual"}</p>
-        <p><strong>Created:</strong> {inquiry.created_at ? formatFriendlyDateTime(inquiry.created_at) : "Not provided"}</p>
-        <p><strong>Updated:</strong> {inquiry.updated_at ? formatFriendlyDateTime(inquiry.updated_at) : "Not provided"}</p>
+          {inquiry.event_date && <p><strong>Event Date:</strong> {inquiry.event_date}</p>}
+          {inquiry.event_time && <p><strong>Event Time:</strong> {inquiry.event_time}</p>}
+          {inquiry.event_location && <p><strong>Event Location:</strong> {inquiry.event_location}</p>}
+          {inquiry.event_type && <p><strong>Event Type:</strong> {inquiry.event_type}</p>}
+        </div>}
+        {(inquiry.inquiry_items || []).length > 0 && <div className="bookingItemsPanel"><strong>Interested Products / Services</strong>{inquiry.inquiry_items.map((item) => <p key={item.id || item.item_name}><span>{item.item_name}</span><em>Qty {item.quantity || 1}</em></p>)}</div>}
+        <div className="clientDetailsGroup"><p className="eyebrow">Message / Details</p><p>{inquiry.message || "No message"}</p></div>
+        {inquiry.internal_notes && <p><strong>Internal Notes:</strong> {inquiry.internal_notes}</p>}
+        <div className="clientDetailsGroup"><p className="eyebrow">Inquiry Information</p><p><strong>Source:</strong> {inquiry.source || "Manual"}</p><p><strong>Date Received:</strong> {inquiry.created_at ? formatFriendlyDateTime(inquiry.created_at) : "Not provided"}</p><p><strong>Last Updated:</strong> {inquiry.updated_at ? formatFriendlyDateTime(inquiry.updated_at) : "Not provided"}</p></div>
         <label>Inquiry Status
           <select value={normalizeInquiryStatusValue(inquiry.status)} onChange={(event) => onStatusChange(inquiry, event.target.value)}>
             {inquiryStatusOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         </label>
-        <div className="inquiryConversionPanel">
-          <p className="eyebrow">Booking Status</p>
-          {inquiry.booking_id ? (
-            <p><strong>Converted to Booking:</strong> {convertedBooking?.id || inquiry.booking_id}</p>
-          ) : (
-            <p><strong>Not yet converted.</strong> Confirm availability before creating the booking.</p>
-          )}
-        </div>
+        {inquiry.booking_id && <div className="inquiryConversionPanel"><p className="eyebrow">Converted to Booking</p><p><strong>Booking Reference:</strong> {convertedBooking?.id || inquiry.booking_id}</p></div>}
         <div className="clientBookingActions">
-          {canDownloadPdf && <button type="button" onClick={() => onDownloadPdf?.(inquiry, convertedBooking)}><FileDown size={16} /> Download PDF</button>}
+          {canDownloadPdf && convertedBooking && <button type="button" onClick={() => onDownloadPdf?.(inquiry, convertedBooking)}><FileDown size={16} /> Download PDF</button>}
+          {inquiry.email && <a className="clientSecondaryButton" href={`mailto:${inquiry.email}`}>Email Customer</a>}
+          <button type="button" onClick={() => navigator.clipboard?.writeText([inquiry.customer_name, inquiry.phone, inquiry.email].filter(Boolean).join(" • "))}>Copy Contact Details</button>
           <button type="button" onClick={() => onEdit(inquiry)}>Edit Inquiry</button>
           <button type="button" disabled={Boolean(inquiry.booking_id)} onClick={() => onConvert(inquiry)}>{inquiry.booking_id ? "Already Converted" : "Convert to Booking"}</button>
           {convertedBooking && <button type="button" onClick={() => onClose()}>View in Bookings</button>}
