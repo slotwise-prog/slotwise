@@ -13,6 +13,7 @@ const subjects: Record<string, string> = {
   INQUIRY_RECEIVED_CUSTOMER: "We received your inquiry",
   PAYMENT_SUBMITTED_OWNER: "Payment Submitted for Verification",
   PAYMENT_VERIFIED_CUSTOMER: "Payment Verified",
+  THRYVELAB_SESSION_DETAILS_CUSTOMER: "ThryveLab — Your Online Session Details",
   PAYMENT_REJECTED_CUSTOMER: "Payment Verification Update",
   BOOKING_STATUS_CHANGED_CUSTOMER: "Booking Status Update",
 };
@@ -33,10 +34,16 @@ function renderEmail(eventType: string, payload: Record<string, unknown>) {
   else if (eventType === "INQUIRY_RECEIVED_CUSTOMER") { heading = "INQUIRY RECEIVED"; intro = `Hi ${esc(payload.customer_name)}, your inquiry has been sent successfully to ${business}. The business will contact you using the information you provided.`; content = `<table>${rows(payload, [["Inquiry Reference", "inquiry_reference"], ["Inquiry About", "inquiry_about"]])}</table>`; }
   else if (eventType === "PAYMENT_SUBMITTED_OWNER") { heading = "PAYMENT SUBMITTED"; intro = "Payment details were submitted and are pending manual verification. Open your Slotwise Client Dashboard to review the payment details."; content = `<table>${rows(payload, [["Booking Reference", "booking_reference"], ["Customer", "customer_name"], ["Payment Method", "payment_method"], ["Amount Sent", "amount_submitted"], ["Reference", "reference_number"], ["Submitted At", "submitted_at"]])}</table>`; }
   else if (eventType === "PAYMENT_VERIFIED_CUSTOMER") { heading = "PAYMENT VERIFIED"; intro = `Your submitted payment has been verified by ${business}.`; content = `<table>${rows(payload, [["Booking Reference", "booking_reference"], ["Payment Method", "payment_method"], ["Verified Amount", "amount_submitted"]])}</table>`; }
+  else if (eventType === "THRYVELAB_SESSION_DETAILS_CUSTOMER") {
+    heading = "YOUR ONLINE SESSION DETAILS";
+    intro = `Hi ${esc(payload.customer_name)}, your payment has been verified. Here are your confirmed ThryveLab session details.`;
+    content = `<div style="margin:20px 0;padding:18px;border:1px solid #cfe8df;border-radius:12px;background:#f3fbf8"><table style="width:100%;border-collapse:collapse">${rows(payload, [["Package", "service"], ["Appointment Date", "booking_date"], ["Appointment Time", "booking_time"], ["Time Zone", "time_zone"]])}</table><a href="${esc(payload.meeting_link)}" style="display:block;margin-top:18px;padding:14px 18px;border-radius:10px;background:#0f766e;color:#fff;text-align:center;text-decoration:none;font-weight:700">Join your online session</a></div><p style="line-height:1.55">Please join five minutes before your scheduled time using a stable internet connection and a device with a working camera. If you need help, contact ThryveLab at <a href="mailto:${esc(payload.contact_email)}" style="color:#0f766e">${esc(payload.contact_email)}</a> or <a href="tel:${esc(payload.contact_phone)}" style="color:#0f766e">${esc(payload.contact_phone)}</a>.</p>`;
+  }
   else if (eventType === "PAYMENT_REJECTED_CUSTOMER") { heading = "PAYMENT COULD NOT BE VERIFIED"; intro = `${business} could not verify the submitted payment details. Please contact the business or submit the correct payment information as instructed.`; content = `<table>${rows(payload, [["Booking Reference", "booking_reference"], ["Payment Method", "payment_method"]])}</table>`; }
   else { heading = "BOOKING STATUS UPDATE"; intro = `Your booking status with ${business} is now ${esc(payload.status)}.`; content = `<table>${rows(payload, [["Booking Reference", "booking_reference"], ["Service", "service"], ["Date", "booking_date"], ["Time", "booking_time"], ["Status", "status"]])}</table>`; }
   const html = `<!doctype html><html><body style="margin:0;background:#f5f7f4;font-family:Arial,sans-serif;color:#182019"><div style="max-width:620px;margin:24px auto;background:#fff;border:1px solid #e0e6df;border-radius:12px;overflow:hidden"><div style="background:#101510;color:#fff;padding:22px 26px;font-weight:800;letter-spacing:.12em">SLOTWISE</div><div style="padding:28px 26px"><p style="color:#5a8b19;font-size:12px;font-weight:700;letter-spacing:.1em">${business}</p><h1 style="font-size:24px;margin:8px 0 16px">${heading}</h1><p style="line-height:1.55">${intro}</p>${content}<p style="margin-top:24px;color:#68716a;font-size:13px">Powered by Slotwise / SMM Solutions</p></div></div></body></html>`;
-  return { subject: `${title} — ${business}`, html };
+  const subject = eventType === "THRYVELAB_SESSION_DETAILS_CUSTOMER" ? title : `${title} — ${business}`;
+  return { subject, html };
 }
 
 Deno.serve(async (request) => {

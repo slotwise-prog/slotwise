@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+
 :root {
   --font-display: "Manrope", "DM Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: "DM Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -7,6 +9,540 @@
   background: #f7f8ff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+.marketingSite {
+  --m-indigo: #315cf5;
+  --m-navy: #152342;
+  --m-ice: #eaf1ff;
+  --m-slate: #64748b;
+  --m-teal: #0dad82;
+  --m-border: #dfe7f5;
+  --m-shadow: 0 18px 50px rgba(21, 35, 66, .09);
+  min-height: 100vh;
+  color: var(--m-navy);
+  background: #fff;
+  font-family: Inter, system-ui, sans-serif;
+}
+.marketingSite *, .marketingSite *::before, .marketingSite *::after { box-sizing: border-box; }
+.marketingHeader { height: 76px; padding: 0 clamp(20px, 5vw, 76px); border-bottom: 1px solid #edf1f8; display: flex; align-items: center; justify-content: space-between; gap: 24px; background: rgba(255,255,255,.92); position: sticky; top: 0; z-index: 20; backdrop-filter: blur(16px); }
+.marketingBrand img { width: 132px; height: auto; display: block; object-fit: contain; }
+.marketingNav { display: flex; align-items: center; gap: clamp(12px, 2vw, 28px); }
+.marketingNav a { color: #64748b; font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.marketingNav a:hover, .marketingNav a.active { color: var(--m-indigo); }
+.marketingNav .marketingLogin { color: var(--m-indigo); border: 1px solid #cbd8ff; border-radius: 8px; padding: 10px 14px; }
+.marketingHome, .marketingPage { max-width: 1240px; margin: 0 auto; padding: 0 28px 72px; }
+.marketingHero { min-height: 640px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, .95fr); gap: clamp(38px, 7vw, 100px); align-items: center; padding: 68px 0 58px; }
+.marketingEyebrow { color: var(--m-indigo); font-size: 11px; font-weight: 800; letter-spacing: .14em; }
+.marketingHero h1, .marketingPageIntro h1, .marketingHomeFeatures h2, .marketingPriceBand h2 { margin: 15px 0 20px; color: var(--m-navy); font: 800 clamp(42px, 5vw, 70px)/1.04 'Plus Jakarta Sans', sans-serif; letter-spacing: -.045em; }
+.marketingHero h1 em { color: var(--m-indigo); font-style: normal; }
+.marketingHeroCopy > p, .marketingPageIntro > p { max-width: 590px; color: var(--m-slate); font-size: 17px; line-height: 1.7; }
+.marketingActions { display: flex; flex-wrap: wrap; gap: 12px; margin: 30px 0; }
+.marketingButton { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 0 17px; border: 1px solid var(--m-indigo); border-radius: 9px; color: #fff; background: var(--m-indigo); font-size: 13px; font-weight: 700; text-decoration: none; box-shadow: 0 9px 20px rgba(49,92,245,.18); }
+.marketingButton.secondary { color: var(--m-indigo); background: #fff; box-shadow: none; }
+.marketingButton:hover { transform: translateY(-1px); }
+.marketingBenefits { display: grid; grid-template-columns: repeat(2, max-content); gap: 10px 22px; color: var(--m-slate); font-size: 12px; font-weight: 600; }
+.marketingBenefits span { display: inline-flex; align-items: center; gap: 7px; }
+.marketingBenefits svg { color: var(--m-teal); }
+.marketingPreview { border: 1px solid #dbe5fb; border-radius: 18px; background: #fff; box-shadow: var(--m-shadow); overflow: hidden; }
+.marketingPreviewBar { display: flex; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid #e9eef9; color: var(--m-slate); font-size: 11px; }
+.marketingPreviewBar span { display: flex; gap: 8px; align-items: center; }.marketingPreviewBar i { width: 8px; height: 8px; border-radius: 50%; background: var(--m-teal); }.marketingPreviewBar small { color: var(--m-teal); font-weight: 800; }
+.marketingPreviewBody { padding: 24px; background: linear-gradient(145deg, #fff 0%, #f7f9ff 100%); }.marketingPreviewBrand { display: flex; gap: 12px; align-items: center; }.marketingPreviewLogo { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 11px; color: #fff; background: var(--m-indigo); font: 800 22px 'Plus Jakarta Sans'; }.marketingPreviewBrand strong, .marketingPreviewBrand small { display: block; }.marketingPreviewBrand strong { font-size: 14px; }.marketingPreviewBrand small { margin-top: 4px; color: var(--m-slate); font-size: 11px; }.marketingPreviewSteps { display: flex; gap: 18px; padding: 22px 0 17px; border-bottom: 1px solid #e5eaf4; color: #9aa7bd; font-size: 11px; font-weight: 700; }.marketingPreviewSteps .active { color: var(--m-indigo); }.marketingPreviewCards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 22px 0; }.marketingPreviewCards > div { display: grid; gap: 8px; padding: 17px; border: 1px solid #dfe7f5; border-radius: 11px; background: #fff; }.marketingPreviewCards svg { color: var(--m-indigo); }.marketingPreviewCards strong { font-size: 13px; }.marketingPreviewCards small { color: var(--m-slate); font-size: 11px; line-height: 1.5; }.marketingPreviewDashboard { display: grid; grid-template-columns: 1.2fr 1fr 1fr; align-items: center; gap: 10px; padding: 14px; border-radius: 10px; color: #fff; background: var(--m-navy); }.marketingPreviewDashboard small, .marketingPreviewDashboard strong { display: block; }.marketingPreviewDashboard small { color: #aab7d0; font-size: 9px; letter-spacing: .1em; }.marketingPreviewDashboard strong { margin-top: 5px; font-size: 12px; }.marketingPreviewDashboard span { color: #dbe5ff; font-size: 10px; }.marketingPreviewDashboard b { display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: var(--m-teal); }
+.marketingHomeFeatures { display: grid; grid-template-columns: .7fr 1.3fr; gap: 48px; padding: 62px 0; border-top: 1px solid #edf1f8; }.marketingHomeFeatures h2 { font-size: 33px; letter-spacing: -.035em; }.marketingMiniGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }.marketingMiniGrid article, .marketingFeatureGrid article, .marketingPartnerGrid article { padding: 22px; border: 1px solid var(--m-border); border-radius: 12px; background: #fff; }.marketingMiniGrid svg { color: var(--m-indigo); }.marketingMiniGrid strong { display: block; margin: 15px 0 7px; font-size: 14px; }.marketingMiniGrid p, .marketingFeatureGrid p, .marketingPartnerGrid p { margin: 0; color: var(--m-slate); font-size: 13px; line-height: 1.6; }.marketingPriceBand { display: flex; align-items: center; justify-content: space-between; gap: 30px; padding: 40px; border-radius: 16px; color: #fff; background: var(--m-navy); }.marketingPriceBand h2 { max-width: 570px; margin-bottom: 9px; color: #fff; font-size: 35px; }.marketingPriceBand p { max-width: 620px; margin: 0; color: #c5d0e7; line-height: 1.6; font-size: 14px; }.marketingPriceBand .marketingButton { flex: 0 0 auto; color: var(--m-navy); border-color: #fff; background: #fff; box-shadow: none; }
+.marketingPage { padding-top: 72px; }.marketingPageIntro { max-width: 730px; margin-bottom: 48px; }.marketingPageIntro h1 { font-size: clamp(38px, 5vw, 62px); }.marketingFeatureGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }.marketingFeatureGrid article { position: relative; min-height: 230px; }.marketingIcon { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 24px; border-radius: 10px; color: var(--m-indigo); background: var(--m-ice); }.marketingFeatureIndex { position: absolute; top: 23px; right: 22px; color: #b5c3dc; font-size: 11px; font-weight: 800; }.marketingFeatureGrid h2 { margin: 0 0 10px; font: 700 18px 'Plus Jakarta Sans'; }.marketingFeatureGrid small { display: block; margin-top: 18px; color: #8795aa; font-size: 11px; line-height: 1.5; }.marketingPlanGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }.marketingPlan { position: relative; padding: 30px; border: 1px solid var(--m-border); border-radius: 14px; background: #fff; box-shadow: var(--m-shadow); }.marketingPlan.popular { border: 2px solid var(--m-indigo); }.marketingPlan.dark { color: #fff; background: var(--m-navy); border-color: var(--m-navy); }.marketingPlanBadge { position: absolute; top: -12px; right: 22px; padding: 6px 9px; border-radius: 99px; color: #fff; background: var(--m-indigo); font-size: 9px; font-weight: 800; letter-spacing: .08em; }.marketingPlanName { color: var(--m-indigo); font-size: 12px; font-weight: 800; letter-spacing: .12em; }.marketingPlan.dark .marketingPlanName { color: #9fb6ff; }.marketingPlan > div { display: flex; align-items: baseline; gap: 8px; margin: 18px 0 8px; }.marketingPlan strong { font: 800 45px 'Plus Jakarta Sans'; }.marketingPlan > div small { color: var(--m-slate); }.marketingPlan.dark > div small { color: #b7c5df; }.marketingPlan p { min-height: 49px; color: var(--m-slate); font-size: 13px; line-height: 1.55; }.marketingPlan.dark p { color: #c4d0e8; }.marketingPlan ul { min-height: 142px; margin: 22px 0; padding: 0; list-style: none; display: grid; gap: 11px; color: var(--m-slate); font-size: 13px; }.marketingPlan.dark ul { color: #d9e3f7; }.marketingPlan li { display: flex; gap: 8px; align-items: center; }.marketingPlan li svg { color: var(--m-teal); flex: 0 0 auto; }.marketingPlan > a, .marketingPartnerGrid a { display: inline-flex; align-items: center; gap: 7px; color: var(--m-indigo); font-size: 13px; font-weight: 700; text-decoration: none; }.marketingPlan.dark > a { color: #fff; }.marketingFinePrint { color: var(--m-slate); text-align: center; font-size: 12px; margin-top: 28px; }.marketingDemoPage > .marketingPreview { max-width: 760px; margin-top: 42px; }.marketingDemoNote { display: flex; gap: 10px; max-width: 760px; margin-top: 18px; padding: 15px; border-radius: 10px; color: #31507e; background: var(--m-ice); font-size: 13px; }.marketingDemoNote svg { color: var(--m-indigo); flex: 0 0 auto; }.marketingDemoNote strong { display: block; margin-bottom: 4px; }.marketingUpdatesList { display: grid; gap: 14px; max-width: 860px; }.marketingUpdatesList article { padding: 24px; border: 1px solid var(--m-border); border-radius: 12px; }.marketingUpdatesList article > div { display: flex; justify-content: space-between; gap: 12px; color: var(--m-slate); font-size: 11px; }.marketingUpdatesList article > div span { color: var(--m-indigo); font-weight: 800; letter-spacing: .08em; }.marketingUpdatesList h2 { margin: 16px 0 8px; font: 700 22px 'Plus Jakarta Sans'; }.marketingUpdatesList p { color: var(--m-slate); white-space: pre-line; line-height: 1.65; }.marketingUpdatesList details { margin-top: 15px; color: var(--m-indigo); font-size: 13px; }.marketingUpdatesList details p { color: var(--m-slate); font-size: 13px; }.marketingEmpty { display: flex; gap: 10px; align-items: center; padding: 28px; border: 1px dashed var(--m-border); color: var(--m-slate); }.marketingFaqList { max-width: 860px; display: grid; gap: 10px; }.marketingFaqList details { padding: 20px 22px; border: 1px solid var(--m-border); border-radius: 10px; }.marketingFaqList summary { display: flex; justify-content: space-between; cursor: pointer; font: 700 16px 'Plus Jakarta Sans'; list-style: none; }.marketingFaqList summary::-webkit-details-marker { display: none; }.marketingFaqList details p { max-width: 700px; margin: 15px 0 0; color: var(--m-slate); font-size: 13px; line-height: 1.6; }.marketingPartnerNote { display: inline-block; margin-top: 18px; padding: 10px 12px; border-radius: 8px; color: #31507e; background: var(--m-ice); font-size: 13px; }.marketingPartnerGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 900px; }.marketingPartnerGrid article { min-height: 290px; }.marketingPartnerGrid article > svg { color: var(--m-indigo); margin-bottom: 25px; }.marketingPartnerGrid h2 { margin: 12px 0 10px; font: 700 26px 'Plus Jakarta Sans'; }.marketingPartnerGrid a { margin-top: 25px; }.marketingFooter { display: grid; grid-template-columns: 1.5fr .6fr .6fr; gap: 40px; align-items: start; max-width: 1240px; margin: 0 auto; padding: 44px 28px; border-top: 1px solid #edf1f8; }.marketingFooter img { width: 118px; }.marketingFooter p, .marketingFooter a { display: block; color: var(--m-slate); font-size: 12px; line-height: 1.8; text-decoration: none; }.marketingFooter strong { display: block; margin-bottom: 8px; font-size: 12px; }.marketingFooter small { grid-column: 1/-1; color: #9aa7bc; font-size: 11px; }
+@media (max-width: 900px) { .marketingNav { gap: 11px; }.marketingNav a { font-size: 11px; }.marketingHero { grid-template-columns: 1fr; padding-top: 48px; }.marketingHeroCopy { max-width: 720px; }.marketingFeatureGrid { grid-template-columns: repeat(2, 1fr); }.marketingHomeFeatures { grid-template-columns: 1fr; }.marketingPlanGrid { grid-template-columns: 1fr; max-width: 560px; }.marketingPlan ul { min-height: 0; } }
+@media (max-width: 620px) { .marketingHeader { height: auto; min-height: 68px; align-items: flex-start; padding: 16px 18px; flex-wrap: wrap; }.marketingNav { width: 100%; overflow-x: auto; padding-top: 3px; padding-bottom: 2px; }.marketingNav a { font-size: 11px; }.marketingNav .marketingLogin { margin-left: auto; }.marketingHome, .marketingPage { padding-right: 18px; padding-left: 18px; }.marketingHero h1, .marketingPageIntro h1 { font-size: 40px; }.marketingBenefits { grid-template-columns: 1fr; }.marketingPreviewCards, .marketingMiniGrid, .marketingPartnerGrid { grid-template-columns: 1fr; }.marketingPreviewDashboard { grid-template-columns: 1fr 1fr; }.marketingPreviewDashboard > div { grid-column: 1/-1; }.marketingFeatureGrid { grid-template-columns: 1fr; }.marketingPriceBand { align-items: flex-start; flex-direction: column; padding: 25px; }.marketingFooter { grid-template-columns: 1fr 1fr; padding: 34px 18px; }.marketingFooter > div:first-child { grid-column: 1/-1; }.marketingFooter small { grid-column: 1/-1; } }
+@media (prefers-reduced-motion: reduce) { .marketingSite * { scroll-behavior: auto !important; transition: none !important; } }
+
+/* Marketing identity V2: emerald product-first system, scoped to marketing pages only. */
+.marketingSite {
+  --m-indigo: #6547d9;
+  --m-navy: #24213a;
+  --m-ice: #f1eeff;
+  --m-slate: #6d6a7c;
+  --m-teal: #0dad82;
+  --m-border: #e8e4f2;
+  --m-shadow: 0 16px 40px rgba(36, 33, 58, .08);
+  color: var(--m-navy);
+  background: #faf9fd;
+  font-family: Inter, system-ui, sans-serif;
+}
+.marketingHeader { min-height: 104px; height: 104px; border-color: var(--m-border); background: rgba(250,249,253,.94); overflow: visible; }
+.marketingBrand { display: inline-flex; align-items: center; justify-content: center; height: 100%; flex: 0 0 auto; }
+.marketingBrand img { display: block; width: 142px; height: 142px; object-fit: contain; }
+.marketingNav a { color: var(--m-slate); }
+.marketingNav a:hover, .marketingNav a.active { color: var(--m-indigo); }
+.marketingNav .marketingLogin { color: var(--m-indigo); border-color: #cfc7f4; }
+.marketingHero { min-height: 0; grid-template-columns: minmax(280px, .72fr) minmax(520px, 1.28fr); gap: 48px; padding: 54px 0 48px; align-items: start; }
+.marketingHeroCopy { padding-top: 28px; }
+.marketingEyebrow { color: var(--m-indigo); }
+.marketingHero h1, .marketingPageIntro h1, .marketingHomeFeatures h2, .marketingPriceBand h2 { color: var(--m-navy); font-family: Manrope, Inter, sans-serif; letter-spacing: -.035em; }
+.marketingHero h1 { margin-top: 12px; font-size: clamp(38px, 4.2vw, 58px); }
+.marketingHero h1 em { color: var(--m-indigo); }
+.marketingHeroCopy > p, .marketingPageIntro > p { color: var(--m-slate); font-size: 15px; line-height: 1.65; }
+.marketingActions { margin: 24px 0; }
+.marketingButton { min-height: 44px; border-color: var(--m-indigo); color: #fff; background: var(--m-indigo); box-shadow: 0 8px 18px rgba(101,71,217,.18); }
+.marketingButton.secondary { color: var(--m-indigo); background: transparent; }
+.marketingBenefits { color: var(--m-slate); }
+.marketingBenefits svg, .marketingPreviewCards svg, .marketingMiniGrid svg, .marketingPlan li svg { color: var(--m-teal); }
+.marketingPreview { border-color: var(--m-border); border-radius: 14px; box-shadow: var(--m-shadow); }
+.marketingPreviewBar { border-color: var(--m-border); color: var(--m-slate); background: #fff; }
+.marketingPreviewBody { background: linear-gradient(145deg, #fff 0%, #f1eeff 100%); }
+.marketingPreviewLogo { color: #fff; background: var(--m-indigo); font-family: Manrope, Inter, sans-serif; }
+.marketingPreviewSteps { border-color: var(--m-border); color: #9aa6a1; }
+.marketingPreviewSteps .active { color: var(--m-indigo); }
+.marketingPreviewCards > div { border-color: var(--m-border); }
+.marketingPreviewDashboard { color: #fff; background: var(--m-navy); }
+.marketingPreviewDashboard b, .marketingPreviewBar i { background: var(--m-teal); }
+.marketingHomeFeatures { gap: 38px; padding: 48px 0; border-color: var(--m-border); }
+.marketingMiniGrid article, .marketingFeatureGrid article, .marketingPartnerGrid article { border-color: var(--m-border); background: #fff; box-shadow: 0 6px 20px rgba(32,43,42,.03); }
+.marketingMiniGrid strong, .marketingFeatureGrid h2, .marketingPartnerGrid h2, .marketingUpdatesList h2, .marketingFaqList summary { font-family: Manrope, Inter, sans-serif; }
+.marketingPriceBand { border-radius: 14px; background: var(--m-navy); }
+.marketingPriceBand .marketingButton { color: var(--m-navy); border-color: #fff; background: #fff; }
+.marketingPage { padding-top: 58px; }
+.marketingIcon { color: var(--m-indigo); background: var(--m-ice); }
+.marketingPlan.popular { border-color: var(--m-indigo); }
+.marketingPlanBadge { background: var(--m-indigo); }
+.marketingPlanName, .marketingPlan > a, .marketingPartnerGrid a, .marketingUpdatesList details { color: var(--m-indigo); }
+.marketingPlan.dark { background: var(--m-navy); border-color: var(--m-navy); }
+.marketingPlan.dark .marketingPlanName { color: var(--m-ice); }
+.marketingDemoNote, .marketingPartnerNote { color: #4b3b9c; background: var(--m-ice); }
+.marketingDemoNote svg, .marketingPartnerGrid article > svg { color: var(--m-indigo); }
+.marketingUpdatesList article, .marketingFaqList details { border-color: var(--m-border); background: #fff; }
+.marketingUpdatesList article > div span { color: var(--m-indigo); }
+.marketingEmpty { border-color: var(--m-border); }
+.marketingFooter { border-color: var(--m-border); }
+.marketingFooter p, .marketingFooter a { color: var(--m-slate); }
+@media (max-width: 900px) { .marketingHero { grid-template-columns: 1fr; gap: 24px; padding-top: 36px; }.marketingHeroCopy { padding-top: 0; }.marketingPreview { order: -1; } }
+@media (max-width: 900px) and (min-width: 621px) { .marketingHeader { min-height: 96px; height: 96px; }.marketingBrand img { width: 124px; height: 124px; }.marketingNav { flex-wrap: wrap; justify-content: flex-end; } }
+@media (max-width: 620px) { .marketingHeader { min-height: 86px; height: auto; align-items: center; padding-top: 10px; padding-bottom: 10px; }.marketingBrand { height: 66px; }.marketingBrand img { width: 104px; height: 104px; }.marketingNav { align-items: center; } }
+
+.marketingStudioHero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(260px, .55fr); gap: 42px; align-items: end; padding: 54px 0 30px; }
+.marketingStudioIntro { max-width: 720px; }
+.marketingStudioIntro h1 { max-width: 720px; margin: 14px 0 18px; color: var(--m-navy); font: 800 clamp(44px, 6vw, 78px)/.98 Manrope, Inter, sans-serif; letter-spacing: -.055em; }
+.marketingStudioIntro p { max-width: 620px; margin: 0; color: var(--m-slate); font-size: 16px; line-height: 1.7; }
+.marketingStudioMeta { display: flex; flex-wrap: wrap; gap: 18px; color: var(--m-slate); font-size: 12px; font-weight: 700; }
+.marketingStudioMeta span { display: inline-flex; align-items: center; gap: 7px; }
+.marketingStudioMeta svg { color: var(--m-indigo); }
+.marketingStudioAside { display: grid; gap: 14px; max-width: 310px; padding: 22px; border-left: 2px solid var(--m-indigo); color: var(--m-slate); background: var(--m-ice); }
+.marketingStudioAside strong { color: var(--m-navy); font: 700 20px/1.25 Manrope, Inter, sans-serif; }
+.marketingStudioAside > span:last-child { color: var(--m-indigo); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.studioWorkspace { border-radius: 16px; }
+.marketingWorkspaceTop, .marketingCalendarHead, .marketingCalendarFooter { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.marketingWorkspaceTop { margin-bottom: 24px; }
+.marketingWorkspaceDate, .marketingTimezone, .marketingCalendarFooter { color: var(--m-slate); font-size: 11px; }
+.marketingWorkspaceDate, .marketingTimezone, .marketingCalendarFooter span { display: inline-flex; align-items: center; gap: 6px; }
+.marketingWorkspaceGrid { display: grid; grid-template-columns: minmax(180px, .45fr) minmax(0, 1fr); gap: 28px; }
+.marketingWorkspaceGrid aside { display: grid; gap: 10px; align-content: start; }
+.marketingWorkspaceLabel { display: block; color: var(--m-indigo); font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.marketingService { display: grid; gap: 5px; padding: 13px; border: 1px solid var(--m-border); border-radius: 9px; color: var(--m-navy); background: #fff; text-align: left; cursor: default; }
+.marketingService.active { border-color: var(--m-indigo); box-shadow: inset 3px 0 var(--m-indigo); }
+.marketingService strong { font-size: 12px; }.marketingService small { color: var(--m-slate); font-size: 10px; }
+.marketingWorkspaceHint { display: flex; gap: 8px; margin-top: 7px; padding: 12px; color: var(--m-indigo); background: var(--m-ice); font-size: 10px; }
+.marketingWorkspaceHint span { display: grid; gap: 3px; }.marketingWorkspaceHint small { color: var(--m-slate); line-height: 1.4; }
+.marketingCalendar { padding: 18px; border: 1px solid var(--m-border); border-radius: 12px; background: #fff; }
+.marketingCalendarHead { padding-bottom: 17px; border-bottom: 1px solid var(--m-border); }.marketingCalendarHead div { display: grid; gap: 6px; }.marketingCalendarHead strong { font: 700 19px Manrope, Inter, sans-serif; }
+.marketingCalendarGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 22px 0; }
+.marketingCalendarGrid button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; border: 1px solid var(--m-border); border-radius: 8px; color: var(--m-navy); background: #fff; font: 700 12px Inter, sans-serif; }
+.marketingCalendarGrid button.selected { border-color: var(--m-indigo); color: #fff; background: var(--m-indigo); }.marketingCalendarGrid svg { color: var(--m-teal); }.marketingCalendarGrid .selected svg { color: #fff; }
+.marketingCalendarFooter { padding-top: 13px; border-top: 1px solid var(--m-border); }.marketingCalendarFooter span:first-child { color: var(--m-teal); font-weight: 700; }
+.marketingWorkspaceBottom { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 14px; margin-top: 26px; padding: 15px; border-radius: 10px; color: #fff; background: var(--m-navy); }.marketingWorkspaceBottom small, .marketingWorkspaceBottom strong { display: block; }.marketingWorkspaceBottom small { color: #c7c2e7; font-size: 9px; letter-spacing: .1em; }.marketingWorkspaceBottom strong { margin-top: 4px; font-size: 12px; }.marketingWorkspaceBottom span { align-self: center; color: #e6e4f4; font-size: 11px; }.marketingWorkspaceBottom b { display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: var(--m-teal); }
+.marketingStudioRail { display: grid; grid-template-columns: .65fr 1.35fr; gap: 48px; padding: 68px 0; border-top: 1px solid var(--m-border); }.marketingRailLead h2, .marketingStudioNote h2 { margin: 13px 0 12px; color: var(--m-navy); font: 700 34px/1.08 Manrope, Inter, sans-serif; letter-spacing: -.035em; }.marketingRailLead p, .marketingStudioNote p { color: var(--m-slate); font-size: 14px; line-height: 1.65; }.marketingRailItems { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }.marketingRailItems article { min-height: 190px; padding: 18px; border-top: 2px solid var(--m-indigo); background: #fff; }.marketingRailItems article > span { display: block; margin-bottom: 28px; color: var(--m-indigo); font-size: 10px; font-weight: 800; }.marketingRailItems svg { color: var(--m-teal); }.marketingRailItems strong { display: block; margin: 14px 0 7px; font: 700 15px Manrope, Inter, sans-serif; }.marketingRailItems p { margin: 0; color: var(--m-slate); font-size: 12px; line-height: 1.55; }
+.marketingStudioSplit { display: grid; grid-template-columns: 1fr .9fr; gap: 52px; align-items: center; padding: 62px 0; border-top: 1px solid var(--m-border); }.marketingStudioNote { max-width: 550px; }.marketingStudioNote .marketingButton { margin-top: 14px; }.marketingStudioTimeline { display: grid; gap: 0; padding: 18px 22px; border: 1px solid var(--m-border); border-radius: 12px; background: #fff; }.marketingStudioTimeline div { display: grid; grid-template-columns: 70px 1fr; gap: 12px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--m-border); }.marketingStudioTimeline div:last-child { border-bottom: 0; }.marketingStudioTimeline time { color: var(--m-indigo); font: 700 15px Manrope, Inter, sans-serif; }.marketingStudioTimeline span { color: var(--m-slate); font-size: 12px; }.marketingStudioTimeline b { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--m-teal); }
+@media (max-width: 900px) { .marketingStudioHero { grid-template-columns: 1fr; gap: 24px; }.marketingStudioAside { max-width: none; }.marketingWorkspaceGrid, .marketingStudioRail, .marketingStudioSplit { grid-template-columns: 1fr; }.marketingRailItems { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 620px) { .marketingStudioHero { padding-top: 32px; }.marketingStudioIntro h1 { font-size: 47px; }.marketingStudioMeta { gap: 10px; }.marketingWorkspaceTop, .marketingCalendarHead { align-items: flex-start; flex-direction: column; }.marketingWorkspaceGrid { gap: 18px; }.marketingCalendarGrid { grid-template-columns: repeat(2, 1fr); }.marketingWorkspaceBottom { grid-template-columns: 1fr 1fr; }.marketingWorkspaceBottom > div { grid-column: 1/-1; }.marketingRailItems { grid-template-columns: 1fr; }.marketingRailItems article { min-height: 0; }.marketingStudioRail, .marketingStudioSplit { padding: 44px 0; }.marketingRailLead h2, .marketingStudioNote h2 { font-size: 29px; } }
+
+/* V3 master-detail marketing workspace */
+.marketingSite { display: flex; min-height: 100vh; background: #faf9fd; }
+.marketingSidebar { position: fixed; inset: 0 auto 0 0; z-index: 30; display: flex; width: 254px; min-height: 0; flex-direction: column; padding: 24px 22px; border-right: 1px solid var(--m-border); background: rgba(255,255,255,.9); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.marketingSidebar::-webkit-scrollbar { display: none; }
+.slotwiseOnboarding .colorField > div { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px; align-items: center; }
+.slotwiseOnboarding .colorField input[type="color"] { width: 44px; height: 40px; padding: 3px; cursor: pointer; }
+.slotwiseOnboarding .brandingColorPreview { display: grid; gap: 8px; grid-column: 1 / -1; padding: 18px; border: 1px solid var(--m-border); border-radius: 12px; }
+.slotwiseOnboarding .brandingColorPreview button { width: fit-content; border: 0; border-radius: 8px; padding: 10px 14px; color: #fff; background: var(--preview-primary); font-weight: 700; }
+.slotwiseOnboarding .brandingColorPreview span { font-size: 12px; opacity: .75; }
+.slotwiseOnboarding .reviewColorSwatches { display: inline-flex; gap: 4px; margin-right: 7px; vertical-align: middle; }
+.slotwiseOnboarding .reviewColorSwatches i { display: inline-block; width: 14px; height: 14px; border: 1px solid rgba(36,33,58,.16); border-radius: 50%; }
+.marketingSidebar .marketingBrand { height: 106px; margin-bottom: 24px; }
+.marketingSidebar .marketingBrand img { width: 154px; height: 154px; }
+.marketingSideNav { display: grid; gap: 7px; }
+.marketingSideNav a { display: flex; align-items: center; gap: 15px; min-height: 50px; padding: 0 20px; border-radius: 11px; color: #5c5a76; font-size: 15px; font-weight: 600; text-decoration: none; }
+.marketingSideNav a svg { color: #777394; }.marketingSideNav a:hover { color: var(--m-indigo); background: var(--m-ice); }.marketingSideNav a.active { color: #fff; background: linear-gradient(135deg, #6547d9, #7659ee); box-shadow: 0 10px 22px rgba(101,71,217,.2); }.marketingSideNav a.active svg { color: #fff; }
+.marketingSidebarCta { display: grid; gap: 8px; margin-top: auto; padding: 18px; border: 1px solid var(--m-border); border-radius: 14px; background: linear-gradient(145deg, #fff, var(--m-ice)); }.marketingSidebarCta > svg { color: var(--m-indigo); }.marketingSidebarCta strong { color: var(--m-navy); font: 700 14px Manrope, Inter, sans-serif; }.marketingSidebarCta span { color: var(--m-slate); font-size: 12px; }.marketingSidebarCta a { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding: 11px 12px; border-radius: 8px; color: #fff; background: var(--m-indigo); font-size: 12px; font-weight: 700; text-decoration: none; }
+.marketingWorkspace { width: calc(100% - 254px); margin-left: 254px; min-width: 0; }
+.marketingWorkspace .marketingHeader { position: sticky; top: 0; height: 72px; min-height: 72px; padding: 0 clamp(24px, 4vw, 54px); border-bottom: 1px solid var(--m-border); }
+.marketingUtilityLabel { color: var(--m-slate); font-size: 11px; font-weight: 800; letter-spacing: .14em; }.marketingUtilityActions { display: flex; align-items: center; gap: 22px; }.marketingSearch { display: flex; align-items: center; gap: 10px; width: min(330px, 32vw); padding: 10px 14px; border: 1px solid var(--m-border); border-radius: 9px; color: #777394; background: #fff; font-size: 12px; }.marketingSearch svg { color: var(--m-navy); flex: 0 0 auto; }.marketingWorkspace .marketingLogin { display: inline-flex; align-items: center; gap: 8px; padding: 11px 17px; border: 0; border-radius: 8px; color: #fff; background: var(--m-indigo); box-shadow: 0 8px 18px rgba(101,71,217,.18); font-size: 13px; font-weight: 700; text-decoration: none; }.marketingMobileMenu { display: none; border: 0; color: var(--m-navy); background: transparent; }
+.marketingWorkspace .marketingHome, .marketingWorkspace .marketingPage { max-width: 1280px; padding: 0 clamp(28px, 4vw, 54px) 56px; }.marketingMasterHero { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 34px; align-items: center; padding: 36px 0 24px; }.marketingMasterCopy h1 { margin: 16px 0 16px; color: var(--m-navy); font: 800 clamp(42px, 4.5vw, 66px)/.96 Manrope, Inter, sans-serif; letter-spacing: -.055em; }.marketingMasterCopy h1 em { color: var(--m-indigo); font-style: normal; }.marketingMasterCopy p { margin: 0; color: var(--m-slate); font-size: 14px; line-height: 1.6; }.marketingMasterCopy .marketingActions { display: grid; gap: 9px; margin: 22px 0; }.marketingMasterCopy .marketingButton { width: 100%; }.marketingMasterHighlights { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 10px; }.marketingMasterHighlights span { display: flex; align-items: center; gap: 8px; color: var(--m-slate); font-size: 11px; }.marketingMasterHighlights svg { padding: 7px; width: 34px; height: 34px; border-radius: 9px; color: var(--m-indigo); background: var(--m-ice); }.marketingMasterHighlights b { font-weight: 600; }
+.marketingMasterHero .studioWorkspace { min-width: 0; }.marketingFourPanels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 18px 0 40px; }.marketingFourPanels article { position: relative; min-height: 196px; overflow: hidden; padding: 18px; border: 1px solid var(--m-border); border-radius: 14px; background: linear-gradient(145deg, #fff, #f7f4ff); }.marketingFourPanels article > svg { color: var(--m-indigo); }.marketingPanelNumber { position: absolute; top: 18px; right: 18px; color: var(--m-indigo); font-size: 11px; font-weight: 800; }.marketingFourPanels h2 { margin: 14px 0 6px; color: var(--m-navy); font: 700 18px Manrope, Inter, sans-serif; }.marketingFourPanels p { margin: 0; color: var(--m-slate); font-size: 12px; line-height: 1.45; }.marketingPanelPhone, .marketingPanelMiniCalendar, .marketingPanelEmail, .marketingPanelStats { display: grid; gap: 4px; margin-top: 15px; padding: 11px; border: 1px solid var(--m-border); border-radius: 9px; background: #fff; color: var(--m-slate); font-size: 9px; }.marketingPanelPhone strong, .marketingPanelEmail strong, .marketingPanelStats strong { color: var(--m-navy); font-size: 11px; }.marketingPanelMiniCalendar { grid-template-columns: 1fr auto; }.marketingPanelMiniCalendar b { color: #fff; background: var(--m-indigo); padding: 4px 6px; border-radius: 5px; }.marketingPanelMiniCalendar small { grid-column: 1/-1; }.marketingPanelEmail { grid-template-columns: auto 1fr; align-items: center; }.marketingPanelEmail svg { grid-row: span 2; color: var(--m-indigo); }.marketingPanelStats { grid-template-columns: 1fr auto; }.marketingPanelStats b { color: var(--m-teal); }
+.marketingWorkspace .marketingFooter { max-width: none; padding: 32px clamp(28px, 4vw, 54px); }
+@media (max-width: 1050px) { .marketingSidebar { width: 210px; padding: 20px 14px; }.marketingWorkspace { width: calc(100% - 210px); margin-left: 210px; }.marketingMasterHero { grid-template-columns: 230px minmax(0, 1fr); gap: 22px; }.marketingFourPanels { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 760px) { .marketingSite { display: block; }.marketingSidebar { position: static; width: 100%; height: auto; padding: 8px 18px; border-right: 0; border-bottom: 1px solid var(--m-border); }.marketingSidebar .marketingBrand { height: 60px; margin: 0; justify-content: flex-start; }.marketingSidebar .marketingBrand img { width: 96px; height: 96px; }.marketingSideNav { display: flex; overflow-x: auto; gap: 5px; padding: 6px 0; }.marketingSideNav a { min-height: 38px; padding: 0 11px; gap: 6px; font-size: 11px; white-space: nowrap; }.marketingSideNav a svg { width: 15px; }.marketingSidebarCta { display: none; }.marketingWorkspace { width: 100%; margin-left: 0; }.marketingWorkspace .marketingHeader { height: 58px; min-height: 58px; padding: 0 18px; }.marketingMobileMenu { display: inline-flex; }.marketingUtilityLabel { display: none; }.marketingSearch { display: none; }.marketingMasterHero { grid-template-columns: 1fr; padding-top: 28px; }.marketingMasterCopy { max-width: 520px; }.marketingFourPanels { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 460px) { .marketingFourPanels { grid-template-columns: 1fr; }.marketingWorkspace .marketingHome, .marketingWorkspace .marketingPage { padding-right: 18px; padding-left: 18px; }.marketingMasterCopy h1 { font-size: 48px; }.marketingSidebar .marketingBrand { justify-content: center; }.marketingSideNav a span { display: none; }.marketingSideNav a { min-width: 38px; justify-content: center; }.marketingWorkspaceGrid { grid-template-columns: 1fr; } }
+
+@media (min-width: 761px) and (max-height: 800px) {
+  .marketingSidebar { padding-top: 16px; padding-bottom: 16px; }
+  .marketingSidebar .marketingBrand { height: 82px; margin-bottom: 12px; }
+  .marketingSidebar .marketingBrand img { width: 128px; height: 128px; }
+  .marketingSideNav { gap: 4px; }
+  .marketingSideNav a { min-height: 43px; padding-left: 17px; padding-right: 17px; }
+  .marketingSidebarCta { gap: 6px; padding: 13px; }
+  .marketingSidebarCta a { margin-top: 6px; padding-top: 9px; padding-bottom: 9px; }
+}
+
+.marketingUtilityActions { margin-left: auto; }
+
+.marketingPackageInstruction { display: block; margin-top: 14px; color: var(--m-navy); font-size: 13px; }
+.marketingPackageCard { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.marketingPackageCard:hover, .marketingPackageCard:focus-visible { transform: translateY(-2px); }
+.marketingPackageCard.dark { border-color: var(--m-indigo); box-shadow: 0 10px 26px rgba(101,71,217,.18); }
+.marketingPackageFeatured { position: absolute; top: -10px; right: 16px; padding: 5px 8px; border-radius: 999px; color: #fff; background: var(--m-indigo); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.marketingPackageCardCta { display: inline-flex; align-items: center; gap: 5px; margin-top: 12px; padding: 8px 10px; border-radius: 7px; color: #fff; background: var(--m-indigo); font-size: 10px; font-weight: 800; text-decoration: none; }
+.marketingPackageCard:not(.dark) .marketingPackageCardCta { color: var(--m-indigo); background: var(--m-ice); }
+.marketingPackageModalBackdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(36,33,58,.38); }
+.marketingPackageModal { width: min(980px, 100%); max-height: min(760px, calc(100vh - 48px)); overflow: auto; padding: 24px 28px; border: 1px solid #ded7ff; border-radius: 16px; background: #fff; box-shadow: 0 24px 70px rgba(36,33,58,.25); }
+.marketingPackageModal > header { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 16px; border-bottom: 1px solid #eeeaf8; }
+.marketingPackageModal h2 { margin: 5px 0 6px; color: var(--m-navy); font: 700 28px Manrope, Inter, sans-serif; }
+.marketingPackageModal header p { margin: 0; color: var(--m-slate); font-size: 12px; }
+.marketingPackageModalClose { display: grid; place-items: center; flex: 0 0 auto; width: 38px; height: 38px; border: 1px solid var(--m-border); border-radius: 8px; color: var(--m-navy); background: #fff; cursor: pointer; }
+.marketingPackageModalClose:hover, .marketingPackageModalClose:focus-visible { border-color: var(--m-indigo); color: var(--m-indigo); outline: none; }
+.marketingPackageModal .marketingPackageSections { padding-top: 20px; }
+.marketingPackageModalCta { width: auto; margin-top: 20px; }
+@media (max-width: 620px) { .marketingPackageModalBackdrop { padding: 0; place-items: stretch; }.marketingPackageModal { max-height: 100vh; border: 0; border-radius: 0; padding: 20px 18px; } }
+
+.marketingPackagesPage .marketingPageIntro { max-width: 720px; margin-bottom: 22px; }.marketingPackagesPage .marketingPageIntro h1 { margin-bottom: 9px; font-size: clamp(34px, 4vw, 48px); }
+.marketingPackageCards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }.marketingPackageCard { position: relative; min-width: 0; padding: 18px; border: 1px solid var(--m-border); border-radius: 12px; color: var(--m-navy); background: #fff; text-align: left; box-shadow: 0 7px 20px rgba(36,33,58,.04); cursor: pointer; }.marketingPackageCard:hover, .marketingPackageCard:focus-visible { border-color: #c8befb; outline: none; box-shadow: 0 9px 24px rgba(101,71,217,.12); }.marketingPackageCard.active { border: 2px solid var(--m-indigo); padding: 17px; }.marketingPackageCard.dark { color: #fff; border-color: var(--m-navy); background: var(--m-navy); }.marketingPackageCard .marketingPlanName { display: block; }.marketingPackageCard > strong { display: block; margin: 10px 0 2px; font: 800 32px Manrope, Inter, sans-serif; }.marketingPackageCard > small { color: var(--m-slate); font-size: 10px; }.marketingPackageCard.dark > small { color: #c7c4df; }.marketingPackageCard > p { min-height: 38px; margin: 12px 0; color: var(--m-slate); font-size: 12px; line-height: 1.45; }.marketingPackageCard.dark > p { color: #d8d5eb; }.marketingPackageCard ul { display: grid; gap: 7px; min-height: 104px; margin: 0 0 14px; padding: 0; list-style: none; color: var(--m-slate); font-size: 11px; }.marketingPackageCard.dark ul { color: #e7e4f4; }.marketingPackageCard li { display: flex; align-items: flex-start; gap: 6px; }.marketingPackageCard li svg { flex: 0 0 auto; color: var(--m-teal); }.marketingPackageSelect { color: var(--m-indigo); font-size: 11px; font-weight: 800; }.marketingPackageCard.dark .marketingPackageSelect { color: #fff; }.marketingPackageDetailPanel { margin-top: 14px; padding: 20px 22px; border: 1px solid var(--m-border); border-radius: 12px; background: #fff; box-shadow: 0 7px 20px rgba(36,33,58,.04); }.marketingPackageDetailHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 15px; border-bottom: 1px solid #eeeaf8; }.marketingPackageDetailHeader .marketingEyebrow { display: block; margin-bottom: 6px; }.marketingPackageDetailHeader h2 { margin: 0; color: var(--m-navy); font: 700 24px Manrope, Inter, sans-serif; }.marketingPackageDetailHeader .marketingButton { width: auto; white-space: nowrap; }.marketingPackageSections { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; padding-top: 17px; }.marketingPackageSections h3 { margin: 0 0 8px; color: var(--m-navy); font: 700 12px Manrope, Inter, sans-serif; }.marketingPackageSections p, .marketingPackageSections li { color: var(--m-slate); font-size: 11px; line-height: 1.5; }.marketingPackageSections p { margin: 0 0 15px; }.marketingPackageSections ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }.marketingPackageSections li { display: flex; gap: 6px; align-items: flex-start; }.marketingPackageSections li svg { flex: 0 0 auto; color: var(--m-teal); }.marketingPackageLimits { padding-left: 14px; border-left: 2px solid #eadfff; }.marketingPackageLimits p { color: #706887; }
+@media (max-width: 900px) { .marketingPackageSections { grid-template-columns: repeat(2, 1fr); }.marketingPackageCards { grid-template-columns: 1fr; }.marketingPackageCard ul { min-height: 0; } }
+.marketingDemoPage { display: block; }
+.marketingDemoIntro { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 18px; padding: 18px 22px; border: 1px solid var(--m-border); border-radius: 14px; background: #fff; box-shadow: var(--m-shadow); }
+.marketingDemoIntro h1 { margin: 10px 0 12px; font: 800 clamp(28px, 3vw, 44px) 'Plus Jakarta Sans', Inter, sans-serif; color: var(--m-navy); }
+.marketingDemoIntro p { max-width: 620px; margin: 0; color: var(--m-slate); line-height: 1.6; }
+.marketingDemoIntroActions { display: flex; align-items: center; gap: 14px; flex: 0 0 auto; }
+.marketingDemoNotice { display: grid; gap: 5px; margin: 18px 0; padding: 13px; border: 1px solid #d9d0ff; border-radius: 10px; color: #514493; background: var(--m-ice); font-size: 12px; line-height: 1.5; }
+.marketingDemoBooking { min-width: 0; overflow: hidden; border: 1px solid var(--m-border); border-radius: 14px; background: #fff; box-shadow: var(--m-shadow); }
+.marketingDemoBookingHeader { display: flex; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--m-border); color: var(--m-slate); font-size: 10px; letter-spacing: .08em; }
+.marketingDemoBookingHeader strong { color: var(--m-indigo); }
+.marketingDemoBooking > .bookingPage, .marketingDemoBooking > div > .bookingPage { max-height: none; min-width: 0; overflow: visible; padding: 20px clamp(14px, 2vw, 28px) 40px; }
+.xtremeCapacityNotice { display: block; margin-top: 8px; color: var(--booking-primary, #111514); font-size: 13px; font-weight: 700; }
+.marketingDemoBooking .premiumPublicBooking { width: 100%; max-width: none; min-width: 0; grid-template-columns: minmax(280px, .42fr) minmax(0, .58fr); overflow: hidden; }
+.marketingDemoBooking .premiumBrandPanel, .marketingDemoBooking .premiumPublicForm { min-width: 0; }
+@media (max-width: 900px) { .marketingDemoIntro { align-items: flex-start; flex-direction: column; gap: 12px; }.marketingDemoIntroActions { width: 100%; flex-wrap: wrap; }.marketingDemoNotice { margin: 0; }.marketingDemoBookingHeader { flex-wrap: wrap; }.marketingDemoBooking .premiumPublicBooking { grid-template-columns: 1fr; } }
+
+/* ThryveLab client-facing homepage. Scoped to its public slug so other business templates remain unchanged. */
+.thryvePage { min-height: 100vh; background: #fff; color: var(--thryve-ink); font-family: Inter, system-ui, sans-serif; }
+.thryvePage h1, .thryvePage h2, .thryvePage h3 { font-family: "Plus Jakarta Sans", Inter, sans-serif; letter-spacing: -.035em; }
+.thryveHeader { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 12px clamp(20px, 5vw, 76px); border-bottom: 1px solid rgba(24,59,67,.12); background: rgba(255,255,255,.94); position: sticky; top: 0; z-index: 5; backdrop-filter: blur(14px); }
+.thryveLogoLink { width: 128px; display: block; line-height: 0; }.thryveLogoLink img { display: block; width: 100%; height: auto; object-fit: contain; }
+.thryveHeader nav { display: flex; align-items: center; gap: clamp(16px, 3vw, 38px); margin-left: auto; }.thryveHeader nav a { color: var(--thryve-ink); text-decoration: none; font-size: 13px; font-weight: 650; }.thryveHeader nav a:hover { color: var(--thryve-teal); }
+.thryveHeaderButton, .thryvePrimaryButton { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: 0; border-radius: 999px; padding: 13px 20px; background: var(--thryve-yellow); color: #17282d; font: 800 13px Inter, sans-serif; cursor: pointer; box-shadow: 0 8px 18px rgba(245,207,69,.25); }.thryveHeaderButton:hover, .thryvePrimaryButton:hover { transform: translateY(-1px); filter: saturate(1.06); }
+.thryveHero { display: grid; grid-template-columns: minmax(300px, .82fr) minmax(420px, 1.18fr); gap: clamp(30px, 6vw, 96px); max-width: 1440px; margin: 0 auto; padding: clamp(58px, 8vw, 118px) clamp(20px, 5vw, 76px) 76px; align-items: center; }
+.thryveHeroCopy { max-width: 520px; }.thryveEyebrow { display: inline-block; color: var(--thryve-teal); font-size: 10px; font-weight: 850; letter-spacing: .21em; line-height: 1.5; }.thryveHero h1 { margin: 18px 0 20px; color: #202526; font-size: clamp(48px, 6vw, 84px); line-height: .98; }.thryveHero h1 em { color: var(--thryve-teal); font-style: normal; }.thryveHeroCopy > p { max-width: 420px; color: #64736f; font-size: 16px; line-height: 1.75; }.thryveHeroActions { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 28px; }.thryveTextButton { display: inline-flex; align-items: center; gap: 8px; padding: 10px 0; border: 0; background: transparent; color: var(--thryve-teal); font: 800 13px Inter, sans-serif; cursor: pointer; }.thryveTrustRow { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 48px; }.thryveTrustRow span { display: inline-flex; align-items: center; gap: 7px; color: #61736f; font-size: 11px; font-weight: 700; }.thryveTrustRow svg { color: var(--thryve-teal); }
+.thryveHeroGrid { display: grid; grid-template-columns: 1.15fr .85fr; grid-template-rows: 250px 170px; gap: 12px; min-height: 432px; }.thryvePhotoPanel { position: relative; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; padding: 24px; border-radius: 18px; }.thryvePhotoPanel span { font: 800 21px "Plus Jakarta Sans", sans-serif; }.thryvePhotoPanel small { margin-top: 6px; font-size: 12px; line-height: 1.5; }.thryvePhotoMain { grid-row: span 2; color: #fff; background: radial-gradient(circle at 70% 22%, rgba(255,255,255,.8), transparent 19%), linear-gradient(145deg, #1b9789 0%, #0f6866 48%, #173b58 100%); }.thryvePhotoMain::before { content: ""; position: absolute; inset: 12% 12% auto auto; width: 170px; height: 170px; border: 1px solid rgba(255,255,255,.34); border-radius: 48% 52% 55% 45%; transform: rotate(26deg); }.thryvePhotoMain span, .thryvePhotoMain small { position: relative; z-index: 1; }.thryvePhotoMint { justify-content: center; gap: 8px; color: var(--thryve-ink); background: linear-gradient(145deg, #d9f6eb, #94d9c9); }.thryvePhotoMint svg { color: var(--thryve-teal); }.thryvePhotoYellow { color: #24332f; background: linear-gradient(145deg, #fff5bd, #f5cf45); }.thryvePhotoNote { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 0 6px; color: #64736f; font-size: 12px; font-weight: 700; }.thryvePhotoNote svg { color: var(--thryve-teal); }
+.thryveIntro, .thryvePrograms, .thryveCoach, .thryveBookCta { max-width: 1440px; margin: 0 auto; padding: 84px clamp(20px, 5vw, 76px); }.thryveIntro { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .8fr); gap: 60px; align-items: end; background: #f0fbf7; }.thryveIntro h2, .thryveSectionHeading h2, .thryveCoach h2, .thryveBookCta h2 { margin: 12px 0 0; color: #202526; font-size: clamp(30px, 4vw, 52px); line-height: 1.04; }.thryveIntro p, .thryveSectionHeading p, .thryveCoach p, .thryveBookCta p { color: #64736f; line-height: 1.75; }
+.thryvePrograms { padding-top: 94px; }.thryveSectionHeading { max-width: 620px; }.thryveProgramGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 36px; }.thryveProgramCard { display: flex; flex-direction: column; min-height: 222px; padding: 24px; border: 1px solid #dcece6; border-radius: 16px; background: #fff; box-shadow: 0 12px 30px rgba(24,59,67,.06); }.thryveProgramCard:nth-child(3n+1) { border-top: 4px solid var(--thryve-teal); }.thryveProgramCard:nth-child(3n+2) { border-top: 4px solid var(--thryve-yellow); }.thryveProgramCard:nth-child(3n) { border-top: 4px solid var(--thryve-mint); }.thryveCardTag { color: var(--thryve-teal); font-size: 10px; font-weight: 850; letter-spacing: .14em; }.thryveProgramCard h3 { margin: 14px 0 8px; color: #202526; font-size: 20px; }.thryveProgramCard p { margin: 0; color: #64736f; font-size: 13px; line-height: 1.6; }.thryveProgramCard strong { margin-top: auto; color: var(--thryve-teal); font: 850 18px "Plus Jakarta Sans", sans-serif; }.thryveProgramCard small { margin-top: 5px; color: #7a8883; }.thryveProgramCardSoft { background: #f8fcfa; }.thryveProgramCard button { display: inline-flex; align-items: center; gap: 7px; width: fit-content; margin-top: auto; padding: 0; border: 0; background: none; color: var(--thryve-teal); font-weight: 800; cursor: pointer; }
+.thryveCoach { display: flex; align-items: center; gap: 30px; background: #183b43; color: #fff; }.thryveCoach h2 { color: #fff; }.thryveCoach p { max-width: 650px; color: #c8e6de; }.thryveCoachMark { display: grid; width: 86px; height: 86px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: var(--thryve-mint); color: var(--thryve-ink); font: 850 24px "Plus Jakarta Sans", sans-serif; }.thryveBookCta { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .65fr); gap: 40px; align-items: center; }.thryveAvailability { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; padding: 24px; border-radius: 16px; background: #f0fbf7; }.thryveAvailability strong { color: var(--thryve-ink); }.thryveAvailability span { margin-bottom: 12px; color: #64736f; font-size: 13px; }.thryveFooter { display: flex; justify-content: space-between; gap: 20px; padding: 24px clamp(20px, 5vw, 76px); background: #f0fbf7; color: #64736f; font-size: 12px; }
+@media (max-width: 860px) { .thryveHeader nav { display: none; }.thryveHero { grid-template-columns: 1fr; }.thryveHeroCopy { max-width: none; }.thryveHeroGrid { max-width: 680px; }.thryveIntro, .thryveBookCta { grid-template-columns: 1fr; gap: 24px; }.thryveProgramGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .thryveHeader { min-height: 66px; padding: 10px 16px; }.thryveLogoLink { width: 104px; }.thryveHeaderButton { padding: 10px 13px; font-size: 11px; }.thryveHero { padding: 48px 16px 54px; }.thryveHero h1 { font-size: clamp(44px, 14vw, 62px); }.thryveHeroGrid { grid-template-columns: 1fr 1fr; grid-template-rows: 190px 140px 42px; min-height: 0; }.thryvePhotoMain { grid-row: span 2; }.thryvePhotoPanel { padding: 16px; border-radius: 13px; }.thryvePhotoPanel span { font-size: 16px; }.thryveIntro, .thryvePrograms, .thryveCoach, .thryveBookCta { padding: 58px 16px; }.thryveProgramGrid { grid-template-columns: 1fr; }.thryveCoach { align-items: flex-start; flex-direction: column; }.thryveFooter { flex-direction: column; padding: 20px 16px; } }
+
+/* ThryveLab refinement for the existing PRO booking template only. */
+.premiumBookingPage.thryvelab { --thryve-booking-teal: #198f83; --thryve-booking-mint: #e8f7f2; --thryve-booking-yellow: #f5cf45; --thryve-booking-ink: #183b43; background: #fbfdfc; color: var(--thryve-booking-ink); }
+.premiumBookingPage.thryvelab .wellnessPublicNav { min-height: 76px; padding: 10px clamp(18px, 5vw, 72px); border-bottom-color: rgba(24,59,67,.12); background: rgba(255,255,255,.96); }
+.premiumBookingPage.thryvelab .wellnessNavBrand { color: var(--thryve-booking-ink); }.premiumBookingPage.thryvelab .wellnessNavBrand span { width: 112px; height: 54px; padding: 0; border-radius: 0; background: transparent; }.premiumBookingPage.thryvelab .wellnessNavBrand span img { width: 100%; height: 100%; object-fit: contain; }.premiumBookingPage.thryvelab .wellnessNavBrand strong { display: none; }
+.premiumBookingPage.thryvelab .wellnessPublicNav nav a { color: var(--thryve-booking-ink); font-size: 12px; }.premiumBookingPage.thryvelab .wellnessPublicNav nav a:hover { color: var(--thryve-booking-teal); }.premiumBookingPage.thryvelab .wellnessNavCta { border-radius: 999px; background: var(--thryve-booking-yellow); color: #183b43; box-shadow: 0 8px 18px rgba(245,207,69,.2); }
+.premiumBookingPage.thryvelab .premiumPublicBooking { max-width: 1240px; grid-template-columns: minmax(330px, .82fr) minmax(560px, 1.18fr); gap: 18px; padding: 18px 20px 34px; }
+.premiumBookingPage.thryvelab .premiumBrandPanel { min-height: 650px; border-radius: 18px; background: linear-gradient(145deg, #198f83, #183b43 70%); box-shadow: 0 18px 45px rgba(24,59,67,.12); }.premiumBookingPage.thryvelab .premiumBrandPanel::before { background: linear-gradient(180deg, rgba(25,143,131,.06), rgba(24,59,67,.78)); }.premiumBookingPage.thryvelab .brandMark { background: rgba(255,255,255,.95); color: var(--thryve-booking-teal); }.premiumBookingPage.thryvelab .brandStory h1 { max-width: 460px; color: #fff; font-size: clamp(40px, 5vw, 60px); line-height: 1.02; }.premiumBookingPage.thryvelab .brandStory h1 em { color: var(--thryve-booking-yellow); font-style: normal; }.premiumBookingPage.thryvelab .brandStory p { max-width: 420px; color: #d9f1e9; }.premiumBookingPage.thryvelab .bookingTrustCard { border-color: rgba(232,247,242,.58); background: rgba(255,255,255,.9); }.premiumBookingPage.thryvelab .bookingTrustCard svg { color: var(--thryve-booking-teal); background: var(--thryve-booking-mint); }
+.premiumBookingPage.thryvelab .premiumPublicForm { border-color: rgba(25,143,131,.16); border-radius: 18px; background: #fff; box-shadow: 0 18px 45px rgba(24,59,67,.08); }.premiumBookingPage.thryvelab .bookingFormHeader h2 { color: var(--thryve-booking-ink); }.premiumBookingPage.thryvelab .bookingHeaderIcon, .premiumBookingPage.thryvelab .bookingStepTitle > span, .premiumBookingPage.thryvelab .serviceIcon { color: var(--thryve-booking-teal); background: var(--thryve-booking-mint); }.premiumBookingPage.thryvelab .premiumService { border-color: #dcece6; border-radius: 12px; box-shadow: 0 7px 18px rgba(24,59,67,.04); }.premiumBookingPage.thryvelab .premiumService:hover, .premiumBookingPage.thryvelab .premiumService.active { border-color: var(--thryve-booking-teal); }.premiumBookingPage.thryvelab .premiumService.active { background: #f0fbf7; }.premiumBookingPage.thryvelab .premiumService small { color: var(--thryve-booking-teal); }.premiumBookingPage.thryvelab .premiumConfirmButton { border-radius: 999px; background: var(--thryve-booking-yellow); color: #183b43; }.premiumBookingPage.thryvelab :is(a, button, input, textarea, select):focus-visible { outline-color: rgba(25,143,131,.48); }
+@media (max-width: 900px) { .premiumBookingPage.thryvelab .premiumPublicBooking { grid-template-columns: 1fr; padding: 18px 12px 26px; }.premiumBookingPage.thryvelab .premiumBrandPanel { min-height: 440px; }.premiumBookingPage.thryvelab .premiumPublicForm { border-radius: 0 0 18px 18px; } }
+@media (max-width: 560px) { .premiumBookingPage.thryvelab .wellnessPublicNav { padding: 9px 14px; }.premiumBookingPage.thryvelab .wellnessNavBrand span { width: 96px; height: 46px; }.premiumBookingPage.thryvelab .wellnessPublicNav nav { display: none; }.premiumBookingPage.thryvelab .wellnessNavCta { padding: 10px 13px; font-size: 11px; }.premiumBookingPage.thryvelab .premiumPublicBooking { padding: 0 0 20px; }.premiumBookingPage.thryvelab .premiumBrandPanel { min-height: 390px; border-radius: 0; }.premiumBookingPage.thryvelab .premiumPublicForm { border-radius: 0; padding: 20px 16px; } }
+
+/* Final ThryveLab booking polish: all selectors stay under the client slug. */
+.premiumBookingPage.thryvelab { font-family: Inter, system-ui, sans-serif; }.premiumBookingPage.thryvelab :is(h1, h2, h3, strong, button, label) { font-family: "Plus Jakarta Sans", Inter, sans-serif; }
+.premiumBookingPage.thryvelab .premiumBrandPanel { background-position: center; background-size: cover; }.premiumBookingPage.thryvelab .premiumBrandPanel::before { background: linear-gradient(180deg, rgba(13,88,82,.04) 0%, rgba(15,75,72,.16) 42%, rgba(16,54,60,.64) 100%); }.premiumBookingPage.thryvelab .brandLogoLockup { margin-bottom: 22px; }.premiumBookingPage.thryvelab .brandMark { width: 190px; height: 150px; aspect-ratio: auto; padding: 10px 16px; overflow: visible; border-radius: 12px; }.premiumBookingPage.thryvelab .brandMark img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: contain; }.premiumBookingPage.thryvelab .brandStory { max-width: 480px; }.premiumBookingPage.thryvelab .brandStory > span { color: #e8f7f2; letter-spacing: .14em; }.premiumBookingPage.thryvelab .wellnessHeroBusinessName { display: block; margin-top: 8px; color: #fff; font-size: 12px; letter-spacing: .11em; text-transform: uppercase; }.premiumBookingPage.thryvelab .brandStory h1 { margin: 10px 0 14px; font-size: clamp(38px, 4.4vw, 58px); line-height: .99; text-wrap: balance; }.premiumBookingPage.thryvelab .brandStory i { width: 54px; height: 4px; margin: 0 0 16px; background: var(--thryve-booking-yellow); border-radius: 99px; }.premiumBookingPage.thryvelab .brandStory p { font-size: 15px; line-height: 1.6; }.premiumBookingPage.thryvelab .wellnessHeroActions { gap: 10px; margin-top: 22px; }.premiumBookingPage.thryvelab .wellnessHeroActions a { border-radius: 999px; padding: 12px 18px; font-size: 12px; }.premiumBookingPage.thryvelab .wellnessHeroActions a:first-child { background: var(--thryve-booking-yellow); color: var(--thryve-booking-ink); }.premiumBookingPage.thryvelab .wellnessHeroActions a:last-child { border: 1px solid rgba(255,255,255,.8); background: rgba(255,255,255,.92); color: var(--thryve-booking-teal); }
+.premiumBookingPage.thryvelab .wellnessBusinessCard { margin-top: 24px; border: 1px solid rgba(255,255,255,.7); border-radius: 15px; background: rgba(255,255,255,.94); box-shadow: 0 12px 26px rgba(24,59,67,.12); }.premiumBookingPage.thryvelab .wellnessBusinessCard > strong { color: var(--thryve-booking-teal); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }.premiumBookingPage.thryvelab .wellnessBusinessCard :is(div, a) { gap: 12px; padding: 10px 0; }.premiumBookingPage.thryvelab .wellnessBusinessCard svg { color: var(--thryve-booking-teal); flex: 0 0 auto; }.premiumBookingPage.thryvelab .wellnessBusinessCard small { color: #6a7d78; }.premiumBookingPage.thryvelab .wellnessBusinessCard b { color: var(--thryve-booking-ink); font-size: 12px; line-height: 1.45; }
+.premiumBookingPage.thryvelab .premiumPublicForm { padding: clamp(24px, 3vw, 38px); }.premiumBookingPage.thryvelab .bookingFormHeader { padding-bottom: 24px; margin-bottom: 22px; border-bottom: 1px solid #e6efeb; }.premiumBookingPage.thryvelab .bookingFormHeader h2 { font-size: clamp(27px, 3vw, 36px); letter-spacing: -.04em; }.premiumBookingPage.thryvelab .bookingFormHeader p { color: #64736f; line-height: 1.6; }.premiumBookingPage.thryvelab .bookingStepTitle { margin-bottom: 16px; }.premiumBookingPage.thryvelab .bookingStepTitle strong { color: var(--thryve-booking-ink); gap: 9px; }.premiumBookingPage.thryvelab .bookingStepTitle > span { width: 30px; height: 30px; border-radius: 9px; background: var(--thryve-booking-yellow); color: var(--thryve-booking-ink); }
+.premiumBookingPage.thryvelab .premiumServiceGrid { gap: 12px; }.premiumBookingPage.thryvelab .premiumService { min-height: 142px; padding: 17px; }.premiumBookingPage.thryvelab .premiumService strong { color: var(--thryve-booking-ink); font-size: 14px; line-height: 1.35; }.premiumBookingPage.thryvelab .premiumService p { color: #64736f; line-height: 1.45; }.premiumBookingPage.thryvelab .premiumService small { font-size: 13px; font-weight: 850; }.premiumBookingPage.thryvelab .premiumService.active::after { background: var(--thryve-booking-teal); }.premiumBookingPage.thryvelab .serviceIcon { width: 34px; height: 34px; border-radius: 10px; background: var(--thryve-booking-yellow); color: var(--thryve-booking-ink); }
+.premiumBookingPage.thryvelab .preferredSchedulePanel, .premiumBookingPage.thryvelab .calendarPanel, .premiumBookingPage.thryvelab .bookingDetailsPanel { border-color: #e1eee9; border-radius: 14px; background: #f8fcfa; }.premiumBookingPage.thryvelab .preferredScheduleGrid { gap: 10px; }.premiumBookingPage.thryvelab .preferredScheduleGrid input, .premiumBookingPage.thryvelab .premiumInput, .premiumBookingPage.thryvelab input, .premiumBookingPage.thryvelab textarea, .premiumBookingPage.thryvelab select { min-height: 46px; border-color: #d8e8e2; border-radius: 10px; background: #fff; color: var(--thryve-booking-ink); }.premiumBookingPage.thryvelab textarea { min-height: 100px; }.premiumBookingPage.thryvelab .preferredScheduleSummary { border-color: #d8e8e2; background: #fff; }.premiumBookingPage.thryvelab .preferredScheduleSummary strong { color: var(--thryve-booking-teal); }.premiumBookingPage.thryvelab .premiumConfirmButton { min-height: 50px; padding: 14px 22px; font-weight: 850; box-shadow: 0 10px 18px rgba(245,207,69,.2); }.premiumBookingPage.thryvelab .bookingError, .premiumBookingPage.thryvelab .customerEmailNotice { border-radius: 10px; }
+@media (max-width: 900px) { .premiumBookingPage.thryvelab .premiumBrandPanel { min-height: 460px; }.premiumBookingPage.thryvelab .premiumPublicForm { padding: 26px 22px; } }
+@media (max-width: 560px) { .premiumBookingPage.thryvelab .premiumBrandPanel { min-height: 410px; }.premiumBookingPage.thryvelab .brandMark { width: 150px; height: 125px; padding: 8px 12px; }.premiumBookingPage.thryvelab .brandStory h1 { font-size: clamp(36px, 11vw, 50px); }.premiumBookingPage.thryvelab .premiumPublicForm { padding: 22px 16px; }.premiumBookingPage.thryvelab .premiumServiceGrid { grid-template-columns: 1fr; }.premiumBookingPage.thryvelab .premiumService { min-height: 128px; }.premiumBookingPage.thryvelab .wellnessBusinessCard { margin-top: 18px; } }
+
+/* ThryveLab submit action: explicitly neutralize the shared gradient treatment. */
+.premiumBookingPage.thryvelab .premiumConfirmButton,
+.premiumBookingPage.thryvelab .premiumConfirmButton:hover,
+.premiumBookingPage.thryvelab .premiumConfirmButton:active,
+.premiumBookingPage.thryvelab .premiumConfirmButton:disabled {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 54px;
+  margin-top: 18px;
+  padding: 14px 58px 14px 20px;
+  border: 0;
+  border-radius: 12px;
+  background: #0F766E !important;
+  background-image: none !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 10px 20px rgba(15,118,110,.18);
+  font-family: "Plus Jakarta Sans", Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  transition: background-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.premiumBookingPage.thryvelab .premiumConfirmButton:hover:not(:disabled) { background: #0B625C !important; box-shadow: 0 13px 24px rgba(15,118,110,.24); transform: translateY(-1px); }
+.premiumBookingPage.thryvelab .premiumConfirmButton:active:not(:disabled) { background: #09534F !important; box-shadow: 0 5px 12px rgba(15,118,110,.2); transform: translateY(0); }
+.premiumBookingPage.thryvelab .premiumConfirmButton:focus-visible { outline: 3px solid rgba(245,207,69,.9); outline-offset: 3px; }
+.premiumBookingPage.thryvelab .premiumConfirmButton:disabled { opacity: .58; cursor: not-allowed; box-shadow: none; transform: none; }
+.premiumBookingPage.thryvelab .premiumConfirmButton svg { position: absolute; right: 18px; width: 20px; height: 20px; color: #FFFFFF; }
+
+/* Final ThryveLab branding-panel refinement. */
+.premiumBookingPage.thryvelab .premiumBrandPanel::before {
+  background: linear-gradient(180deg, rgba(13, 88, 82, .02) 0%, rgba(13, 88, 82, .08) 48%, rgba(16, 54, 60, .48) 100%);
+}
+.premiumBookingPage.thryvelab .brandLogoLockup { margin-bottom: 18px; }
+.premiumBookingPage.thryvelab .brandMark {
+  width: 176px;
+  height: 132px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, .7);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .82);
+  box-shadow: 0 10px 24px rgba(24, 59, 67, .12);
+  backdrop-filter: blur(8px);
+}
+.premiumBookingPage.thryvelab .brandStory > span {
+  display: block;
+  color: #e8f7f2;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  line-height: 1.4;
+}
+.premiumBookingPage.thryvelab .wellnessHeroBusinessName {
+  margin-top: 5px;
+  color: rgba(255, 255, 255, .82);
+  font-size: 11px;
+  letter-spacing: .14em;
+}
+.premiumBookingPage.thryvelab .brandStory h1 {
+  margin: 12px 0 12px;
+  max-width: 420px;
+  font-size: clamp(36px, 4vw, 52px);
+  line-height: 1.02;
+  letter-spacing: -.025em;
+}
+.premiumBookingPage.thryvelab .brandStory p { max-width: 390px; font-size: 14px; line-height: 1.55; }
+.premiumBookingPage.thryvelab .wellnessBusinessCard {
+  margin-top: 20px;
+  padding: 13px 16px;
+  gap: 0;
+  grid-template-columns: 1fr;
+  border-color: rgba(255, 255, 255, .62);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .9);
+}
+.premiumBookingPage.thryvelab .wellnessBusinessCard > strong { padding-bottom: 4px; }
+.premiumBookingPage.thryvelab .wellnessBusinessCard :is(div, a) { min-width: 0; padding: 9px 0; border-top: 1px solid rgba(25, 143, 131, .14); }
+.premiumBookingPage.thryvelab .wellnessBusinessCard :is(div, a) span { min-width: 0; }
+.premiumBookingPage.thryvelab .wellnessBusinessCard b { overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .premiumBookingPage.thryvelab .brandMark { width: 150px; height: 116px; padding: 7px 11px; }
+  .premiumBookingPage.thryvelab .brandStory h1 { font-size: clamp(34px, 10vw, 46px); }
+  .premiumBookingPage.thryvelab .wellnessBusinessCard { margin-top: 16px; }
+}
+@media (max-width: 620px) { .marketingPackageDetailHeader { align-items: flex-start; flex-direction: column; }.marketingPackageSections { grid-template-columns: 1fr; }.marketingPackageLimits { padding-left: 0; border-left: 0; border-top: 2px solid #eadfff; padding-top: 14px; } }
+
+.featureRealPreview { min-height: 190px; margin: 24px 0; padding: 18px; border: 1px solid #ded7ff; border-radius: 11px; background: #fbfaff; color: var(--m-navy); }
+.featurePreviewHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.featurePreviewHeader .featurePreviewKicker { margin-bottom: 0; }.featurePreviewHeader > span:last-child { color: #8a83ae; font-size: 9px; font-weight: 700; letter-spacing: .08em; }
+.featurePreviewTabs { display: flex; gap: 5px; margin: 14px 0; overflow-x: auto; padding-bottom: 2px; }.featurePreviewTabs button { flex: 0 0 auto; margin: 0; padding: 7px 9px; color: var(--m-slate); border: 1px solid #e5e0f4; background: #fff; font-size: 9px; font-weight: 600; }.featurePreviewTabs button.active { color: #fff; border-color: var(--m-indigo); background: var(--m-indigo); }.featurePreviewAside { display: grid; align-content: start; gap: 7px; padding: 12px; border: 1px solid #e5e0f4; border-radius: 7px; background: #fff; }.featurePreviewAside strong { font: 700 16px Manrope, Inter, sans-serif; }.featurePreviewAside small, .featurePreviewCalendar { color: var(--m-slate); font-size: 10px; line-height: 1.6; }.featurePreviewCalendar { display: block; padding: 9px; border: 1px solid #e5e0f4; border-radius: 7px; background: #fff; }.featurePreviewCalendar b { color: var(--m-indigo); }.bookingCustomerFields { max-width: 100%; }.featurePreviewConfirmation { display: grid; justify-items: start; gap: 6px; padding: 12px; border: 1px solid #d1efe5; border-radius: 8px; background: #f5fffb; font-size: 11px; }.featurePreviewCheck { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: #fff; background: var(--m-teal); font-weight: 800; }.featurePreviewConfirmation b { font: 700 16px Manrope, Inter, sans-serif; }.featurePreviewConfirmation span:not(.featurePreviewCheck) { color: var(--m-slate); }.featurePreviewConfirmation small { color: #5a8578; font-size: 9px; }
+.featurePreviewKicker { display: block; margin-bottom: 14px; color: var(--m-indigo); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+.featurePreviewColumns, .featurePreviewDashboardNav, .featurePreviewMetrics, .featurePreviewPaymentGrid { display: grid; gap: 10px; }
+.featurePreviewColumns { grid-template-columns: 1fr 1fr; }
+.featurePreviewColumns > div { display: grid; align-content: start; gap: 7px; }
+.featurePreviewColumns b, .featurePreviewDashboardNav b { font-size: 11px; }
+.featurePreviewRow, .featurePreviewDate, .featurePreviewFields span, .featurePreviewTableRow, .featurePreviewPaymentGrid span, .featurePreviewSettings span { display: grid; gap: 3px; padding: 8px 9px; border: 1px solid #e5e0f4; border-radius: 7px; background: #fff; font-size: 10px; }
+.featurePreviewRow small, .featurePreviewFields strong, .featurePreviewTableRow small, .featurePreviewPaymentGrid strong { color: var(--m-slate); font-size: 9px; font-weight: 500; }
+.featurePreviewRow.active, .featurePreviewSlots .selected { border-color: var(--m-indigo); background: #f0edff; }
+.featurePreviewSlots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.featurePreviewSlots span { padding: 7px; border: 1px solid #e5e0f4; border-radius: 6px; background: #fff; text-align: center; font-size: 10px; }
+.inquiryPreview > b { display: block; margin-bottom: 10px; font: 700 16px Manrope, Inter, sans-serif; }
+.featurePreviewFields { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.featurePreviewMessage { grid-column: 1 / -1; }
+.featureRealPreview button { margin-top: 10px; padding: 8px 12px; border: 0; border-radius: 6px; color: #fff; background: var(--m-indigo); font-size: 10px; font-weight: 700; }
+.featureRealPreview button:disabled { opacity: .8; }
+.featurePreviewDashboardNav { grid-template-columns: repeat(4, 1fr); margin-bottom: 14px; }
+.featurePreviewDashboardNav span { color: var(--m-slate); font-size: 10px; }
+.featurePreviewMetrics { grid-template-columns: repeat(3, 1fr); }
+.featurePreviewMetrics span { display: grid; gap: 6px; padding: 12px; border: 1px solid #e5e0f4; border-radius: 8px; background: #fff; }
+.featurePreviewMetrics small { color: var(--m-indigo); font-size: 8px; font-weight: 800; }
+.featurePreviewMetrics b { font-size: 10px; }
+.featurePreviewTableHead, .featurePreviewTableRow { display: grid; grid-template-columns: 1.2fr 1fr .7fr; gap: 10px; align-items: center; }
+.featurePreviewTableHead { padding: 0 9px 7px; color: var(--m-slate); font-size: 9px; }
+.featurePreviewTableRow { margin-top: 6px; }
+.featurePreviewTableRow span { display: grid; gap: 3px; font-size: 10px; }
+.featurePreviewTableRow em, .featurePreviewPaymentHead em { font-style: normal; font-size: 9px; font-weight: 800; }
+.featurePreviewTableRow em.pending { color: #b86c13; }.featurePreviewTableRow em.confirmed { color: var(--m-teal); }
+.featurePreviewEmail { display: grid; gap: 9px; max-width: 520px; padding: 16px; border: 1px solid #e5e0f4; border-radius: 8px; background: #fff; }
+.featurePreviewEmail small { color: var(--m-indigo); font-size: 8px; font-weight: 800; }.featurePreviewEmail b { font: 700 15px Manrope, Inter, sans-serif; }.featurePreviewEmail p { margin: 0; font-size: 11px; font-weight: 800; }.featurePreviewEmail span, .featurePreviewEmail footer { color: var(--m-slate); font-size: 10px; }
+.featurePreviewEmail footer { padding-top: 8px; border-top: 1px solid #eeeaf8; }
+.featurePreviewPaymentHead { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; font-size: 11px; }.featurePreviewPaymentHead em { color: #b86c13; }.featurePreviewPaymentGrid { grid-template-columns: repeat(4, 1fr); }.featurePreviewPaymentGrid span { color: var(--m-slate); }.featurePreviewPaymentGrid strong { color: var(--m-navy); font-size: 11px; font-weight: 700; }.featurePreviewActions { display: flex; gap: 7px; }.featurePreviewActions button:last-child { color: var(--m-indigo); background: #fff; border: 1px solid #d5cdfd; }
+.featurePreviewPaper { max-width: 330px; padding: 15px; border: 1px solid #ddd8ed; background: #fff; box-shadow: 0 5px 14px rgba(36,33,58,.06); }.featurePreviewPaper small { color: var(--m-indigo); font-size: 8px; font-weight: 800; }.featurePreviewPaper h3 { margin: 14px 0 3px; font: 700 15px Manrope, Inter, sans-serif; }.featurePreviewPaper b, .featurePreviewPaper span, .featurePreviewPaper strong { display: block; font-size: 10px; }.featurePreviewPaper span { color: var(--m-slate); }.featurePreviewPaper strong { margin-top: 12px; color: #b86c13; }.featurePreviewSettings { display: grid; gap: 8px; max-width: 520px; }.featurePreviewSettings > b { margin-bottom: 4px; font: 700 15px Manrope, Inter, sans-serif; }.featurePreviewSettings > div { display: flex; align-items: center; gap: 6px; color: var(--m-slate); font-size: 10px; }.featurePreviewSettings i { width: 18px; height: 18px; border-radius: 5px; background: var(--m-indigo); }.featurePreviewSettings i:nth-child(2) { background: #9183f2; }
+@media (max-width: 680px) { .featurePreviewColumns, .featurePreviewFields, .featurePreviewMetrics, .featurePreviewPaymentGrid { grid-template-columns: 1fr; }.featurePreviewDashboardNav { grid-template-columns: 1fr 1fr; }.featurePreviewTableHead, .featurePreviewTableRow { grid-template-columns: 1fr 1fr; }.featurePreviewTableHead b:last-child, .featurePreviewTableRow em { grid-column: 2; }.featurePreviewPaymentGrid span { min-width: 0; } }
+
+.marketingFeatureExplorer .marketingPageIntro { max-width: 700px; margin-bottom: 24px; }
+.marketingFeatureExplorer .marketingPageIntro h1 { margin-bottom: 10px; font-size: clamp(32px, 4vw, 48px); }
+.marketingFeatureExplorerGrid { display: grid; grid-template-columns: minmax(250px, .34fr) minmax(0, .66fr); gap: 16px; min-height: 510px; }
+.marketingFeatureSelector, .marketingFeatureDetail { border: 1px solid var(--m-border); border-radius: 14px; background: #fff; box-shadow: 0 8px 26px rgba(36,33,58,.04); }
+.marketingFeatureSelector { display: grid; align-content: start; gap: 5px; padding: 10px; }
+.marketingFeatureSelector button { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 10px 11px; border: 1px solid transparent; border-radius: 9px; color: var(--m-navy); background: transparent; text-align: left; font: 600 12px Inter, sans-serif; cursor: pointer; }
+.marketingFeatureSelector button svg:first-child { color: var(--m-indigo); }
+.marketingFeatureSelector button svg:last-child { color: #a5a0bd; }
+.marketingFeatureSelector button:hover, .marketingFeatureSelector button:focus-visible { border-color: #d8d0ff; background: #faf9ff; outline: none; }
+.marketingFeatureSelector button.active { color: var(--m-indigo); border-color: #d5cdfd; background: var(--m-ice); box-shadow: inset 3px 0 0 var(--m-indigo); }
+.marketingFeatureDetail { min-width: 0; padding: 26px 30px; }
+.marketingFeatureDetailTop { display: flex; align-items: center; justify-content: space-between; }
+.marketingFeatureDetailTop .marketingIcon { margin: 0; }
+.marketingFeatureDetail h2 { margin: 22px 0 8px; color: var(--m-navy); font: 700 clamp(24px, 3vw, 36px)/1.1 Manrope, Inter, sans-serif; }
+.marketingFeatureLead { max-width: 650px; margin: 0; color: var(--m-slate); font-size: 14px; line-height: 1.6; }
+.marketingFeaturePreview { display: grid; gap: 8px; min-height: 118px; margin: 24px 0; padding: 20px; border: 1px solid #ded7ff; border-radius: 11px; background: linear-gradient(135deg, #fbfaff, #f0edff); }
+.marketingFeaturePreview span, .marketingFeatureLabel { color: var(--m-indigo); font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.marketingFeaturePreview strong { color: var(--m-navy); font: 700 18px Manrope, Inter, sans-serif; }
+.marketingFeaturePreview div { display: flex; gap: 7px; }
+.marketingFeaturePreview i { width: 42px; height: 7px; border-radius: 99px; background: #c5baff; }
+.marketingFeaturePreview i:nth-child(2) { width: 70px; background: #9b8af1; }
+.marketingFeaturePreview i:nth-child(3) { width: 32px; background: #d9d3ff; }
+.marketingFeatureDetailBottom { display: grid; grid-template-columns: 1.2fr .8fr; gap: 28px; }
+.marketingFeatureDetailBottom ul { display: grid; gap: 9px; margin: 12px 0 0; padding: 0; color: var(--m-slate); list-style: none; font-size: 12px; }
+.marketingFeatureDetailBottom li { display: flex; align-items: center; gap: 7px; }
+.marketingFeatureDetailBottom li svg { color: var(--m-teal); }
+.marketingPackageBadge { display: block; margin-top: 12px; color: var(--m-navy); font-size: 12px; line-height: 1.5; }
+.marketingFeatureCta { display: inline-flex; align-items: center; gap: 6px; margin-top: 22px; color: var(--m-indigo); font-size: 12px; font-weight: 700; text-decoration: none; }
+@media (max-width: 900px) { .marketingFeatureExplorerGrid { grid-template-columns: 280px minmax(0, 1fr); } }
+@media (max-width: 680px) { .marketingFeatureExplorerGrid { display: block; min-height: 0; }.marketingFeatureSelector { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 12px; padding: 7px; }.marketingFeatureSelector button { flex: 0 0 auto; width: auto; min-height: 42px; white-space: nowrap; }.marketingFeatureSelector button span { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }.marketingFeatureSelector button svg:last-child { display: none; }.marketingFeatureDetail { padding: 22px 18px; }.marketingFeatureDetailBottom { grid-template-columns: 1fr; gap: 20px; } }
+.marketingUpdatesPage .marketingPageIntro { max-width: 720px; margin-bottom: 22px; }
+.marketingUpdatesExplorer { display: grid; grid-template-columns: minmax(250px, .34fr) minmax(0, .66fr); gap: 16px; min-height: 500px; }
+.marketingUpdatesList, .marketingUpdateDetail { background: var(--marketing-surface, #fff); border: 1px solid var(--marketing-border, #e8e4f2); border-radius: 16px; box-shadow: 0 12px 28px rgba(36, 33, 58, .06); }
+.marketingUpdatesList { padding: 8px; overflow: auto; }
+.marketingUpdatesList button { display: grid; gap: 6px; width: 100%; padding: 15px; text-align: left; color: inherit; background: transparent; border: 0; border-radius: 11px; cursor: pointer; }
+.marketingUpdatesList button:hover, .marketingUpdatesList button:focus-visible { background: var(--marketing-lavender, #f1eeff); outline: none; }
+.marketingUpdatesList button.active { background: var(--marketing-lavender, #f1eeff); box-shadow: inset 3px 0 var(--marketing-primary, #6547d9); }
+.marketingUpdatesList button span, .marketingUpdatesList button small { color: var(--marketing-muted, #64736f); }
+.marketingUpdatesList button span { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.marketingUpdatesList button strong { color: var(--marketing-heading, #24213a); font-size: 15px; line-height: 1.3; }
+.marketingUpdatesList button small { font-size: 12px; line-height: 1.4; }
+.marketingUpdateDetail { padding: 30px; overflow: auto; }
+.marketingUpdateMeta { display: flex; align-items: center; gap: 12px; color: var(--marketing-muted, #64736f); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.marketingUpdateDetail h2 { margin: 14px 0 10px; color: var(--marketing-heading, #24213a); font: 800 clamp(26px, 3vw, 40px)/1.1 Manrope, Inter, sans-serif; }
+.marketingUpdateSummary { color: var(--marketing-heading, #24213a); font-size: 17px; line-height: 1.6; }
+.marketingUpdateContent { margin-top: 20px; color: var(--marketing-muted, #64736f); font-size: 15px; line-height: 1.7; white-space: pre-wrap; }
+.marketingUpdateBadges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 24px; }
+.marketingUpdateBadges span { padding: 6px 9px; color: var(--marketing-primary, #6547d9); background: var(--marketing-lavender, #f1eeff); border-radius: 999px; font-size: 11px; font-weight: 700; }
+.marketingUpdatesState { display: grid; gap: 10px; place-items: center; min-height: 240px; padding: 28px; color: var(--marketing-muted, #64736f); background: var(--marketing-surface, #fff); border: 1px solid var(--marketing-border, #e8e4f2); border-radius: 16px; text-align: center; }
+.marketingUpdatesState strong { color: var(--marketing-heading, #24213a); font-size: 18px; }
+.marketingUpdatesState.error { color: #9a3c45; }
+@media (max-width: 680px) { .marketingUpdatesExplorer { display: block; min-height: 0; }.marketingUpdatesList { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; }.marketingUpdatesList button { flex: 0 0 235px; }.marketingUpdateDetail { padding: 22px 18px; min-height: 360px; } }
+.marketingFaqList { display: grid; gap: 9px; max-width: 860px; }
+.marketingFaqList article { background: var(--marketing-surface, #fff); border: 1px solid var(--marketing-border, #e8e4f2); border-radius: 12px; overflow: hidden; }
+.marketingFaqList button { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 18px 20px; color: var(--marketing-heading, #24213a); background: transparent; border: 0; text-align: left; font: 700 16px Inter, sans-serif; cursor: pointer; }
+.marketingFaqList button svg { transition: transform .2s ease; }
+.marketingFaqList article.open button svg { transform: rotate(90deg); }
+.marketingFaqList button:focus-visible, .marketingPartnerTabs button:focus-visible { outline: 3px solid rgba(101, 71, 217, .28); outline-offset: 2px; }
+.marketingFaqAnswer { padding: 0 20px 18px; color: var(--marketing-muted, #64736f); line-height: 1.65; }
+.marketingFaqAnswer p { margin: 0; }
+.marketingPartnerTabs { display: inline-flex; gap: 6px; padding: 6px; margin-bottom: 14px; background: var(--marketing-lavender, #f1eeff); border-radius: 12px; }
+.marketingPartnerTabs button { padding: 11px 16px; color: var(--marketing-muted, #64736f); background: transparent; border: 0; border-radius: 8px; font-weight: 700; cursor: pointer; }
+.marketingPartnerTabs button.active { color: var(--marketing-primary, #6547d9); background: #fff; box-shadow: 0 4px 12px rgba(36, 33, 58, .08); }
+.marketingPartnerPanel { max-width: 980px; padding: 28px; background: var(--marketing-surface, #fff); border: 1px solid var(--marketing-border, #e8e4f2); border-radius: 16px; box-shadow: 0 12px 28px rgba(36, 33, 58, .06); }
+.marketingPartnerPanel h2 { max-width: 680px; margin: 10px 0; color: var(--marketing-heading, #24213a); font: 800 clamp(26px, 3vw, 42px)/1.12 Manrope, Inter, sans-serif; }
+.marketingPartnerPanel > p { max-width: 720px; color: var(--marketing-muted, #64736f); line-height: 1.65; }
+.marketingPartnerColumns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
+.marketingPartnerColumns div { padding: 16px; background: var(--marketing-lavender, #f1eeff); border-radius: 10px; }
+.marketingPartnerColumns h3 { margin: 0 0 6px; color: var(--marketing-heading, #24213a); font-size: 14px; }
+.marketingPartnerColumns p { margin: 0; color: var(--marketing-muted, #64736f); font-size: 13px; line-height: 1.55; }
+@media (max-width: 680px) { .marketingPartnerTabs { display: flex; width: 100%; }.marketingPartnerTabs button { flex: 1; }.marketingPartnerPanel { padding: 22px 18px; }.marketingPartnerColumns { grid-template-columns: 1fr; } }
+
+/* Compact homepage workflow and utility footer for the workspace layout. */
+.marketingFourPanels { gap: 12px; padding: 12px 0 20px; }
+
+/* Responsive V3 polish: keep navigation labeled and let content reflow before it gets cramped. */
+@media (max-width: 900px) {
+  .marketingSite { display: block; }
+  .marketingSidebar { position: static; width: 100%; height: auto; min-height: 0; padding: 10px 18px; border-right: 0; border-bottom: 1px solid var(--m-border); overflow: visible; }
+  .marketingSidebar .marketingBrand { height: 66px; margin: 0; justify-content: center; }
+  .marketingSidebar .marketingBrand img { width: 104px; height: 104px; }
+  .marketingSideNav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; padding: 7px 0 2px; }
+  .marketingSideNav a { justify-content: center; min-height: 44px; padding: 6px 4px; gap: 4px; border-radius: 9px; font-size: 10px; text-align: center; white-space: normal; }
+  .marketingSideNav a svg { width: 16px; height: 16px; }
+  .marketingSideNav a span { display: block; overflow: hidden; text-overflow: ellipsis; }
+  .marketingSidebarCta { display: none; }
+  .marketingWorkspace { width: 100%; margin-left: 0; }
+  .marketingWorkspace .marketingHeader { height: 58px; min-height: 58px; padding: 0 20px; }
+  .marketingMobileMenu { display: none; }
+  .marketingSearch { display: none; }
+  .marketingWorkspace .marketingHome, .marketingWorkspace .marketingPage { max-width: 100%; padding-right: clamp(18px, 4vw, 36px); padding-left: clamp(18px, 4vw, 36px); }
+  .marketingMasterHero { grid-template-columns: minmax(220px, .78fr) minmax(0, 1.22fr); gap: 20px; }
+  .marketingMasterCopy h1 { font-size: clamp(38px, 5vw, 54px); }
+  .marketingFeatureExplorerGrid, .marketingUpdatesExplorer { grid-template-columns: minmax(210px, .38fr) minmax(0, .62fr); }
+  .marketingPackageCards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .marketingPartnerColumns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  .marketingSidebar { padding: 8px 12px; }
+  .marketingSidebar .marketingBrand { height: 58px; }
+  .marketingSidebar .marketingBrand img { width: 92px; height: 92px; }
+  .marketingSideNav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .marketingSideNav a { min-height: 42px; font-size: 9px; }
+  .marketingWorkspace .marketingHeader { padding: 0 14px; }
+  .marketingWorkspace .marketingHome, .marketingWorkspace .marketingPage { padding-bottom: 32px; }
+  .marketingMasterHero { grid-template-columns: 1fr; align-items: start; padding-top: 24px; }
+  .marketingMasterCopy { max-width: 100%; }
+  .marketingMasterCopy h1 { font-size: clamp(38px, 12vw, 52px); letter-spacing: -.045em; }
+  .marketingMasterCopy p { font-size: 13px; }
+  .marketingMasterHighlights { gap: 10px 8px; }
+  .marketingFourPanels { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .marketingFourPanels article { min-height: 150px; padding: 14px; }
+  .marketingFourPanels h2 { font-size: 15px; }
+  .marketingFourPanels p { font-size: 11px; }
+  .marketingFeatureExplorerGrid, .marketingUpdatesExplorer { display: block; min-height: 0; }
+  .marketingFeatureSelector, .marketingUpdatesList { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; }
+  .marketingFeatureSelector button { flex: 0 0 auto; width: auto; min-height: 44px; }
+  .marketingFeatureDetail, .marketingUpdateDetail { padding: 20px 16px; }
+  .marketingPackageCards { grid-template-columns: 1fr; }
+  .marketingPackageCard { min-height: 0; }
+  .marketingPackageModalBackdrop { padding: 10px; }
+  .marketingPackageModal { max-height: calc(100vh - 20px); padding: 20px 16px; border-radius: 12px; }
+  .marketingPackageModal > header { gap: 10px; }
+  .marketingPackageModal h2 { font-size: 24px; }
+  .marketingPartnerTabs { display: flex; width: 100%; }
+  .marketingPartnerTabs button { min-height: 44px; flex: 1; padding: 10px 8px; }
+  .marketingPartnerPanel { padding: 20px 16px; }
+  .marketingPartnerColumns { grid-template-columns: 1fr; }
+  .marketingFaqList button { min-height: 52px; padding: 16px; font-size: 14px; }
+  .marketingFaqAnswer { padding: 0 16px 16px; font-size: 13px; }
+  .marketingWorkspace .marketingFooter { padding: 24px 18px; }
+}
+
+@media (max-width: 380px) {
+  .marketingSideNav a { font-size: 8px; }
+  .marketingSideNav a svg { width: 14px; height: 14px; }
+  .marketingFourPanels { grid-template-columns: 1fr; }
+  .marketingMasterHighlights { grid-template-columns: 1fr; }
+}
+.marketingMasterHero { grid-template-columns: minmax(300px, 0.34fr) minmax(0, 0.66fr); gap: 28px; }
+.marketingMasterCopy h1 { font-size: clamp(40px, 4vw, 58px); letter-spacing: -0.045em; }
+.marketingMasterCopy p { max-width: 360px; font-size: 14px; }
+.marketingFourPanels article { min-height: 118px; height: 118px; padding: 14px; }
+.marketingFourPanels h2 { margin: 9px 0 4px; font-size: 16px; }
+.marketingFourPanels p { max-width: 250px; color: #66728a; font-size: 12px; line-height: 1.45; }
+.marketingPanelPhone, .marketingPanelMiniCalendar, .marketingPanelEmail, .marketingPanelStats { margin-top: 10px; padding: 8px; font-size: 8px; }
+.marketingPanelPhone strong, .marketingPanelEmail strong, .marketingPanelStats strong { font-size: 10px; }
+.marketingFooter { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 0; padding: 16px clamp(28px, 4vw, 54px); }
+.marketingFooter span { color: var(--m-slate); font-size: 11px; }
+.marketingFooter span:last-child { color: #9aa7bc; }
+@media (max-width: 760px) {
+  .marketingFourPanels { padding-bottom: 24px; }
+  .marketingFourPanels article { height: auto; min-height: 118px; }
+  .marketingFooter { align-items: flex-start; flex-direction: column; padding: 18px; }
 }
 
 /* Reusable full-service travel agency presentation */
@@ -5157,6 +5693,25 @@ h2 {
 .smmClientCard small,
 .smmClientLink {
   color: #57627f;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.smmClientCard small {
+  display: block;
+  max-width: 58ch;
+  margin-top: 5px;
+}
+
+.smmClientCard > div:first-child {
+  min-width: 0;
+}
+
+.smmClientControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .smmClientLink {
@@ -7709,6 +8264,261 @@ button,
   font-size: 13px;
 }
 
+/* Shared post-booking payment choices. Template themes may override colors,
+   but the layout remains stable across every booking confirmation screen. */
+.publicPaymentChoices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.paymentChoiceCard,
+.paymentLaterChoice {
+  min-width: 0;
+  min-height: 124px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.paymentChoiceCard {
+  color: #fff;
+  background: var(--booking-primary, #6d283e);
+  border-color: color-mix(in srgb, var(--booking-primary, #6d283e) 70%, #fff);
+}
+
+.paymentLaterChoice {
+  color: #253044;
+  background: #fff;
+}
+
+.paymentChoiceCard:hover,
+.paymentLaterChoice:hover {
+  transform: translateY(-1px);
+  border-color: var(--booking-primary, #6d283e);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+}
+
+.paymentChoiceCard:focus-visible,
+.paymentLaterChoice:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--booking-primary, #6d283e) 34%, #fff);
+  outline-offset: 2px;
+}
+
+.paymentChoiceCard > svg,
+.paymentLaterChoice > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.paymentChoiceCard > span,
+.paymentLaterChoice > span {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.paymentChoiceCard strong,
+.paymentLaterChoice strong {
+  font-size: 15px;
+  line-height: 1.15;
+  letter-spacing: .03em;
+}
+
+.paymentChoiceCard small,
+.paymentLaterChoice small,
+.paymentChoiceCard em,
+.paymentLaterChoice em {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.paymentChoiceCard em,
+.paymentLaterChoice em {
+  font-style: normal;
+  font-weight: 750;
+}
+
+.paymentChoiceCard em { color: #d9f99d; }
+.paymentLaterChoice em { color: #64748b; }
+
+@media (max-width: 620px) {
+  .publicPaymentChoices { grid-template-columns: minmax(0, 1fr); }
+  .paymentChoiceCard,
+  .paymentLaterChoice { min-height: 108px; }
+}
+
+/* Shared payment verification presentation. These rules own the structure;
+   business templates may still provide their own colors and type treatments. */
+.paymentInstructions .paymentScreenHeading {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+
+.paymentInstructions .paymentBackButton {
+  justify-self: start;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--booking-primary, #6d283e);
+  font: 800 11px/1.2 inherit;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.paymentInstructions .paymentBackButton:hover { text-decoration: underline; }
+.paymentInstructions .paymentBackButton:focus-visible { outline: 3px solid color-mix(in srgb, var(--booking-primary, #6d283e) 30%, #fff); outline-offset: 3px; }
+
+.paymentInstructions .paymentScreenTitle {
+  margin: 0;
+  color: #172033;
+  font-size: clamp(22px, 3vw, 30px);
+  line-height: 1.12;
+}
+
+.paymentInstructions .paymentBookingReference {
+  margin: 6px 0 16px;
+  color: #657086;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.paymentInstructions .paymentAmountDue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 14px 0;
+  padding: 14px 16px;
+  border: 1px solid #e0e8e5;
+  border-radius: 12px;
+  background: #f7fbf9;
+}
+
+.paymentInstructions .paymentAmountDue span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .1em;
+}
+
+.paymentInstructions .paymentAmountDue strong {
+  color: var(--booking-primary, #0f766e);
+  font-size: clamp(20px, 3vw, 28px);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.paymentInstructions .paymentVerificationNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid #dbe9e4;
+  border-radius: 12px;
+  background: #f5fbf8;
+  color: #596b68;
+}
+
+.paymentInstructions .paymentVerificationNotice > svg { flex: 0 0 auto; margin-top: 1px; color: var(--booking-primary, #0f766e); }
+.paymentInstructions .paymentVerificationNotice > span { min-width: 0; display: grid; gap: 4px; }
+.paymentInstructions .paymentVerificationNotice strong { color: #183b43; font-size: 12px; letter-spacing: .08em; }
+.paymentInstructions .paymentVerificationNotice small { line-height: 1.5; }
+
+.paymentInstructions .paymentMethodList { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 16px 0; }
+.paymentInstructions .paymentMethodList article { display: grid; gap: 7px; min-width: 0; padding: 15px; border-color: #dbe7e3; background: #fff; box-shadow: 0 6px 16px rgba(24, 59, 67, .05); }
+.paymentInstructions .paymentMethodList article > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.paymentInstructions .paymentMethodList article > div strong { min-width: 0; overflow-wrap: anywhere; }
+.paymentInstructions .paymentMethodList article > div em { flex: 0 0 auto; color: var(--booking-primary, #0f766e); font-size: 10px; font-style: normal; font-weight: 850; letter-spacing: .08em; }
+.paymentInstructions .paymentMethodList article small { line-height: 1.45; }
+.paymentInstructions .paymentMethodList article small b { margin-right: 4px; color: #64748b; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; }
+
+.paymentInstructions .copyPaymentNumber {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid #b9ded4;
+  border-radius: 8px;
+  background: #eef9f5;
+  color: var(--booking-primary, #0f766e);
+  font: 750 12px/1 inherit;
+  cursor: pointer;
+}
+
+.paymentInstructions .copyPaymentNumber:hover { background: #dff3ec; }
+.paymentInstructions .copyPaymentNumber:focus-visible { outline: 3px solid rgba(15, 118, 110, .25); outline-offset: 2px; }
+
+.paymentInstructions .paymentHowToPay {
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid #e0ebe7;
+  border-radius: 12px;
+  background: #fbfdfc;
+}
+
+.paymentInstructions .paymentHowToHeader { display: grid; gap: 5px; margin-bottom: 14px; }
+.paymentInstructions .paymentHowToHeader .paymentEyebrow { color: var(--booking-primary, #0f766e); }
+.paymentInstructions .paymentHowToHeader small { color: #64748b; line-height: 1.45; }
+.paymentInstructions .paymentHowToGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.paymentInstructions .paymentHowToGrid article { display: grid; align-content: start; gap: 7px; min-width: 0; padding: 12px; border: 1px solid #e3ece9; border-radius: 10px; background: #fff; }
+.paymentInstructions .paymentHowToGrid article > span { display: flex; align-items: center; gap: 6px; color: var(--booking-primary, #0f766e); font-size: 11px; font-weight: 850; letter-spacing: .08em; }
+.paymentInstructions .paymentHowToGrid article > span svg { width: 17px; height: 17px; flex: 0 0 auto; }
+.paymentInstructions .paymentHowToGrid article strong { color: #183b43; font-size: 11px; line-height: 1.25; letter-spacing: .05em; }
+.paymentInstructions .paymentHowToGrid article p { margin: 0; color: #596b68; font-size: 12px; line-height: 1.48; }
+.paymentInstructions .paymentHowToGrid article em { color: var(--booking-primary, #0f766e); font-size: 11px; font-style: normal; font-weight: 750; line-height: 1.4; }
+.paymentInstructions .paymentHowToNote { display: block; margin-top: 13px; color: #64748b; line-height: 1.45; }
+
+.paymentInstructions .paymentOpenButton,
+.paymentInstructions .paymentSubmitButton {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 10px;
+  background: #0f766e;
+  color: #fff;
+  font-weight: 850;
+  cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.paymentInstructions .paymentOpenButton:hover:not(:disabled),
+.paymentInstructions .paymentSubmitButton:hover:not(:disabled) { background: #0b625c; box-shadow: 0 10px 20px rgba(15, 118, 110, .2); transform: translateY(-1px); }
+.paymentInstructions .paymentOpenButton:focus-visible,
+.paymentInstructions .paymentSubmitButton:focus-visible { outline: 3px solid rgba(15, 118, 110, .28); outline-offset: 3px; }
+.paymentInstructions .paymentOpenButton:disabled,
+.paymentInstructions .paymentSubmitButton:disabled { opacity: .58; cursor: not-allowed; box-shadow: none; transform: none; }
+
+@media (max-width: 760px) {
+  .paymentInstructions .paymentHowToGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 480px) {
+  .paymentInstructions .paymentAmountDue { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .paymentInstructions .paymentHowToGrid { grid-template-columns: minmax(0, 1fr); }
+}
+
 .xtreme-dancers .paymentInstructions {
   border-color: rgba(185, 245, 61, 0.45);
   background: #f7fbeF;
@@ -7908,6 +8718,54 @@ button,
 .paymentDashboardPanel {
   background: #fff8fb;
 }
+
+.paymentDashboardPanel .meetingEmailStatus {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border: 1px solid #b9e2d9;
+  border-radius: 10px;
+  background: #f1fbf8;
+}
+.meetingEmailStatusHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.meetingEmailStatusHeader span {
+  color: #0f766e;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.meetingEmailStatus p {
+  margin: 0 0 6px;
+  color: #24413d;
+  line-height: 1.45;
+}
+.meetingEmailStatus small {
+  display: block;
+  margin-top: 3px;
+  color: #52716b;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.meetingEmailStatus-failed {
+  border-color: #f1b7b7;
+  background: #fff5f5;
+}
+.meetingEmailStatus-failed .meetingEmailStatusHeader span { color: #b42318; }
+.meetingEmailStatus-not-configured {
+  border-color: #e7d8a1;
+  background: #fffaf0;
+}
+.meetingEmailStatus-not-configured .meetingEmailStatusHeader span { color: #936b00; }
+.meetingEmailStatus-unavailable {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+.meetingEmailStatus-unavailable .meetingEmailStatusHeader span { color: #475569; }
 
 .paymentDashboardPanel .clientBookingActions {
   margin-top: 12px;
@@ -10784,3 +11642,247 @@ button,
 /* Public intent gateway and inquiry flow */
 .publicIntentGateway,.publicInquiryPage{min-height:100vh;background:var(--business-accent,#f6f7f3);color:#111;padding:clamp(22px,4vh,44px) 20px}.publicIntentShell,.publicInquiryShell{max-width:1060px;margin:0 auto}.publicIntentBrand{text-align:center;margin:0 auto 22px;max-width:680px}.publicIntentBrand img,.publicInquiryBrand img{width:118px;height:88px;object-fit:contain;border-radius:16px;margin-bottom:8px}.publicIntentBrand>span{display:inline-grid;place-items:center;width:88px;height:88px;border-radius:16px;background:var(--business-primary,#111);color:#fff;font-size:32px;font-weight:700}.publicIntentBrand h1,.publicInquiryBrand h1{margin:2px 0 7px;font-size:clamp(30px,5vw,54px)}.publicIntentBrand p:last-child,.publicInquiryBrand p:last-child{color:#5d655f;margin:0}.publicIntentIntro{text-align:center;margin-bottom:16px}.publicIntentIntro h2{margin:0 0 3px;font-size:clamp(24px,4vw,36px)}.publicIntentIntro p:last-child{color:#657067;margin:0}.publicIntentGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.publicIntentCard{border:1px solid #d9ded8;border-radius:16px;padding:22px 24px;display:flex;align-items:center;gap:16px;text-align:left;cursor:pointer;min-height:154px;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}.publicIntentCard:hover,.publicIntentCard:focus-visible{transform:translateY(-2px);box-shadow:0 14px 30px #00000018;outline:none}.publicIntentCard.primary{background:var(--business-primary,#111);color:#fff;border-color:var(--business-primary,#111)}.publicIntentCard.secondary{background:#fff;color:#111}.publicIntentCard.primary:focus-visible{border-color:#b9ed3b;box-shadow:0 0 0 3px #b9ed3b66,0 14px 30px #00000018}.publicIntentCard.secondary:focus-visible{border-color:var(--business-primary,#111);box-shadow:0 0 0 3px #1112,0 14px 30px #00000018}.publicIntentCard>span{display:grid;gap:7px;flex:1}.publicIntentCard strong{text-transform:uppercase;letter-spacing:.04em;font-size:18px}.publicIntentCard small{font-size:14px;line-height:1.5;opacity:.78}.publicInquiryShell{max-width:700px}.publicInquiryBack{border:0;background:transparent;padding:0;color:#586258;display:flex;gap:7px;align-items:center;cursor:pointer;margin-bottom:26px}.publicInquiryBrand{background:#fff;border-radius:18px;padding:28px;margin-bottom:16px}.publicInquiryForm{background:#fff;border:1px solid #e3e7e2;border-radius:18px;padding:28px;display:grid;gap:18px}.publicInquiryForm label{display:grid;gap:7px;font-weight:700;font-size:13px}.publicInquiryForm input,.publicInquiryForm select,.publicInquiryForm textarea{width:100%;box-sizing:border-box;border:1px solid #cfd7ce;border-radius:10px;padding:12px 13px;font:inherit;font-weight:400;background:#fff}.publicInquiryForm button,.publicInquirySuccess button{border:0;border-radius:10px;padding:13px 18px;background:var(--business-primary,#111);color:#fff;font-weight:700;cursor:pointer}.publicInquiryForm p[role=alert]{color:#a22d2d;margin:0}.publicInquirySuccess{max-width:650px;margin:12vh auto;background:#fff;border-radius:18px;padding:36px;text-align:center}.publicInquirySuccess button{margin:8px}
 @media (max-width:680px){.publicIntentGateway,.publicInquiryPage{padding:24px 16px}.publicIntentBrand{margin-bottom:20px}.publicIntentBrand img{width:104px;height:80px}.publicIntentGrid{grid-template-columns:1fr;gap:14px}.publicIntentCard{min-height:0;padding:20px}.publicInquiryForm,.publicInquiryBrand{padding:22px}}
+.marketingPackageCards { align-items: stretch; }
+.marketingPackageCard { display: flex; flex-direction: column; min-height: 430px; }
+.marketingPackageCard > p { min-height: 42px; }
+.marketingPackageCardFeatures { display: grid; gap: 8px; min-height: 132px; margin: 0 0 14px; padding: 0; list-style: none; color: var(--m-slate); font-size: 11px; line-height: 1.35; }
+.marketingPackageCard.dark .marketingPackageCardFeatures { color: #e7e4f4; }
+.marketingPackageCardFeatures li { display: flex; align-items: flex-start; gap: 8px; }
+.marketingPackageCardFeatures svg { flex: 0 0 auto; margin-top: 1px; color: #0DAD82; stroke-width: 2.5; }
+.marketingPackageSelect { margin-top: auto; }
+.marketingDemoPackageTabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.marketingDemoPackageTabs button { display: grid; gap: 4px; min-width: 0; padding: 16px 18px; border: 1px solid var(--m-border); border-radius: 12px; color: var(--m-navy); background: #fff; text-align: left; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.marketingDemoPackageTabs button:hover, .marketingDemoPackageTabs button:focus-visible { border-color: var(--m-indigo); outline: none; transform: translateY(-1px); box-shadow: 0 8px 22px rgba(101,71,217,.12); }
+.marketingDemoPackageTabs button.active { border: 2px solid var(--m-indigo); padding: 15px 17px; box-shadow: 0 10px 26px rgba(101,71,217,.14); }
+.marketingDemoPackageTabs button span { font-size: 10px; font-weight: 800; letter-spacing: .1em; color: var(--m-indigo); }
+.marketingDemoPackageTabs button strong { font: 800 25px Manrope, Inter, sans-serif; }
+.marketingDemoPackageTabs button small { color: var(--m-slate); font-size: 11px; }
+.marketingDemoPackageTabs button.walnut.active { border-color: #7a4b35; }
+.marketingDemoPackageTabs button.walnut span { color: #7a4b35; }
+.marketingDemoPackageTabs button.sage.active { border-color: #37614d; }
+.marketingDemoPackageTabs button.sage span { color: #37614d; }
+.marketingDemoPackageDescription { margin: 0 0 12px; color: var(--m-slate); font-size: 12px; }
+@media (max-width: 680px) { .marketingDemoPackageTabs { grid-template-columns: 1fr; }.marketingDemoPackageTabs button { grid-template-columns: auto auto; align-items: baseline; column-gap: 10px; }.marketingDemoPackageTabs button small { grid-column: 1 / -1; } }
+.marketingOnboardingPage { max-width: 1080px; background: linear-gradient(135deg, #fbfcff 0%, #f5f7ff 100%); }
+.marketingOnboardingPage .marketingPageIntro { max-width: 760px; margin-bottom: 22px; }
+.marketingOnboardingPage .marketingPageIntro h1 { margin-bottom: 10px; letter-spacing: -.02em; }
+.marketingOnboardingCard { background: var(--marketing-surface, #fff); border: 1px solid var(--marketing-border, #e8e4f2); border-radius: 18px; padding: 24px; box-shadow: 0 16px 40px rgba(36, 33, 58, .08); }
+.marketingOnboardingCard form { display: grid; gap: 24px; }
+.marketingOnboardingCard .setupFieldGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 22px; }
+.marketingOnboardingCard .setupFieldGrid > label { display: grid; gap: 8px; align-content: start; color: #334155; font-size: .88rem; font-weight: 700; line-height: 1.35; }
+.marketingOnboardingCard .setupFieldGrid input,
+.marketingOnboardingCard .setupFieldGrid textarea,
+.marketingOnboardingCard .marketingOnboardingServiceRow input { width: 100%; min-height: 46px; box-sizing: border-box; border: 1px solid #dbe3f0; border-radius: 10px; background: #fbfdff; color: #1e293b; padding: 11px 13px; font: inherit; }
+.marketingOnboardingCard .setupFieldGrid textarea { min-height: 112px; resize: vertical; }
+.marketingOnboardingCard .setupFullWidth { grid-column: 1 / -1; }
+.marketingOnboardingStep { display: grid; gap: 22px; }
+.marketingOnboardingStepHeading { display: grid; gap: 5px; }
+.marketingOnboardingStepHeading h2 { margin: 0; color: #202b4a; font-size: 1.35rem; }
+.marketingOnboardingStepHeading p { margin: 0; color: #64748b; }
+.marketingOptional { color: #94a3b8; font-size: .78rem; font-weight: 500; }
+.marketingSuggestionRow, .marketingPresetRow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.marketingSuggestionRow span { color: #64748b; font-size: .85rem; }
+.marketingSuggestionRow button, .marketingPresetRow button, .marketingAddService, .marketingServiceCardHeader button { min-height: 40px; padding: 8px 12px; border: 1px solid #dbe3f0; border-radius: 9px; background: #fff; color: #4856a4; cursor: pointer; font: inherit; }
+.marketingSuggestionRow button:hover, .marketingPresetRow button:hover, .marketingAddService:hover { border-color: #7c83ee; background: #f5f3ff; }
+.marketingServiceCards { display: grid; gap: 14px; }
+.marketingServiceCard { border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #fbfdff; }
+.marketingServiceCardHeader { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 14px; color: #334155; }
+.marketingServiceCardHeader div { display: flex; gap: 7px; flex-wrap: wrap; }
+.marketingServiceCardHeader button { min-height: 34px; padding: 6px 9px; font-size: .78rem; }
+.marketingAddService { justify-self: start; font-weight: 700; }
+.marketingPriceVaries { display: flex; gap: 8px; align-items: center; color: #64748b; font-size: .88rem; }
+.marketingPriceVaries input { width: 18px; height: 18px; }
+.marketingReviewGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.marketingReviewGrid article { display: grid; gap: 8px; padding: 16px; border: 1px solid #e2e8f0; border-radius: 13px; background: #fbfdff; }
+.marketingReviewGrid h3 { margin: 0; color: #334155; font-size: .98rem; }
+.marketingReviewGrid p { margin: 0; min-height: 52px; color: #64748b; line-height: 1.5; }
+.marketingReviewGrid button { justify-self: start; border: 0; background: transparent; color: #5644c6; cursor: pointer; font-weight: 700; padding: 0; }
+.marketingOnboardingCard .setupFieldGrid input:focus,
+.marketingOnboardingCard .setupFieldGrid textarea:focus,
+.marketingOnboardingCard .marketingOnboardingServiceRow input:focus { outline: 3px solid #e0e7ff; border-color: #7c83ee; }
+.marketingOnboardingProgress { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+.marketingOnboardingProgress span { padding: 7px 10px; border-radius: 999px; background: #f4f1fc; color: #7a7395; font-size: .78rem; }
+.marketingOnboardingProgress span.active { background: #6547d9; color: #fff; }
+.marketingOnboardingPackages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.marketingOnboardingPackages button { display: grid; gap: 8px; text-align: left; padding: 18px; border: 1px solid #e8e4f2; border-radius: 14px; background: #fff; color: #24213a; cursor: pointer; }
+.marketingOnboardingPackages button.selected { border-color: #6547d9; box-shadow: 0 0 0 3px #f1eeff; }
+.marketingOnboardingPackages b { font-size: 1.35rem; }
+.marketingOnboardingPackages small { color: #64736f; line-height: 1.45; }
+.marketingOnboardingPackages button:focus-visible, .marketingWeekGrid button:focus-visible, .marketingOnboardingActions button:focus-visible { outline: 3px solid #c7d2fe; outline-offset: 2px; }
+.marketingOnboardingServiceRow { display: grid; grid-template-columns: 1.1fr 1.5fr .65fr .65fr auto; gap: 8px; margin-top: 10px; }
+.marketingOnboardingServiceRow input { min-width: 0; }
+.marketingOnboardingServiceRow button, .marketingOnboardingActions button:not(.marketingButton) { border: 1px solid #e8e4f2; background: #fff; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.marketingOnboardingReview { display: grid; gap: 6px; grid-column: 1 / -1; padding: 16px; border-radius: 12px; background: #f1eeff; color: #24213a; }
+.marketingOnboardingReview h2 { margin: 0; font-size: 1.05rem; }
+.marketingOnboardingReview p { margin: 0; color: #4d5870; }
+.marketingOnboardingAvailability, .marketingOnboardingFinal { display: grid; gap: 20px; }
+.marketingOnboardingAvailability h2 { margin: 0 0 5px; font-size: 1.2rem; }
+.marketingOnboardingAvailability p { margin: 0; color: #64748b; }
+.marketingWeekGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.marketingWeekGrid button { display: grid; gap: 5px; border: 1px solid #e2e8f0; background: #fff; color: #475569; padding: 12px 8px; border-radius: 12px; cursor: pointer; }
+.marketingWeekGrid button.selected { background: #eef2ff; border-color: #7c83ee; color: #39348c; }
+.marketingWeekGrid strong { font-size: .72rem; }
+.marketingOnboardingActions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.marketingOnboardingSuccess { max-width: 680px; padding: 48px; background: #fff; border: 1px solid #e8e4f2; border-radius: 18px; display: grid; gap: 16px; }
+@media (max-width: 720px) { .marketingOnboardingCard { padding: 16px; } .marketingOnboardingCard .setupFieldGrid { grid-template-columns: 1fr; gap: 16px; } .marketingOnboardingCard .setupFullWidth { grid-column: auto; } .marketingOnboardingPackages { grid-template-columns: 1fr; } .marketingOnboardingServiceRow { grid-template-columns: 1fr 1fr; } .marketingOnboardingServiceRow button { grid-column: 1 / -1; } .marketingOnboardingSuccess { padding: 28px 20px; } .marketingWeekGrid { grid-template-columns: repeat(4, 1fr); } .marketingReviewGrid { grid-template-columns: 1fr; } .marketingServiceCardHeader { align-items: flex-start; flex-direction: column; } }
+.premiumBookingPage.thryvelab .thryveTermsPanel {
+  display: grid;
+  gap: 16px;
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid #cfe8df;
+  border-radius: 16px;
+  background: #f7fffb;
+  color: #183b43;
+}
+.premiumBookingPage.thryvelab .thryveTermsHeader { display: grid; gap: 6px; }
+.premiumBookingPage.thryvelab .thryveTermsHeader h3 { margin: 0; color: #183b43; font-size: clamp(20px, 2vw, 28px); line-height: 1.15; }
+.premiumBookingPage.thryvelab .thryveTermsHeader p { margin: 0; color: #59716d; line-height: 1.5; }
+.premiumBookingPage.thryvelab .thryveTermsSummary,
+.premiumBookingPage.thryvelab .thryveTermsScroll,
+.premiumBookingPage.thryvelab .thryveTermsChecks label { border: 1px solid #dcece6; border-radius: 12px; background: #fff; }
+.premiumBookingPage.thryvelab .thryveTermsSummary { padding: 14px; }
+.premiumBookingPage.thryvelab .thryveTermsSummary dl { display: grid; gap: 7px; margin: 10px 0 0; }
+.premiumBookingPage.thryvelab .thryveTermsSummary dl div { display: grid; grid-template-columns: minmax(130px, .4fr) minmax(0, 1fr); gap: 10px; }
+.premiumBookingPage.thryvelab .thryveTermsSummary dt { color: #61736f; font-size: 11px; font-weight: 800; }
+.premiumBookingPage.thryvelab .thryveTermsSummary dd { margin: 0; color: #183b43; font-size: 12px; overflow-wrap: anywhere; }
+.premiumBookingPage.thryvelab .thryveTermsScroll { max-height: 360px; overflow: auto; padding: 16px; }
+.premiumBookingPage.thryvelab .thryveTermsScroll section + section { margin-top: 18px; }
+.premiumBookingPage.thryvelab .thryveTermsScroll h4 { margin: 0 0 7px; color: #0f766e; font-size: 12px; letter-spacing: .08em; line-height: 1.35; }
+.premiumBookingPage.thryvelab .thryveTermsScroll p,
+.premiumBookingPage.thryvelab .thryveTermsScroll li { margin: 0 0 8px; color: #405a55; font-size: 12px; line-height: 1.6; }
+.premiumBookingPage.thryvelab .thryveTermsScroll ul { margin: 0; padding-left: 20px; }
+.premiumBookingPage.thryvelab .thryveTermsChecks { display: grid; gap: 10px; }
+.premiumBookingPage.thryvelab .thryveTermsChecks label { display: flex; gap: 10px; align-items: flex-start; padding: 11px 12px; color: #183b43; font-size: 12px; line-height: 1.45; cursor: pointer; }
+.premiumBookingPage.thryvelab .thryveTermsChecks input { flex: 0 0 auto; margin-top: 2px; accent-color: #0f766e; }
+.premiumBookingPage.thryvelab .thryveTermsContinue { display: inline-flex; width: 100%; min-height: 50px; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px; background: #0f766e; color: #fff; font-weight: 800; cursor: pointer; }
+.premiumBookingPage.thryvelab .thryveTermsContinue:not(:disabled):hover { background: #0b625c; }
+.premiumBookingPage.thryvelab .thryveTermsContinue:focus-visible { outline: 3px solid rgba(15, 118, 110, .25); outline-offset: 2px; }
+.premiumBookingPage.thryvelab .thryveTermsContinue:disabled { opacity: .5; cursor: not-allowed; }
+.premiumBookingPage.thryvelab .thryveTermsBackButton {
+  justify-self: start;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #b9dcd2;
+  border-radius: 9px;
+  background: #fff;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.premiumBookingPage.thryvelab .thryveTermsBackButton:hover,
+.premiumBookingPage.thryvelab .thryveTermsBackButton:focus-visible { border-color: #0f766e; background: #effaf6; }
+@media (max-width: 680px) {
+  .premiumBookingPage.thryvelab .thryveTermsSummary dl div { grid-template-columns: 1fr; gap: 2px; }
+  .premiumBookingPage.thryvelab .thryveTermsScroll { max-height: 420px; padding: 13px; }
+}
+
+.premiumBookingPage.thryvelab .thryveWowVariantPicker {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #cce9e2;
+  border-radius: 14px;
+  background: #f5fcfa;
+}
+.premiumBookingPage.thryvelab .thryveWowPickerHeading { display: grid; gap: 3px; }
+.premiumBookingPage.thryvelab .thryveWowPickerHeading strong { color: #123047; font-size: 15px; }
+.premiumBookingPage.thryvelab .thryveWowPickerHeading small { color: #5d7378; font-size: 12px; }
+.premiumBookingPage.thryvelab .thryveWowPickerGroup { display: grid; gap: 7px; }
+.premiumBookingPage.thryvelab .thryveWowPickerGroup > span { color: #0f766e; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.premiumBookingPage.thryvelab .thryveWowPickerGroup > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.premiumBookingPage.thryvelab .thryveWowPickerGroup button {
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #b9dcd2;
+  border-radius: 9px;
+  background: #fff;
+  color: #123047;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.premiumBookingPage.thryvelab .thryveWowPickerGroup button.active { border-color: #0f766e; background: #0f766e; color: #fff; }
+.premiumBookingPage.thryvelab .thryveWowPickerGroup button:disabled { opacity: .45; cursor: not-allowed; }
+.premiumBookingPage.thryvelab .thryveWowPickerSummary { margin: 0; color: #0f766e; font-size: 13px; font-weight: 800; }
+
+.marketingResellerSection { display: flex; align-items: center; justify-content: space-between; gap: 28px; margin-top: 42px; padding: 26px 28px; border: 1px solid var(--m-border); border-radius: 14px; background: linear-gradient(135deg, #f7f8ff, #fff); box-shadow: var(--m-shadow); }
+.marketingResellerSection h2 { margin: 7px 0 8px; color: var(--m-navy); font: 700 25px 'Plus Jakarta Sans'; }
+.marketingResellerSection p { max-width: 700px; margin: 0 0 10px; color: var(--m-slate); font-size: 13px; line-height: 1.6; }
+.marketingResellerSection small, .marketingResellerHint { color: #8b96aa; font-size: 11px; }
+.marketingResellerSection .marketingButton { flex: 0 0 auto; border: 0; cursor: pointer; font: inherit; }
+.marketingResellerBackdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(20, 24, 48, .48); overflow: auto; }
+.marketingResellerModal { width: min(720px, 100%); max-height: min(820px, calc(100vh - 40px)); overflow: auto; padding: 26px; border-radius: 14px; background: #fff; box-shadow: 0 24px 80px rgba(18, 28, 60, .25); }
+.marketingResellerModal > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.marketingResellerModal h2 { margin: 7px 0 0; color: var(--m-navy); font: 700 25px 'Plus Jakarta Sans'; }
+.marketingResellerFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 18px; }
+.marketingResellerFields label { display: grid; gap: 7px; color: var(--m-navy); font-size: 12px; font-weight: 700; }
+.marketingResellerFields input, .marketingResellerFields textarea { width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid var(--m-border); border-radius: 8px; color: var(--m-navy); background: #fbfcff; font: inherit; font-weight: 400; }
+.marketingResellerFields input { min-height: 44px; }.marketingResellerFields textarea { resize: vertical; line-height: 1.5; }
+.marketingResellerFields input:focus, .marketingResellerFields textarea:focus { outline: 3px solid #e0e7ff; border-color: var(--m-indigo); }.marketingResellerFull { grid-column: 1 / -1; }
+.marketingResellerNotice { margin: 17px 0 0; padding: 11px 13px; border-radius: 8px; color: #31507e; background: var(--m-ice); font-size: 12px; line-height: 1.5; }
+.marketingResellerActions { display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }.marketingResellerActions .marketingButton { border: 0; cursor: pointer; font: inherit; }
+.marketingResellerCopy { min-height: 42px; padding: 10px 13px; border: 1px solid var(--m-border); border-radius: 8px; color: var(--m-indigo); background: #fff; cursor: pointer; font: 700 12px 'Plus Jakarta Sans'; }.marketingResellerHint { display: block; margin-top: 12px; }
+@media (max-width: 680px) { .marketingResellerSection { align-items: stretch; flex-direction: column; padding: 22px 18px; } .marketingResellerSection .marketingButton { width: 100%; justify-content: center; } .marketingResellerModal { padding: 20px 18px; } .marketingResellerFields { grid-template-columns: 1fr; gap: 14px; } .marketingResellerFull { grid-column: auto; } .marketingResellerActions { align-items: stretch; flex-direction: column; } .marketingResellerActions .marketingButton, .marketingResellerCopy { width: 100%; justify-content: center; } }
+/* Final compact marketing footer alignment. */
+.marketingWorkspace > .marketingFooter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 18px 28px;
+  border-top: 1px solid var(--m-border);
+  text-align: center;
+}
+.marketingWorkspace > .marketingFooter span {
+  color: var(--m-slate);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.marketingWorkspace > .marketingFooter span:last-child { color: #7f8aa1; }
+.marketingWorkspace > .marketingFooter a { color: inherit; font-size: inherit; text-decoration: none; }
+.marketingWorkspace > .marketingFooter a:hover, .marketingWorkspace > .marketingFooter a:focus-visible { color: var(--m-indigo); text-decoration: underline; }
+@media (max-width: 680px) {
+  .marketingWorkspace > .marketingFooter { flex-direction: column; gap: 5px; padding: 16px 18px; }
+}
+
+/* Mobile marketing layout: this final rule wins over earlier desktop defaults. */
+@media (max-width: 767px) {
+  .marketingSite { display: block; min-width: 0; overflow-x: hidden; }
+  .marketingSidebar { position: absolute; top: 58px; left: 0; z-index: 40; display: none; width: 100%; height: auto; min-height: 0; padding: 10px 14px 14px; border: 0; border-bottom: 1px solid var(--m-border); box-shadow: 0 12px 28px rgba(21, 35, 66, .12); overflow: visible; }
+  .marketingSidebar.mobileOpen { display: block; }
+  .marketingSidebar .marketingBrand, .marketingSidebarCta { display: none; }
+  .marketingSideNav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 0; }
+  .marketingSideNav a { min-width: 0; min-height: 42px; justify-content: flex-start; padding: 8px 10px; gap: 8px; font-size: 12px; white-space: nowrap; }
+  .marketingSideNav a span { display: block; overflow: hidden; text-overflow: ellipsis; }
+  .marketingWorkspace { width: 100%; min-width: 0; margin-left: 0; }
+  .marketingWorkspace .marketingHeader { position: relative; display: flex; align-items: center; justify-content: space-between; width: 100%; height: 58px; min-height: 58px; padding: 0 16px; }
+  .marketingMobileMenu { display: inline-flex; order: 2; align-items: center; justify-content: center; width: 40px; height: 40px; margin-left: auto; }
+  .marketingMobileBrand { display: block; order: 1; width: 92px; height: 42px; }
+  .marketingMobileBrand img { display: block; width: 92px; height: 42px; object-fit: contain; object-position: left center; }
+  .marketingUtilityActions { order: 3; margin-left: 10px; }
+  .marketingWorkspace .marketingLogin { padding: 9px 11px; font-size: 11px; }
+  .marketingWorkspace .marketingHome, .marketingWorkspace .marketingPage { width: 100%; max-width: 100%; min-width: 0; padding-right: 18px; padding-left: 18px; }
+  .marketingMasterHero { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 24px; padding-top: 26px; }
+  .marketingMasterCopy, .marketingMasterCopy h1, .marketingMasterCopy p, .marketingMasterHero .studioWorkspace { min-width: 0; max-width: 100%; }
+  .marketingMasterCopy h1 { font-size: clamp(38px, 12vw, 54px); overflow-wrap: anywhere; }
+  .marketingMasterCopy p { max-width: 100%; font-size: 14px; }
+  .marketingMasterHero .studioWorkspace { width: 100%; overflow: hidden; }
+  .marketingWorkspaceGrid, .marketingPreviewCards, .marketingWorkspaceBottom { grid-template-columns: minmax(0, 1fr); }
+  .marketingCalendarGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Footer credit: keep the complete developer phrase on one inline line. */
+.marketingWorkspace > .marketingFooter { display: flex; align-items: center; justify-content: center; padding: 18px 20px; text-align: center; }
+.marketingFooterCredits { display: flex; align-items: center; justify-content: center; gap: 12px; min-width: 0; color: var(--m-slate); font-size: 12px; line-height: 1.5; }
+.marketingFooterCredits > span { display: inline; white-space: nowrap; }
+.marketingFooterDeveloper { white-space: nowrap !important; }
+.marketingFooterCredits .marketingFooterDeveloper a { display: inline !important; white-space: nowrap; color: inherit; font-size: inherit; text-decoration: none; }
+.marketingFooterCredits .marketingFooterDeveloper a:hover, .marketingFooterCredits .marketingFooterDeveloper a:focus-visible { color: var(--m-indigo); text-decoration: underline; }
+@media (max-width: 430px) { .marketingFooterCredits { gap: 8px; font-size: 11px; } }
+@media (max-width: 350px) { .marketingFooterCredits { flex-direction: column; gap: 3px; } }

@@ -49,6 +49,10 @@ import {
   Settings,
   Zap,
   Search,
+  Home,
+  Crown,
+  Menu,
+  Bell,
   Car,
   Bike,
   Camera,
@@ -92,6 +96,7 @@ import {
   Ruler,
   Eye,
   Music2,
+  X,
 } from "lucide-react";
 import "./styles.css";
 import "./travel.css";
@@ -105,6 +110,7 @@ import pestControlCover from "./assets/pest-control-cover.png";
 import dmonsterLogo from "./assets/dmonster-logo.png";
 import nyOpticalLogo from "./assets/ny-optical-logo.png";
 import nyOpticalCover from "./assets/ny-optical-cover.png";
+import { THRYVELAB_TERMS_EFFECTIVE_DATE, THRYVELAB_TERMS_TEXT, THRYVELAB_TERMS_VERSION } from "./thryvelab-terms.js";
 
 const services = [
   { name: "Salon appointment", length: "60 min", price: "PHP 350", fields: ["Preferred stylist", "Hair length"] },
@@ -512,6 +518,26 @@ function normalizeHexColor(value, fallback = "") {
   return /^#([0-9a-fA-F]{6})$/.test(next) ? next.toUpperCase() : fallback;
 }
 
+const defaultBrandColors = {
+  primaryColor: "#6547D9",
+  secondaryColor: "#9183F2",
+  accentColor: "#F1EEFF",
+  pageBackgroundColor: "#FAF9FD",
+  textColor: "#24213A",
+};
+
+function normalizeBrandColor(value, fallback) {
+  return normalizeHexColor(value, fallback || "");
+}
+
+function parsePreferredBrandColors(value = "") {
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === "object") return parsed;
+  } catch { /* Legacy palette labels remain supported. */ }
+  return {};
+}
+
 function getBusinessPageBackgroundStyle(business = {}, tone = "general") {
   const themeDefaults = getToneThemeDefaults(tone);
   const backgroundType = (business.pageBackgroundType || business.page_background_type || "SOLID").toUpperCase();
@@ -581,7 +607,7 @@ function isBeautyDefaultColor(value = "") {
 }
 
 function getBusinessCoverStyle(business = {}, tone = "beauty") {
-  const cover = business.cover || "";
+  const cover = business.cover || (business.slug === "thryvelab" ? "/thryvelab-wellness-cover.png" : "");
   if (tone === "tours-travel") {
     const cleanCover = cover.split("?")[0].toLowerCase();
     const isPhotoCover = /^data:image\/(jpeg|webp|avif)/.test(cleanCover)
@@ -1578,6 +1604,21 @@ function normalizeSetupRequest(row) {
     rules: row.rules || "",
     questions: row.questions || "",
     serviceEntries: normalizeStructuredServices(row.serviceEntries || row.service_entries || [], 0),
+    businessDescription: row.businessDescription || row.business_description || "",
+    contactEmail: row.contactEmail || row.contact_email || "",
+    businessAddress: row.businessAddress || row.business_address || "",
+    selectedPackage: normalizePackage(row.selectedPackage || row.selected_package || "STARTER"),
+    bookingInterval: row.bookingInterval || row.booking_interval || "",
+    scheduleNotes: row.scheduleNotes || row.schedule_notes || "",
+    preferredColors: row.preferredColors || row.preferred_colors || "",
+    primaryColor: row.primaryColor || row.primary_color || "",
+    secondaryColor: row.secondaryColor || row.secondary_color || "",
+    accentColor: row.accentColor || row.accent_color || "",
+    pageBackgroundColor: row.pageBackgroundColor || row.page_background_color || "",
+    textColor: row.textColor || row.text_color || "",
+    logoUrl: row.logoUrl || row.logo_url || "",
+    specialInstructions: row.specialInstructions || row.special_instructions || "",
+    requestedFeatures: row.requestedFeatures || row.requested_features || "",
     status: row.status || "Ready for review",
   };
 }
@@ -1598,6 +1639,21 @@ function setupRequestToDatabase(setup) {
     rules: setup.rules,
     questions: setup.questions,
     service_entries: normalizeStructuredServices(setup.serviceEntries || [], 0),
+    business_description: setup.businessDescription || "",
+    contact_email: setup.contactEmail || "",
+    business_address: setup.businessAddress || "",
+    selected_package: normalizePackage(setup.selectedPackage || "STARTER"),
+    booking_interval: setup.bookingInterval || "",
+    schedule_notes: setup.scheduleNotes || "",
+    preferred_colors: setup.preferredColors || "",
+    primary_color: normalizeBrandColor(setup.primaryColor, ""),
+    secondary_color: normalizeBrandColor(setup.secondaryColor, ""),
+    accent_color: normalizeBrandColor(setup.accentColor, ""),
+    page_background_color: normalizeBrandColor(setup.pageBackgroundColor, ""),
+    text_color: normalizeBrandColor(setup.textColor, ""),
+    logo_url: setup.logoUrl || "",
+    special_instructions: setup.specialInstructions || "",
+    requested_features: setup.requestedFeatures || "",
     status: setup.status,
   };
 }
@@ -1628,7 +1684,9 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
   const normalizedServices = dedupeServices(
     activeServices.map((service) => ({
       id: service.id,
-      name: service.name,
+      name: row.slug === "thryvelab" && Number(service.price) === 299 && /thryvestart\s*[-–]\s*7\s*days/i.test(String(service.name || ""))
+        ? "7-Day Starter Kit Entry Offer"
+        : service.name,
       durationMinutes: service.duration_minutes,
       price: service.price,
       pricingUnit: normalizePricingUnit(service.pricing_unit),
@@ -1648,7 +1706,11 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
       displayOrder: service.display_order || 0,
       status: service.status,
     })).filter((service) => isPublishableServiceForTemplate(service, bookingTemplate)),
-    activeServices.filter((service) => isPublishableServiceForTemplate(service, bookingTemplate)).map((service) => service.name),
+    activeServices.filter((service) => isPublishableServiceForTemplate(service, bookingTemplate)).map((service) => (
+      row.slug === "thryvelab" && Number(service.price) === 299 && /thryvestart\s*[-–]\s*7\s*days/i.test(String(service.name || ""))
+        ? "7-Day Starter Kit Entry Offer"
+        : service.name
+    )),
   );
   return {
     source: "database",
@@ -1658,6 +1720,8 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
     link: row.booking_link || `slotwise.app/book/${row.slug}`,
     logo: row.logo_url || "",
     primaryColor: row.primary_color || "",
+    secondaryColor: row.secondary_color || "",
+    textColor: row.text_color || "",
     accentColor: row.accent_color || "",
     pageBackgroundType: row.page_background_type || row.pageBackgroundType || "",
     phone: row.phone || "",
@@ -1741,9 +1805,11 @@ function buildBusinessFromSetup(setup) {
     link: `slotwise.app/book/${slug}`,
     logo: "",
     primaryColor: themeDefaults.primaryColor,
+    secondaryColor: themeDefaults.accentColor,
     accentColor: themeDefaults.accentColor,
     pageBackgroundType: (setup.pageBackgroundType || "SOLID").toUpperCase(),
     pageBackgroundColor: setup.pageBackgroundColor || themeDefaults.pageBackgroundColor,
+    textColor: setup.textColor || defaultBrandColors.textColor,
     pageBackgroundColor2: setup.pageBackgroundColor2 || "",
     phone: setup.contact || "",
     messengerLink: setup.facebookPage || "",
@@ -1781,10 +1847,12 @@ function normalizeBusinessConfig(business) {
     ...business,
     logo: business.logo || "",
     primaryColor: tone === "home-service" && isBeautyDefaultColor(business.primaryColor) ? themeDefaults.primaryColor : business.primaryColor || themeDefaults.primaryColor,
+    secondaryColor: business.secondaryColor || themeDefaults.accentColor,
     accentColor: tone === "home-service" && isBeautyDefaultColor(business.accentColor) ? themeDefaults.accentColor : business.accentColor || themeDefaults.accentColor,
     pageBackgroundType: (business.pageBackgroundType || business.page_background_type || "SOLID").toUpperCase(),
     pageBackgroundColor: normalizeHexColor(business.pageBackgroundColor || business.page_background_color, themeDefaults.pageBackgroundColor),
     pageBackgroundColor2: normalizeHexColor(business.pageBackgroundColor2 || business.page_background_color_2, ""),
+    textColor: business.textColor || defaultBrandColors.textColor,
     phone: business.phone || "",
     messengerLink: business.messengerLink || "",
     mobileNumbers: business.mobileNumbers || business.featureFlags?.mobileNumbers || "",
@@ -2360,9 +2428,11 @@ function setupToBusinessDatabase(setup, slug) {
     logo_url: setup.logo || setup.logoUrl || "",
     page_background_type: (setup.pageBackgroundType || "SOLID").toUpperCase(),
     primary_color: setup.primaryColor || business.primaryColor,
+    secondary_color: setup.secondaryColor || business.secondaryColor,
     accent_color: setup.accentColor || business.accentColor,
     page_background_color: normalizeHexColor(setup.pageBackgroundColor, business.pageBackgroundColor || ""),
     page_background_color_2: normalizeHexColor(setup.pageBackgroundColor2, business.pageBackgroundColor2 || ""),
+    text_color: setup.textColor || business.textColor,
     phone: setup.contact || "",
     messenger_link: setup.facebookPage || "",
     address: setup.address || "",
@@ -2439,6 +2509,7 @@ function getPublicSlugFromLocation() {
   if (!path || path === "index.html") return "";
   if (path === "smm-admin") return "";
   if (path === "client-login" || path === "client-dashboard") return "";
+  if (["features", "packages", "demo", "updates", "faq", "partners", "onboarding"].includes(path)) return "";
   return path.split("/")[0];
 }
 
@@ -2446,6 +2517,133 @@ function getPublicRouteFromLocation() {
   const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
   const parts = path.split("/").filter(Boolean);
   return { slug: getPublicSlugFromLocation(), mode: parts[1] === "inquiry" ? "inquiry" : parts[1] === "book" ? "book" : "gateway" };
+}
+
+const marketingRoutes = new Set(["features", "packages", "demo", "updates", "faq", "partners", "onboarding"]);
+
+function MarketingShell({ page, children }) {
+  const links = [["/", "Home"], ["/features", "Features"], ["/packages", "Packages"], ["/demo", "Demo"], ["/updates", "Updates"], ["/partners", "Partners"], ["/faq", "FAQs"]];
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  useEffect(() => {
+    const titles = { home: "Slotwise — Smarter Bookings. No Monthly Fees.", features: "Features — Slotwise", packages: "Packages — Slotwise", demo: "Live Demo — Slotwise", updates: "Updates — Slotwise", partners: "Partners — Slotwise", faq: "FAQ — Slotwise", onboarding: "Client Onboarding — Slotwise" };
+    document.title = titles[page] || "Slotwise";
+  }, [page]);
+  return <div className="marketingSite"><aside className={mobileNavOpen ? "marketingSidebar mobileOpen" : "marketingSidebar"}><a className="marketingBrand" href="/" onClick={() => setMobileNavOpen(false)}><img src="/slotwise-logo.png" alt="Slotwise" /></a><nav className="marketingSideNav" aria-label="Marketing navigation">{links.map(([href, label], index) => { const icons = [<Home size={18} />, <LayoutDashboard size={18} />, <BadgeDollarSign size={18} />, <Monitor size={18} />, <FileText size={18} />, <Users size={18} />, <CircleHelp size={18} />]; return <a className={page === href.slice(1) || (page === "home" && href === "/") ? "active" : ""} href={href} key={href} onClick={() => setMobileNavOpen(false)}>{icons[index]}<span>{label}</span></a>; })}</nav><div className="marketingSidebarCta"><Crown size={19} /><strong>Ready to get started?</strong><span>Simple setup. Lifetime access.</span><a href="/packages">View Packages <ArrowRight size={14} /></a></div></aside><div className="marketingWorkspace"><header className="marketingHeader"><button className="marketingMobileMenu" type="button" aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((open) => !open)}><Menu size={20} /></button><div className="marketingUtilityActions"><a className="marketingLogin" href="/client-login"><User size={17} /> Client Login</a></div></header>{children}<footer className="marketingFooter"><div className="marketingFooterCredits"><span>© 2026 Slotwise</span><span className="marketingFooterDeveloper">Built by <a href="https://www.stpaine.com/" target="_blank" rel="noopener noreferrer">STP.AINE</a></span></div></footer></div></div>;
+}
+
+function MarketingButton({ href, children, secondary = false }) { return <a className={`marketingButton ${secondary ? "secondary" : ""}`} href={href}>{children}<ArrowRight size={16} /></a>; }
+
+function MarketingProductPreview() {
+  const times = ["09:30", "10:15", "11:00", "13:00", "14:30", "15:30"];
+  return <div className="marketingPreview studioWorkspace"><div className="marketingPreviewBar"><span><i /> slotwise.app/your-business</span><small>BOOKING WORKSPACE</small></div><div className="marketingPreviewBody"><div className="marketingWorkspaceTop"><div className="marketingPreviewBrand"><div className="marketingPreviewLogo">S</div><div><strong>Glow Beauty Studio</strong><small>Public booking page</small></div></div><span className="marketingWorkspaceDate"><CalendarDays size={15} /> October 2026</span></div><div className="marketingWorkspaceGrid"><aside><span className="marketingWorkspaceLabel">CHOOSE A SERVICE</span><button className="marketingService active"><strong>Hair color</strong><small>90 min · PHP 1,200</small></button><button className="marketingService"><strong>Hair treatment</strong><small>60 min · PHP 850</small></button><button className="marketingService"><strong>Makeup appointment</strong><small>60 min · PHP 950</small></button><div className="marketingWorkspaceHint"><MessageSquare size={15} /><span><strong>Need more information?</strong><small>Customers can inquire before booking.</small></span></div></aside><section className="marketingCalendar"><div className="marketingCalendarHead"><div><span className="marketingWorkspaceLabel">PICK A TIME</span><strong>Tuesday, October 6</strong></div><span className="marketingTimezone"><Clock size={14} /> Asia/Manila</span></div><div className="marketingCalendarGrid">{times.map((time, index) => <button className={index === 2 ? "selected" : ""} key={time}><Clock size={13} /> {time}</button>)}</div><div className="marketingCalendarFooter"><span><Check size={15} /> Live availability</span><span>1 service · 1 guest</span></div></section></div><div className="marketingWorkspaceBottom"><div><small>CLIENT DASHBOARD</small><strong>Schedule, requests, payments</strong></div><span><b /> New booking request</span><span><b /> Payment review</span></div></div></div>;
+}
+
+const marketingFeatures = [
+  [CalendarCheck, "Online Booking", "Give customers a clear path to choose a service, date, time, and details."],
+  [MessageSquare, "Customer Inquiry System", "Let customers ask first, choose what interests them, and follow up when ready."],
+  [LayoutDashboard, "Client Dashboard", "Manage requests, inquiries, customers, schedules, and business settings in one place."],
+  [ClipboardCheck, "Booking Management", "Review incoming requests, update statuses, and keep your day organized."],
+  [Mail, "Automatic Email Notifications", "Keep owners and customers updated about bookings, inquiries, and payment events."],
+  [ShieldCheck, "Manual Payment Verification", "Accept configured payment details and verify them manually from the dashboard."],
+  [FileDown, "Booking PDF", "Give customers a useful booking document that reflects the request and payment state."],
+  [Palette, "Business Customization", "Use your own business identity, services, colors, logo, and public booking link."],
+];
+
+function MarketingHome() { const panels = [[CalendarDays, "1. Book", "Customers can easily choose a service, date, and time."], [LayoutDashboard, "2. Manage", "View and manage all bookings in a simple calendar."], [Mail, "3. Notify", "Automatic email notifications for bookings and inquiries."], [BarChart3, "4. Grow", "Keep track of your business with a dedicated dashboard."]]; return <MarketingShell page="home"><main className="marketingHome"><section className="marketingMasterHero"><div className="marketingMasterCopy"><span className="marketingEyebrow">ALL-IN-ONE BOOKING SOFTWARE</span><h1>Manage<br />Bookings<br /><em>with Ease.</em></h1><p>Online booking, inquiries, client management, and automatic notifications — everything your business needs in one simple system.</p><div className="marketingActions"><MarketingButton href="/demo">Try Live Demo</MarketingButton><MarketingButton href="/packages" secondary>View Packages</MarketingButton></div><div className="marketingMasterHighlights"><span><CalendarDays size={18} /> <b>Online<br />Booking</b></span><span><MessageSquare size={18} /> <b>Customer<br />Inquiries</b></span><span><Bell size={18} /> <b>Automatic<br />Notifications</b></span><span><BarChart3 size={18} /> <b>Business<br />Dashboard</b></span></div></div><MarketingProductPreview /></section><section className="marketingFourPanels">{panels.map(([Icon, title, text], index) => <article key={title}><span className="marketingPanelNumber">{String(index + 1).padStart(2, "0")}</span><Icon size={19} /><h2>{title}</h2><p>{text}</p></article>)}</section></main></MarketingShell>; }
+
+const marketingFeatureDetails = [
+  { packages: "STARTER · BUSINESS · PRO", capabilities: ["Public booking link", "Service and schedule selection", "Customer details and confirmation"], preview: "BOOKING PREVIEW", previewText: "Choose a service → pick a time → send a request" },
+  { packages: "Configured businesses", capabilities: ["Customer intent gateway", "Service-specific inquiry subjects", "Dashboard inquiry follow-up"], preview: "INQUIRY PREVIEW", previewText: "Inquire first, then convert when ready" },
+  { packages: "BUSINESS · PRO", capabilities: ["Business-scoped requests", "Account and business settings", "Booking and inquiry visibility"], preview: "CLIENT DASHBOARD", previewText: "Bookings, inquiries, payments" },
+  { packages: "BUSINESS · PRO", capabilities: ["Booking status management", "Schedule and availability tools", "Customer request review"], preview: "MANAGE PREVIEW", previewText: "Review requests and keep the day organized" },
+  { packages: "PRO · configured", capabilities: ["Booking and inquiry alerts", "Payment event notifications", "Dedicated notification email"], preview: "NOTIFICATION PREVIEW", previewText: "New inquiry received" },
+  { packages: "PRO", capabilities: ["Manual payment review", "Pending verification state", "Verify or reject from dashboard"], preview: "PAYMENT PREVIEW", previewText: "Submitted → Pending Verification" },
+  { packages: "PRO · configured", capabilities: ["Customer-facing booking PDF", "Request and payment context", "Download from confirmation"], preview: "PDF PREVIEW", previewText: "Booking request summary" },
+  { packages: "Configured businesses", capabilities: ["Logo and business identity", "Services and public link", "Theme and workflow settings"], preview: "CUSTOMIZATION PREVIEW", previewText: "Your brand, your booking experience" },
+];
+
+function MarketingFeatureReadOnlyPreview({ index }) {
+  const [bookingStep, setBookingStep] = useState(0);
+  if (index === 0) return <div className="featureRealPreview bookingPreview"><div className="featurePreviewHeader"><span className="featurePreviewKicker">PUBLIC BOOKING · READ-ONLY</span><span>DEMO PREVIEW</span></div><div className="featurePreviewTabs" role="tablist" aria-label="Booking preview steps">{["Select Service", "Choose Date & Time", "Customer Details", "Confirmation"].map((step, stepIndex) => <button type="button" role="tab" aria-selected={bookingStep === stepIndex} className={bookingStep === stepIndex ? "active" : ""} onClick={() => setBookingStep(stepIndex)} key={step}>{stepIndex + 1}. {step}</button>)}</div>{bookingStep === 0 && <div className="featurePreviewColumns"><div><b>Choose a service</b><span className="featurePreviewRow active">Hair Color <small>90 min · PHP 1,200</small></span><span className="featurePreviewRow">Hair Treatment <small>60 min · PHP 850</small></span></div><div className="featurePreviewAside"><b>Your selection</b><strong>Hair Color</strong><small>Continue to schedule selection</small></div></div>}{bookingStep === 1 && <div className="featurePreviewColumns"><div><b>Choose a date</b><span className="featurePreviewDate">October 6, 2026</span><span className="featurePreviewCalendar">Mon&nbsp; Tue&nbsp; Wed&nbsp; Thu&nbsp; Fri<br /><b>5&nbsp;&nbsp;&nbsp;6&nbsp;&nbsp;&nbsp;7&nbsp;&nbsp;&nbsp;8&nbsp;&nbsp;&nbsp;9</b></span></div><div><b>Available times</b><div className="featurePreviewSlots"><span>09:30</span><span>10:15</span><span className="selected">11:00</span><span>13:00</span></div></div></div>}{bookingStep === 2 && <div className="featurePreviewFields bookingCustomerFields"><span>Full name <strong>Customer name</strong></span><span>Contact number <strong>+63 900 000 0000</strong></span><span>Email address <strong>customer@example.com</strong></span><span>Notes <strong>Optional booking details</strong></span></div>}{bookingStep === 3 && <div className="featurePreviewConfirmation"><span className="featurePreviewCheck">✓</span><b>Booking request ready</b><span>Service · Hair Color</span><span>October 6, 2026 · 11:00 AM</span><small>Submitted requests remain subject to business confirmation.</small></div>}</div>;
+  if (index === 1) return <div className="featureRealPreview inquiryPreview"><span className="featurePreviewKicker">PUBLIC INQUIRY · READ-ONLY</span><b>Send an inquiry</b><div className="featurePreviewFields"><span>What are you inquiring about? <strong>Private Class</strong></span><span>Full name <strong>Customer name</strong></span><span>Email address <strong>customer@example.com</strong></span><span className="featurePreviewMessage">Message / details <strong>I would like to know more about the available schedule.</strong></span></div><button type="button" disabled>SUBMIT INQUIRY</button></div>;
+  if (index === 2) return <div className="featureRealPreview dashboardPreview"><span className="featurePreviewKicker">CLIENT DASHBOARD · READ-ONLY</span><div className="featurePreviewDashboardNav"><b>Dashboard</b><span>Bookings / Requests</span><span>Inquiries</span><span>Account</span></div><div className="featurePreviewMetrics"><span><small>BOOKINGS</small><b>Requests</b></span><span><small>INQUIRIES</small><b>Customer questions</b></span><span><small>PAYMENTS</small><b>Pending review</b></span></div></div>;
+  if (index === 3) return <div className="featureRealPreview managementPreview"><span className="featurePreviewKicker">BOOKING MANAGEMENT · READ-ONLY</span><div className="featurePreviewTableHead"><b>Booking</b><b>Schedule</b><b>Status</b></div><div className="featurePreviewTableRow"><span><strong>BK-2026-001</strong><small>Customer name</small></span><span>Oct 6 · 11:00 AM</span><em className="pending">Pending</em></div><div className="featurePreviewTableRow"><span><strong>BK-2026-002</strong><small>Customer name</small></span><span>Oct 7 · 1:00 PM</span><em className="confirmed">Confirmed</em></div></div>;
+  if (index === 4) return <div className="featureRealPreview notificationPreview"><span className="featurePreviewKicker">AUTOMATIC EMAIL NOTIFICATIONS · TEMPLATE PREVIEW</span><div className="featurePreviewEmail"><small>SLOTWISE NOTIFICATIONS</small><b>New Inquiry Received — Your Business</b><p>NEW CUSTOMER INQUIRY</p><span>Inquiry Reference · Customer · Inquiry About</span><footer>Open your Slotwise Client Dashboard to review the inquiry.</footer></div></div>;
+  if (index === 5) return <div className="featureRealPreview paymentPreview"><span className="featurePreviewKicker">MANUAL PAYMENT VERIFICATION · READ-ONLY</span><div className="featurePreviewPaymentHead"><b>PAYMENT DETAILS</b><em>PENDING_VERIFICATION</em></div><div className="featurePreviewPaymentGrid"><span>Method<strong>GCash</strong></span><span>Amount Sent<strong>PHP 350</strong></span><span>Reference<strong>1234567890</strong></span><span>Proof<strong>Available for review</strong></span></div><div className="featurePreviewActions"><button type="button" disabled>Verify Payment</button><button type="button" disabled>Reject Payment</button></div></div>;
+  if (index === 6) return <div className="featureRealPreview pdfPreview"><span className="featurePreviewKicker">BOOKING PDF · READ-ONLY</span><div className="featurePreviewPaper"><small>SLOTWISE · BOOKING REQUEST</small><h3>Booking Reference</h3><b>BK-2026-001</b><hr /><span>Service · Requested date · Requested time</span><strong>Payment status: Pending Verification</strong></div></div>;
+  return <div className="featureRealPreview customizationPreview"><span className="featurePreviewKicker">BUSINESS CUSTOMIZATION · READ-ONLY</span><div className="featurePreviewSettings"><b>Business Details</b><span>Business name <strong>Your Business</strong></span><span>Public booking link <strong>slotwise.app/your-business</strong></span><div><i /><i /><span>Primary and accent colors</span></div><span>Logo and public booking page branding</span></div></div>;
+}
+
+function MarketingFeatures() {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [Icon, title, text] = marketingFeatures[selectedIndex];
+  const detail = marketingFeatureDetails[selectedIndex];
+  return <MarketingShell page="features"><main className="marketingPage marketingFeatureExplorer"><div className="marketingPageIntro"><span className="marketingEyebrow">THE SLOTWISE TOOLKIT</span><h1>Explore what Slotwise can do.</h1><p>Select a feature to see how Slotwise helps businesses manage bookings, inquiries, and daily operations.</p></div><div className="marketingFeatureExplorerGrid"><nav className="marketingFeatureSelector" aria-label="Slotwise features">{marketingFeatures.map(([FeatureIcon, featureTitle], index) => <button type="button" key={featureTitle} className={selectedIndex === index ? "active" : ""} aria-current={selectedIndex === index ? "true" : undefined} onClick={() => setSelectedIndex(index)}><FeatureIcon size={18} /><span>{featureTitle}</span><ChevronRight size={15} /></button>)}</nav><section className="marketingFeatureDetail" aria-live="polite"><div className="marketingFeatureDetailTop"><div className="marketingIcon"><Icon size={23} /></div><span className="marketingFeatureIndex">0{selectedIndex + 1}</span></div><h2>{title}</h2><p className="marketingFeatureLead">{text}</p><MarketingFeatureReadOnlyPreview index={selectedIndex} /><div className="marketingFeatureDetailBottom"><div><span className="marketingFeatureLabel">KEY CAPABILITIES</span><ul>{detail.capabilities.map((capability) => <li key={capability}><Check size={15} />{capability}</li>)}</ul></div><div><span className="marketingFeatureLabel">PACKAGE AVAILABILITY</span><strong className="marketingPackageBadge">{detail.packages}</strong><a className="marketingFeatureCta" href="/packages">Compare packages <ArrowRight size={15} /></a></div></div></section></div></main></MarketingShell>;
+}
+
+function MarketingUpdates() {
+  const [updates, setUpdates] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [state, setState] = useState("loading");
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setState("loading");
+    supabaseRequest("slotwise_updates", { query: "?select=*&is_published=eq.true&order=published_at.desc" })
+      .then((rows) => {
+        if (cancelled) return;
+        if (!Array.isArray(rows)) throw new Error("Updates source is unavailable.");
+        const published = Array.isArray(rows) ? rows : [];
+        setUpdates(published);
+        setSelectedId((current) => current && published.some((item) => item.id === current) ? current : published[0]?.id || null);
+        setState("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setState("error");
+      });
+    return () => { cancelled = true; };
+  }, [retryKey]);
+
+  const selected = updates.find((item) => item.id === selectedId) || updates[0] || null;
+  const updateDate = selected?.published_at || selected?.created_at;
+  const updatePackages = normalizeUpdatePackages(selected?.applicable_packages || selected?.target_packages);
+
+  return <MarketingShell page="updates"><main className="marketingPage marketingUpdatesPage">
+    <div className="marketingPageIntro"><span className="marketingEyebrow">SLOTWISE UPDATES</span><h1>What’s new in Slotwise.</h1><p>Published product updates, improvements, and announcements for the Slotwise community.</p></div>
+    {state === "loading" && <div className="marketingUpdatesState">Loading published updates...</div>}
+    {state === "error" && <div className="marketingUpdatesState error"><strong>Updates could not be loaded.</strong><button type="button" className="marketingButton secondary" onClick={() => setRetryKey((value) => value + 1)}>Retry <ArrowRight size={15} /></button></div>}
+    {state === "ready" && !updates.length && <div className="marketingUpdatesState"><strong>No published updates yet.</strong><span>New Slotwise announcements will appear here when they are published.</span></div>}
+    {state === "ready" && updates.length > 0 && <div className="marketingUpdatesExplorer">
+      <nav className="marketingUpdatesList" aria-label="Published updates">{updates.map((update) => {
+        const date = update.published_at || update.created_at;
+        return <button type="button" key={update.id} className={selected?.id === update.id ? "active" : ""} onClick={() => setSelectedId(update.id)}><span>{date ? formatUpdateDate(date) : "Published update"}</span><strong>{update.title}</strong><small>{update.summary || "Read the latest Slotwise update."}</small></button>;
+      })}</nav>
+      {selected && <article className="marketingUpdateDetail"><div className="marketingUpdateMeta"><span>{getUpdateTypeLabel(selected.update_type)}</span>{updateDate && <small>{formatUpdateDate(updateDate)}</small>}</div><h2>{selected.title}</h2>{selected.summary && <p className="marketingUpdateSummary">{selected.summary}</p>}{selected.content && <div className="marketingUpdateContent">{selected.content}</div>}<div className="marketingUpdateBadges">{updatePackages.map((item) => <span key={item}>{item === "ALL" ? "All packages" : `${item} feature`}</span>)}</div></article>}
+    </div>}
+  </main></MarketingShell>;
+}
+
+const marketingFaqItems = [
+  ["What is Slotwise?", "Slotwise is an online booking and inquiry management system with a public business page and client dashboard."],
+  ["Are the packages one-time payments?", "STARTER, BUSINESS, and PRO are presented as one-time lifetime packages. Monthly subscription fees are not part of the listed package pricing."],
+  ["What is included in the packages?", "Package inclusions vary by tier. Review the Packages page for the verified booking, inquiry, dashboard, payment, PDF, and customization capabilities available on each plan."],
+  ["Can customers inquire before booking?", "Businesses with inquiries enabled can let customers send an inquiry first, including the service they are asking about and their contact details."],
+  ["Can businesses customize their public page?", "Supported business details, branding, services, schedules, and public workflow settings can be configured where available. Major custom development or integrations may require a separate quotation."],
+  ["Does Slotwise send automatic notifications?", "Automatic email notifications can be configured for supported booking, inquiry, payment, and status events. The business must set its Notification Email in Dashboard → Account."],
+  ["How are payments verified?", "Where enabled by the package and business configuration, customers can submit payment details for manual business review. Payment verification is handled by the business through the dashboard."],
+  ["How do I get started?", "Choose a package, review the available features, and contact Slotwise for setup or activation details."],
+];
+
+function MarketingFaq() {
+  const [openIndex, setOpenIndex] = useState(0);
+  return <MarketingShell page="faq"><main className="marketingPage marketingFaqPage"><div className="marketingPageIntro"><span className="marketingEyebrow">HELP CENTER</span><h1>Frequently asked questions.</h1><p>Clear answers about Slotwise packages, setup, booking, inquiries, payments, and notifications.</p></div><section className="marketingFaqList" aria-label="Frequently asked questions">{marketingFaqItems.map(([question, answer], index) => <article key={question} className={openIndex === index ? "open" : ""}><button type="button" aria-expanded={openIndex === index} onClick={() => setOpenIndex(openIndex === index ? -1 : index)}><span>{question}</span><ChevronRight size={17} /></button>{openIndex === index && <div className="marketingFaqAnswer"><p>{answer}</p></div>}</article>)}</section></main></MarketingShell>;
+}
+
+function MarketingPartners() {
+  const [activeTab, setActiveTab] = useState("reseller");
+  const isReseller = activeTab === "reseller";
+  return <MarketingShell page="partners"><main className="marketingPage marketingPartnersPage"><div className="marketingPageIntro"><span className="marketingEyebrow">PARTNER WITH SLOTWISE</span><h1>Earn With Slotwise.</h1><p>Explore ways to introduce Slotwise to businesses that need a practical booking and inquiry system.</p></div><div className="marketingPartnerTabs" role="tablist" aria-label="Partner programs"><button type="button" role="tab" aria-selected={isReseller} className={isReseller ? "active" : ""} onClick={() => setActiveTab("reseller")}>Become a Reseller</button><button type="button" role="tab" aria-selected={!isReseller} className={!isReseller ? "active" : ""} onClick={() => setActiveTab("refer")}>Refer &amp; Earn</button></div><section className="marketingPartnerPanel" role="tabpanel"><span className="marketingEyebrow">{isReseller ? "RESELLER PROGRAM" : "REFERRAL PROGRAM"}</span><h2>{isReseller ? "Offer a complete booking system to businesses you serve." : "Introduce businesses to a simpler way to manage bookings."}</h2><p>{isReseller ? "Resellers can discuss Slotwise with prospective business customers and coordinate setup conversations with the Slotwise team." : "Refer a business that may benefit from online booking, customer inquiries, and dashboard management, then contact us for partner program details."}</p><div className="marketingPartnerColumns"><div><h3>Who can participate</h3><p>Business consultants, service providers, agencies, and individuals with relevant business connections may inquire about participating.</p></div><div><h3>How it works</h3><p>Contact Slotwise, share the business context, and discuss the appropriate package and setup requirements.</p></div><div><h3>Program details</h3><p>Reseller pricing, commissions, payout terms, and eligibility are not published here. Contact us for the current approved details.</p></div></div><a className="marketingButton" href="mailto:hello@slotwise.app">Contact Slotwise <ArrowRight size={15} /></a></section></main></MarketingShell>;
 }
 
 const templates = [
@@ -2646,6 +2844,7 @@ const templates = [
     link: "glowbeauty.slotwise.app",
     logo: "",
     primaryColor: "#bd5d6d",
+    secondaryColor: "#9183F2",
     accentColor: "#f6dfe3",
     phone: "0912 345 6789",
     messengerLink: "https://m.me/glowbeauty",
@@ -2870,108 +3069,149 @@ const templates = [
 ];
 
 const demoSteps = [
-  {
-    title: "Set up your business",
-    tag: "Owner setup",
-    text: "Add business name, industry, logo, opening hours, staff, and your public booking page link.",
-    detail: "Glow Beauty Studio / Salon template / 2 staff / Open Monday to Saturday",
-    ownerTitle: "Business profile",
-    ownerItems: ["Business: Glow Beauty Studio", "Industry: Salon / beauty", "Staff: Ana, Bea", "Hours: Mon-Sat, 9 AM-6 PM"],
-    customerTitle: "Public page preview",
-    customerItems: ["glowbeauty.slotwise.app", "Logo, cover photo, and services", "Book button visible on mobile"],
-  },
-  {
-    title: "Create services",
-    tag: "Service menu",
-    text: "Add service duration, price, optional deposit, buffer time, and custom questions for each service.",
-    detail: "Hair color / 60 minutes / PHP 350 / 15-minute cleanup buffer",
-    ownerTitle: "Service builder",
-    ownerItems: ["Hair color - PHP 350", "Duration: 60 minutes", "Buffer: 15 minutes", "Questions: Hair length, stylist"],
-    customerTitle: "Service selection",
-    customerItems: ["Hair color", "Hair treatment", "Makeup appointment"],
-  },
-  {
-    title: "Share the booking page",
-    tag: "Customer flow",
-    text: "Post the link on Facebook, Messenger, Instagram bio, Google Business Profile, or QR code.",
-    detail: "glowbeauty.slotwise.app goes straight to service, date, time, and customer details",
-    ownerTitle: "Share tools",
-    ownerItems: ["Copy booking link", "Download QR code", "Post to Facebook", "Add to Instagram bio"],
-    customerTitle: "Customer opens link",
-    customerItems: ["No account required", "Choose service", "Pick date and time"],
-  },
-  {
-    title: "Accept bookings",
-    tag: "Live schedule",
-    text: "Customers book without an account. Slotwise blocks taken times and suggests the next available slot.",
-    detail: "Maria books 10:15 AM / Email confirmation sent / Staff notified",
-    ownerTitle: "New booking received",
-    ownerItems: ["Maria Santos", "Hair color at 10:15 AM", "Status: Confirmed", "Staff: Ana"],
-    customerTitle: "Confirmation screen",
-    customerItems: ["Booking confirmed", "Reference: SW-1048", "Email confirmation sent"],
-  },
-  {
-    title: "Manage the day",
-    tag: "Dashboard",
-    text: "Track bookings, check-ins, customer notes, deposits, cancellations, and follow-up reminders.",
-    detail: "18 bookings today / PHP 4,850 deposits / 3 customers need follow-up",
-    ownerTitle: "Today dashboard",
-    ownerItems: ["18 bookings", "PHP 4,850 deposits", "3 follow-ups", "2 reschedule requests"],
-    customerTitle: "Customer self-service",
-    customerItems: ["View booking", "Reschedule if allowed", "Download receipt"],
-  },
+  { title: "Set up your business", tag: "Owner setup", text: "Add business name, industry, logo, opening hours, staff, and your public booking page link.", detail: "Glow Beauty Studio / Salon template / 2 staff / Open Monday to Saturday", ownerTitle: "Business profile", ownerItems: ["Business: Glow Beauty Studio", "Industry: Salon / beauty", "Staff: Ana, Bea", "Hours: Mon-Sat, 9 AM-6 PM"], customerTitle: "Public page preview", customerItems: ["glowbeauty.slotwise.app", "Logo, cover photo, and services", "Book button visible on mobile"] },
+  { title: "Create services", tag: "Service menu", text: "Add service duration, price, optional deposit, buffer time, and custom questions for each service.", detail: "Hair color / 60 minutes / PHP 350 / 15-minute cleanup buffer", ownerTitle: "Service builder", ownerItems: ["Hair color - PHP 350", "Duration: 60 minutes", "Buffer: 15 minutes", "Questions: Hair length, stylist"], customerTitle: "Service selection", customerItems: ["Hair color", "Hair treatment", "Makeup appointment"] },
+  { title: "Share the booking page", tag: "Customer flow", text: "Post the link on Facebook, Messenger, Instagram bio, Google Business Profile, or QR code.", detail: "glowbeauty.slotwise.app goes straight to service, date, time, and customer details", ownerTitle: "Share tools", ownerItems: ["Copy booking link", "Download QR code", "Post to Facebook", "Add to Instagram bio"], customerTitle: "Customer opens link", customerItems: ["No account required", "Choose service", "Pick date and time"] },
+  { title: "Accept bookings", tag: "Live schedule", text: "Customers book without an account. Slotwise blocks taken times and suggests the next available slot.", detail: "Maria books 10:15 AM / Email confirmation sent / Staff notified", ownerTitle: "New booking received", ownerItems: ["Maria Santos", "Hair color at 10:15 AM", "Status: Confirmed", "Staff: Ana"], customerTitle: "Confirmation screen", customerItems: ["Booking confirmed", "Reference: SW-1048", "Email confirmation sent"] },
+  { title: "Manage the day", tag: "Dashboard", text: "Track bookings, check-ins, customer notes, deposits, cancellations, and follow-up reminders.", detail: "18 bookings today / PHP 4,850 deposits / 3 customers need follow-up", ownerTitle: "Today dashboard", ownerItems: ["18 bookings", "PHP 4,850 deposits", "3 follow-ups", "2 reschedule requests"], customerTitle: "Customer self-service", customerItems: ["View booking", "Reschedule if allowed", "Download receipt"] },
 ];
 
+const marketingPackageDetails = [
+  { name: "STARTER", price: "₱499", tone: "", position: "A focused entry point for a straightforward public booking page.", cardItems: ["Public booking link", "Core booking flow", "Business branding", "Customer details and confirmation"], included: ["Public booking link and configured business profile", "Core booking request flow", "Customer details and booking confirmation", "Basic business information and branding"], booking: ["Customers can submit booking requests through the public link."], dashboard: ["Basic request visibility is available where configured."], automation: ["Payment verification, Booking PDF, and enhanced management controls are not included in this tier."], customization: ["Configure business information and public-facing details."], limits: ["Advanced scheduling, payment verification, PDF downloads, and enhanced dashboard controls are not included."] },
+  { name: "BUSINESS", price: "₱799", tone: "popular", position: "For businesses that need services, schedules, and daily request management.", cardItems: ["Everything in Starter", "Services and service pricing", "Schedule and availability tools", "Customer and basic dashboard management", "Basic statistics"], included: ["Everything in Starter", "Configured services and service pricing", "Schedule and availability management", "Customer management", "Basic booking statistics"], booking: ["Customers can choose configured services and available schedules.", "Businesses can review incoming customer requests."], dashboard: ["Manage services, schedules, customers, booking requests, and basic statistics."], automation: ["Manual payment verification and Booking PDF are not included by the verified package map."], customization: ["Business branding, services, schedules, and public workflow settings remain configurable."], limits: ["Blocked dates, reservation calendar, manual reservations, payment verification, PDF, customer history, and enhanced statistics are not included."] },
+  { name: "PRO", price: "₱1,499", tone: "dark", position: "The complete management tier for deeper booking and payment workflows.", cardItems: ["Everything in Business", "Blocked dates and reservation calendar", "Manual reservations", "Booking PDF", "Payment verification", "Customer history and enhanced statistics"], included: ["Everything in Business", "Blocked dates", "Reservation calendar", "Manual reservation entry", "Booking PDF downloads", "Manual payment verification", "Customer history and enhanced statistics"], booking: ["Customers use the same public booking flow with the business's configured services and schedules.", "Businesses can manage both online requests and manual reservations."], dashboard: ["Use calendar controls, blocked dates, manual reservations, customer history, enhanced statistics, and payment review tools."], automation: ["Manual payment verification supports Pending Verification, Verify, and Reject workflows.", "Automatic email notifications remain dependent on notification configuration."], customization: ["Configure the business identity, services, schedules, payment methods, and notification email where supported."], limits: ["Major custom development, integrations, or functionality beyond the supported configuration require a separate quotation."] },
+];
+
+// Verified public service names from the D'Monster pest-control configuration.
 const dmonsterOfficialServices = [
   "General Pest Control",
   "Termite Treatment",
   "Soil Poisoning",
   "Reticulation System",
 ];
-
 const dmonsterServiceContent = {
-  "General Pest Control": {
-    description: "Including common pests such as rats, cockroaches, flies, and mosquitoes.",
-    cardPrice: "Starts at ₱3,500",
-  },
-  "Termite Treatment": {
-    description: "Termite treatment estimate based on property type, floors, and area.",
-    cardPrice: "Starts at ₱7,500",
-  },
-  "Soil Poisoning": {
-    description: "Soil poisoning service priced by covered area.",
-    cardPrice: "Starts at ₱200/sqm",
-  },
-  "Reticulation System": {
-    description: "Reticulation system installation priced by area.",
-    cardPrice: "₱200/sqm",
-  },
+  "General Pest Control": { description: "Including common pests such as rats, cockroaches, flies, and mosquitoes.", cardPrice: "Starts at ₱3,500" },
+  "Termite Treatment": { description: "Termite treatment estimate based on property type, floors, and area.", cardPrice: "Starts at ₱7,500" },
+  "Soil Poisoning": { description: "Soil poisoning service priced by covered area.", cardPrice: "Starts at ₱200/sqm" },
+  "Reticulation System": { description: "Reticulation system installation priced by area.", cardPrice: "₱200/sqm" },
 };
-
-const dmonsterPropertyTypes = [
-  "Condominium",
-  "House",
-  "Commercial Establishment",
-  "Office",
-  "Warehouse",
-  "Other",
-];
-
+const dmonsterPropertyTypes = ["Condominium", "House", "Commercial Establishment", "Office", "Warehouse", "Other"];
 const dmonsterFloorOptions = [
   { value: "1", label: "1 Floor" },
   { value: "2", label: "2 Floors" },
   { value: "3", label: "3 Floors" },
   { value: "4", label: "More than 3 Floors" },
 ];
-
 const dmonsterServiceAreas = ["Metro Manila / NCR", "Outside Metro Manila / NCR"];
-
 const facialUnlimitedBranches = ["Pateros", "Parañaque", "Taguig / Lakeshore", "Antipolo"];
-
 function getDmonsterServiceContent(name = "") {
   return dmonsterServiceContent[name] || {};
 }
 
+function MarketingDemo() {
+  const demoPackages = [
+    { name: "STARTER", price: "₱499", slug: "dmonster-pest-control-services", business: "D'MONSTER PEST CONTROL SERVICES", theme: "dmonster", logo: dmonsterLogo, cover: pestControlCover, primaryColor: "#A51D24", accentColor: "#F4E8E8", pageBackgroundColor: "#F5F5F4", bookingTemplate: "PEST_CONTROL", bookingMode: "booking", detail: "Actual STARTER pest-control booking experience with the configured service request workflow." },
+    { name: "BUSINESS", price: "₱799", slug: "the-vitality-collective", business: "The Vitality Collective", theme: "vitality", logo: "", cover: healthWellnessCover, primaryColor: "#5B3FD3", accentColor: "#F8DCEB", pageBackgroundColor: "#FCFAFD", bookingTemplate: "HEALTH_WELLNESS", bookingMode: "inquiry", detail: "Actual BUSINESS wellness inquiry experience using the client's configured services and public presentation." },
+    { name: "PRO", price: "₱1,499", slug: "xtreme-dancers-studio", business: "XTREME DANCERS STUDIO", theme: "xtreme", logo: "/xtreme-dancers-logo.png", cover: "/xtreme-dancers-hero.png", primaryColor: "#111514", accentColor: "#C9F45A", pageBackgroundColor: "#F3F5F2", bookingTemplate: "GENERAL", bookingMode: "booking", detail: "Actual PRO dance booking experience with configured classes, private sessions, and studio rentals." },
+  ];
+  const [selectedPackage, setSelectedPackage] = useState(0);
+  const selectedDemo = demoPackages[selectedPackage];
+  const selectedServices = selectedDemo.slug === "dmonster-pest-control-services"
+    ? dmonsterOfficialServices.map((name, index) => ({ name, description: "", price: null, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: index, status: "Active" }))
+    : selectedDemo.slug === "the-vitality-collective"
+      ? [
+        ["Daily Balance 15", 1949], ["Daily Balance 30", 3249], ["Daily Balance 60", 4250], ["Metabolic Support Plus", 4099], ["Appetite Balance", 2250],
+      ].map(([name, price], index) => ({ name, description: "", price, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes: null, displayOrder: index, status: "Active" }))
+      : [
+        ["XTREME STEPPER - SESSION", 350, 90], ["XTREME STEPPER - MONTHLY (8 SESSIONS)", 2500, null], ["WEEKEND DANCE CLASS - KIDS A (AGES 4-6)", 300, 90], ["WEEKEND DANCE CLASS - KIDS B (AGES 7-9)", 300, 90], ["WEEKEND DANCE CLASS - TEENS (AGES 10-15)", 300, 90], ["WEEKEND DANCE CLASS - XTREME STEPPER", 350, 90], ["WEEKEND DANCE CLASS - ADULT / MOMS BEGINNER", 300, 90], ["PRIVATE CLASS", 500, 90], ["STUDIO RENTAL - NON-AIRCON", 350, 60], ["STUDIO RENTAL - WITH AIRCON", 500, 60],
+      ].map(([name, price, durationMinutes], index) => ({ name, description: "", price, pricingUnit: "FLAT", pricingType: "FIXED", pricingTiers: [], durationMinutes, displayOrder: index, status: "Active" }));
+  const demoBusiness = {
+    slug: selectedDemo.slug,
+    business: selectedDemo.business,
+    name: selectedDemo.business,
+    businessType: "Service business",
+    package: selectedDemo.name,
+    business_package: selectedDemo.name,
+    status: "DEMO",
+    bookingMode: selectedDemo.bookingMode,
+    bookingTemplate: selectedDemo.bookingTemplate,
+    logo: selectedDemo.logo,
+    cover: selectedDemo.cover,
+    primaryColor: selectedDemo.primaryColor,
+    accentColor: selectedDemo.accentColor,
+    pageBackgroundColor: selectedDemo.pageBackgroundColor,
+    phone: "",
+    primaryEmail: "",
+    messengerLink: "",
+    description: `Safe local showcase of the verified ${selectedDemo.business} public experience.`,
+    featureFlags: { ...defaultFeatureFlags, localDemoOnly: true, requireDate: selectedDemo.slug !== "the-vitality-collective", requireTime: selectedDemo.slug !== "the-vitality-collective", showPrices: selectedDemo.slug !== "dmonster-pest-control-services", acceptBookings: selectedDemo.bookingMode === "booking", acceptInquiries: selectedDemo.bookingMode === "inquiry", bookingEnabled: selectedDemo.bookingMode === "booking", inquiryEnabled: selectedDemo.bookingMode === "inquiry", wellnessHeroEyebrow: "EVERYDAY WELLNESS", wellnessHeroTitle: "Find Your Everyday Balance", wellnessFooterTagline: "Wellness made simpler for everyday life." },
+    availability: selectedDemo.slug === "dmonster-pest-control-services"
+      ? { ...defaultAvailability, days: "Operate Any Time", hours: "Open 24/7", slots }
+      : selectedDemo.slug === "the-vitality-collective"
+        ? { ...defaultAvailability, days: "Monday to Sunday", hours: "8:00 AM to 5:00 PM" }
+        : { ...defaultAvailability, days: "Monday to Sunday", hours: "9:00 AM to 6:00 PM", slots: ["9:00 AM", "10:30 AM", "1:00 PM", "2:30 PM", "4:00 PM"] },
+    services: selectedServices.map((detail) => detail.name),
+    serviceDetails: selectedServices,
+    forms: ["Preferred notes or message"],
+  };
+  return <MarketingShell page="demo"><main className="marketingPage marketingDemoPage">
+    <section className="marketingDemoIntro"><div><span className="marketingEyebrow">INTERACTIVE PACKAGE DEMO</span><h1>Experience Slotwise Before You Choose</h1><p>Try verified Slotwise client experiences using safe local showcase copies.</p></div><div className="marketingDemoIntroActions"><div className="marketingDemoNotice"><strong>{selectedDemo.name} demo · {selectedDemo.business}</strong><span>Local-only demo. No production booking, payment, email, or notification is created.</span>{selectedDemo.bookingMode === "inquiry" && <small>This client is configured for inquiries only, so the public experience opens directly to its inquiry workflow.</small>}</div><a className="marketingButton secondary" href="/packages">View Packages <ArrowRight size={15} /></a></div></section>
+    <nav className="marketingDemoPackageTabs" aria-label="Demo packages">{demoPackages.map((item, index) => <button type="button" className={selectedPackage === index ? `active ${item.theme}` : item.theme} onClick={() => setSelectedPackage(index)} key={item.slug}><span>{item.name}</span><strong>{item.price}</strong><small>{item.business}</small></button>)}</nav>
+    <p className="marketingDemoPackageDescription">{selectedDemo.detail} This interactive demo represents {selectedDemo.name} access only.</p>
+    <section className="marketingDemoBooking"><div className="marketingDemoBookingHeader"><span>REAL SLOTWISE CLIENT SHOWCASE · LOCAL DEMO COPY</span><strong>DEMO · {selectedDemo.business}</strong></div><PublicBusinessEntry key={selectedDemo.slug} business={demoBusiness} mode={selectedDemo.bookingMode} onNavigate={() => {}} onBack={() => {}} onSaveBooking={async (booking) => booking} onSubmitPayment={async () => ({})} onSubmitInquiry={async () => ({ reference: `DEMO-INQ-${Date.now()}` })} /></section>
+  </main></MarketingShell>;
+}
+
+function MarketingPackages() {
+  const [modalIndex, setModalIndex] = useState(null);
+  const [resellerOpen, setResellerOpen] = useState(false);
+  const [resellerNotice, setResellerNotice] = useState("");
+  const [resellerForm, setResellerForm] = useState({ fullName: "", businessName: "", email: "", contact: "", website: "", location: "", message: "" });
+  const modalPlan = modalIndex === null ? null : marketingPackageDetails[modalIndex];
+  useEffect(() => {
+    if (modalIndex === null) return undefined;
+    const closeOnEscape = (event) => { if (event.key === "Escape") setModalIndex(null); };
+    document.addEventListener("keydown", closeOnEscape);
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", closeOnEscape); document.body.style.overflow = ""; };
+  }, [modalIndex]);
+  const renderDetails = (item) => <div className="marketingPackageSections">
+    <div><h3>Included Features</h3><ul>{item.included.map((value) => <li key={value}><Check size={15} />{value}</li>)}</ul></div>
+    <div><h3>Booking &amp; Inquiry Capabilities</h3><p>{item.booking.join(" ")}</p><h3>Dashboard &amp; Management</h3><p>{item.dashboard.join(" ")}</p></div>
+    <div><h3>Notifications &amp; Payments</h3><p>{item.automation.join(" ")}</p><h3>Customization</h3><p>{item.customization.join(" ")}</p></div>
+    <div className="marketingPackageLimits"><h3>Limitations</h3><p>{item.limits.join(" ")}</p></div>
+  </div>;
+  const resellerEmailBody = () => `SLOTWISE RESELLER APPLICATION\n\nFull Name: ${resellerForm.fullName}\nBusiness / Agency Name: ${resellerForm.businessName}\nEmail Address: ${resellerForm.email}\nContact Number: ${resellerForm.contact}\nBusiness Website / Facebook Page: ${resellerForm.website || "Not provided"}\nLocation: ${resellerForm.location}\n\nReason for Applying:\n${resellerForm.message}\n\nI am interested in becoming an authorized SLOTWISE reseller.`;
+  const resellerMailto = () => `mailto:stp.ainedigital@gmail.com?subject=${encodeURIComponent(`SLOTWISE - Reseller Application | ${resellerForm.businessName}`)}&body=${encodeURIComponent(resellerEmailBody())}`;
+  const submitResellerApplication = (event) => {
+    event.preventDefault();
+    setResellerNotice("");
+    const required = [resellerForm.fullName, resellerForm.businessName, resellerForm.email, resellerForm.contact, resellerForm.location, resellerForm.message];
+    if (required.some((value) => !String(value).trim())) { setResellerNotice("Please complete all required fields."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resellerForm.email.trim())) { setResellerNotice("Please enter a valid email address."); return; }
+    window.location.href = resellerMailto();
+    setResellerNotice("Your email app should open with the application prepared. Please review it and press Send. If it does not open, use Copy Application below.");
+  };
+  const copyResellerApplication = async () => {
+    try {
+      await navigator.clipboard.writeText(`To: stp.ainedigital@gmail.com\nSubject: SLOTWISE - Reseller Application | ${resellerForm.businessName}\n\n${resellerEmailBody()}`);
+      setResellerNotice("Application copied. Paste it into an email addressed to stp.ainedigital@gmail.com and press Send.");
+    } catch { setResellerNotice("Copy is unavailable in this browser. Please copy the application text manually."); }
+  };
+  return <MarketingShell page="packages"><main className="marketingPage marketingPackagesPage">
+    <div className="marketingPageIntro"><span className="marketingEyebrow">PACKAGES · ONE-TIME ACCESS</span><h1>Choose once. Build on it.</h1><p>STARTER, BUSINESS, and PRO use one-time lifetime pricing with no monthly subscription fees.</p><strong className="marketingPackageInstruction">Select a package to explore its complete features, inclusions, and limitations.</strong></div>
+    <div className="marketingPackageCards">{marketingPackageDetails.map((item, index) => <article key={item.name} className={`marketingPackageCard ${item.tone}`} tabIndex="0" role="button" aria-label={`View ${item.name} package details`} onClick={() => setModalIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setModalIndex(index); } }}>
+      <span className="marketingPlanName">{item.name}</span>{item.name === "PRO" && <span className="marketingPackageFeatured">FEATURED</span>}<strong>{item.price}</strong><small>Lifetime · One-time payment</small><p>{item.position}</p><ul className="marketingPackageCardFeatures">{item.cardItems.map((itemText) => <li key={itemText}><Check size={15} aria-hidden="true" />{itemText}</li>)}</ul><span className="marketingPackageSelect">View complete inclusions <ArrowRight size={13} /></span><a className="marketingPackageCardCta" href="/client-login" onClick={(event) => event.stopPropagation()}>Get Started <ArrowRight size={14} /></a>
+    </article>)}</div>
+    <p className="marketingFinePrint">Customization, integrations, and additional feature development may require a separate quotation.</p>
+    <section className="marketingResellerSection" aria-labelledby="reseller-title">
+      <div><span className="marketingEyebrow">PARTNER WITH SLOTWISE</span><h2 id="reseller-title">Become a SLOTWISE Reseller</h2><p>Interested in offering SLOTWISE to your clients? Apply to become an authorized reseller and expand your services with our online booking and appointment management solution.</p><small>Developed &amp; Owned by STP.AINE</small></div>
+      <button type="button" className="marketingButton" onClick={() => { setResellerOpen(true); setResellerNotice(""); }}>Apply as a Reseller <ArrowRight size={16} /></button>
+    </section>
+    {resellerOpen && <div className="marketingResellerBackdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setResellerOpen(false); }}><section className="marketingResellerModal" role="dialog" aria-modal="true" aria-labelledby="reseller-form-title"><header><div><span className="marketingEyebrow">RESELLER APPLICATION</span><h2 id="reseller-form-title">Tell us about your business</h2></div><button type="button" className="marketingPackageModalClose" aria-label="Close reseller application" onClick={() => setResellerOpen(false)}><X size={20} /></button></header><form onSubmit={submitResellerApplication}><div className="marketingResellerFields"><label>Full Name *<input required value={resellerForm.fullName} onChange={(event) => setResellerForm({ ...resellerForm, fullName: event.target.value })} /></label><label>Business / Agency Name *<input required value={resellerForm.businessName} onChange={(event) => setResellerForm({ ...resellerForm, businessName: event.target.value })} /></label><label>Email Address *<input required type="email" value={resellerForm.email} onChange={(event) => setResellerForm({ ...resellerForm, email: event.target.value })} /></label><label>Contact Number *<input required value={resellerForm.contact} onChange={(event) => setResellerForm({ ...resellerForm, contact: event.target.value })} /></label><label>Business Website / Facebook Page<input value={resellerForm.website} onChange={(event) => setResellerForm({ ...resellerForm, website: event.target.value })} /></label><label>Location *<input required value={resellerForm.location} onChange={(event) => setResellerForm({ ...resellerForm, location: event.target.value })} /></label><label className="marketingResellerFull">Message / Reason for Applying *<textarea required rows="5" value={resellerForm.message} onChange={(event) => setResellerForm({ ...resellerForm, message: event.target.value })} /></label></div>{resellerNotice && <p className="marketingResellerNotice" role="status">{resellerNotice}</p>}<div className="marketingResellerActions"><button type="submit" className="marketingButton">Continue to Email Application <ArrowRight size={16} /></button><button type="button" className="marketingResellerCopy" onClick={copyResellerApplication}>Copy Application</button></div><small className="marketingResellerHint">This prepares an email in your email app. SLOTWISE does not submit it automatically.</small></form></section></div>}
+    {modalPlan && <div className="marketingPackageModalBackdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalIndex(null); }}><section className="marketingPackageModal" role="dialog" aria-modal="true" aria-labelledby="package-modal-title"><header><div><span className="marketingEyebrow">PACKAGE DETAILS</span><h2 id="package-modal-title">{modalPlan.name} · {modalPlan.price} Lifetime</h2><p>One-time payment · Lifetime access · No monthly subscription fees</p></div><button type="button" className="marketingPackageModalClose" aria-label="Close package details" onClick={() => setModalIndex(null)}><X size={20} /></button></header>{renderDetails(modalPlan)}<a className="marketingButton marketingPackageModalCta" href="/client-login">Get Started <ArrowRight size={15} /></a></section></div>}
+  </main></MarketingShell>;
+}
 function calculateDmonsterPestPrice(serviceName, details = {}) {
   const area = Number(details.areaSize);
   if (!Number.isFinite(area) || area <= 0) {
@@ -3002,6 +3242,62 @@ function calculateDmonsterPestPrice(serviceName, details = {}) {
     return { status: "calculated", total: area * 200, formula: `${area} sqm × ₱200/sqm${serviceArea ? ` • ${serviceArea}` : ""}`, note: "Estimated price based on the information provided. Final price is subject to business assessment and confirmation." };
   }
   return { status: "assessment_required", total: null, formula: [propertyType, `${area} sqm`, serviceArea].filter(Boolean).join(" • "), note: "We'll review your property and service details to confirm the applicable price." };
+}
+
+function PublicOnboardingForm({ onSaveSetup }) {
+  const [step, setStep] = useState(0);
+  const [submitted, setSubmitted] = useState(null);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const businessTypes = ["Salon / Barbershop", "Beauty / Nail Studio", "Spa / Wellness", "Dental / Clinic", "Aircon Services", "Home Services", "Repair Services", "Photography", "Fitness / Coaching", "Events / Rentals", "Professional Services", "Other"];
+  const suggestedServices = { "Salon / Barbershop": ["Haircut", "Hair Color", "Hair Treatment"], "Beauty / Nail Studio": ["Manicure", "Pedicure", "Facial Treatment"], "Spa / Wellness": ["Massage", "Wellness Consultation", "Body Treatment"], "Dental / Clinic": ["Consultation", "Follow-up Visit", "Cleaning"], "Fitness / Coaching": ["Trial Session", "Personal Training", "Coaching Consultation"] };
+  const [form, setForm] = useState({
+    businessName: "", industry: "", customIndustry: "", businessDescription: "", ownerName: "", contact: "", contactEmail: "", businessAddress: "", facebookPage: "", slug: "",
+    selectedPackage: "STARTER", serviceEntries: [{ name: "", description: "", durationMinutes: "", price: "" }], openDays: "", openHours: "", bookingInterval: "", scheduleNotes: "", preferredColors: "", primaryColor: "", secondaryColor: "", accentColor: "", pageBackgroundColor: "", textColor: "", logoUrl: "", specialInstructions: "", requestedFeatures: "",
+  });
+  const [availabilityDays, setAvailabilityDays] = useState(() => Object.fromEntries(weekdays.map((day) => [day, true])));
+  useEffect(() => { try { const draft = JSON.parse(localStorage.getItem("slotwiseOnboardingDraft") || "null"); if (draft?.form) { setForm((current) => ({ ...current, ...draft.form })); if (draft.availabilityDays) setAvailabilityDays(draft.availabilityDays); } } catch { /* Ignore invalid local drafts. */ } }, []);
+  useEffect(() => { if (!submitted) localStorage.setItem("slotwiseOnboardingDraft", JSON.stringify({ form, availabilityDays })); }, [form, availabilityDays, submitted]);
+  const update = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+  const updateColor = (name, value) => setForm((current) => ({ ...current, [name]: value.toUpperCase() }));
+  const applyPalette = (value) => {
+    const [primaryColor, accentColor] = value.split(", ");
+    setForm((current) => ({ ...current, preferredColors: value, primaryColor, secondaryColor: "#9183F2", accentColor, pageBackgroundColor: "#FAF9FD", textColor: "#24213A" }));
+  };
+  const updateService = (index, field, value) => setForm((current) => ({ ...current, serviceEntries: current.serviceEntries.map((service, serviceIndex) => serviceIndex === index ? { ...service, [field]: value } : service) }));
+  const addService = () => setForm((current) => ({ ...current, serviceEntries: [...current.serviceEntries, { name: "", description: "", durationMinutes: "", price: "" }] }));
+  const removeService = (index) => setForm((current) => ({ ...current, serviceEntries: current.serviceEntries.length === 1 ? current.serviceEntries : current.serviceEntries.filter((_, serviceIndex) => serviceIndex !== index) }));
+  const toggleDay = (day) => setAvailabilityDays((current) => { const next = { ...current, [day]: !current[day] }; setForm((formState) => ({ ...formState, openDays: weekdays.filter((item) => next[item]).join(", ") })); return next; });
+  const validateStep = () => {
+    if (step === 0 && (!form.businessName.trim() || !(form.industry.trim() || form.customIndustry.trim()) || !form.ownerName.trim() || !form.contact.trim() || !/^\S+@\S+\.\S+$/.test(form.contactEmail.trim()))) return "Complete the required business and contact details with a valid email.";
+    if (step === 2 && !form.serviceEntries.some((service) => service.name.trim())) return "Add at least one service.";
+    if (step === 3 && (!form.openDays.trim() || !form.openHours.trim())) return "Add operating days and hours.";
+    if (step === 4 && ["primaryColor", "secondaryColor", "accentColor", "pageBackgroundColor", "textColor"].some((name) => form[name].trim() && !/^#[0-9a-fA-F]{6}$/.test(form[name].trim()))) return "Use a valid HEX color such as #6547D9 for each custom color.";
+    return "";
+  };
+  const next = () => { const message = validateStep(); if (message) { setError(message); return; } setError(""); setStep((current) => Math.min(current + 1, 5)); };
+  const submit = async (event) => {
+    event.preventDefault();
+    const message = validateStep();
+    if (message) { setError(message); return; }
+    setSaving(true); setError("");
+    try { const result = await onSaveSetup({ ...form, industry: form.industry === "Other" ? form.customIndustry : form.industry, contactEmail: form.contactEmail.trim().toLowerCase(), serviceEntries: form.serviceEntries.filter((service) => service.name.trim()) }); setSubmitted(result); localStorage.removeItem("slotwiseOnboardingDraft"); }
+    catch (submitError) { setError(submitError.message || "We could not submit your setup request."); }
+    finally { setSaving(false); }
+  };
+  if (submitted) return <MarketingShell page="onboarding"><main className="marketingPage slotwiseOnboarding marketingOnboardingPage"><section className="marketingOnboardingSuccess"><span className="marketingEyebrow">REQUEST RECEIVED</span><h1>Thanks, {form.businessName}.</h1><p>Your onboarding request is now ready for review. An administrator will confirm the package and next setup steps before any business account is activated.</p><strong>Reference: {submitted.id}</strong><MarketingButton href="/">Back to Slotwise</MarketingButton></section></main></MarketingShell>;
+  const packageDetail = marketingPackageDetails.find((item) => item.name === form.selectedPackage);
+  const steps = ["About", "Package", "Services", "Schedule", "Branding", "Review"];
+  return <MarketingShell page="onboarding"><main className="marketingPage slotwiseOnboarding marketingOnboardingPage"><div className="marketingPageIntro"><span className="marketingEyebrow">CLIENT ONBOARDING</span><h1>Set up your Slotwise business.</h1><p>Tell us about your business, preferred package, services, and schedule. Submission creates a review request only; activation happens after admin confirmation.</p></div><section className="marketingOnboardingCard"><div className="marketingOnboardingProgress" aria-label="Onboarding progress">{steps.map((label, index) => <span className={index <= step ? "active" : ""} key={label}>{index + 1}. {label}</span>)}</div><form onSubmit={submit}>
+    {step === 0 && <div className="marketingOnboardingStep"><div className="marketingOnboardingStepHeading"><h2>About your business</h2><p>Just the essentials. You can refine the details with us later.</p></div><div className="setupFieldGrid"><label>Business name *<input name="businessName" value={form.businessName} onChange={update} placeholder="e.g. Brightside Wellness" required /><small>Use the name customers know you by.</small></label><label>Business type *<select name="industry" value={form.industry} onChange={update}><option value="">Choose a business type</option>{businessTypes.map((type) => <option key={type}>{type}</option>)}</select></label>{form.industry === "Other" && <label>Tell us your business type *<input name="customIndustry" value={form.customIndustry} onChange={update} placeholder="e.g. Music lessons" required /></label>}<label>Contact person *<input name="ownerName" value={form.ownerName} onChange={update} placeholder="Your name" required /></label><label>Contact number *<input name="contact" type="tel" value={form.contact} onChange={update} placeholder="09XX XXX XXXX" required /></label><label>Contact email *<input name="contactEmail" type="email" value={form.contactEmail} onChange={update} placeholder="you@business.com" required /><small>We use this to contact you about setup.</small></label><label>Business location<input name="businessAddress" value={form.businessAddress} onChange={update} placeholder="City or business address" /></label><label className="setupFullWidth">Short business description<textarea name="businessDescription" value={form.businessDescription} onChange={update} placeholder="What do you offer customers?" rows="3" /></label><label className="setupFullWidth">Facebook page <span className="marketingOptional">Optional</span><input name="facebookPage" type="url" value={form.facebookPage} onChange={update} placeholder="https://facebook.com/yourpage" /></label></div></div>}
+    {step === 1 && <div className="marketingOnboardingPackages">{marketingPackageDetails.map((item) => <button type="button" className={form.selectedPackage === item.name ? "selected" : ""} onClick={() => setForm((current) => ({ ...current, selectedPackage: item.name }))} key={item.name}><strong>{item.name}</strong><b>{item.price}</b><span>Lifetime · one-time payment</span><small>{item.position}</small></button>)}</div>}
+    {step === 2 && <div className="marketingOnboardingServices"><div className="marketingOnboardingStepHeading"><h2>Services you offer</h2><p>Start with suggestions or add your own. These are editable examples, not automatic publishing.</p></div>{suggestedServices[form.industry]?.length > 0 && <div className="marketingSuggestionRow"><span>Suggested for you:</span>{suggestedServices[form.industry].map((name) => <button type="button" key={name} onClick={() => setForm((current) => ({ ...current, serviceEntries: current.serviceEntries.some((service) => service.name === name) ? current.serviceEntries : [...current.serviceEntries.filter((service) => service.name.trim()), { name, description: "", durationMinutes: "30", price: "" }] }))}>{name} +</button>)}</div>}<div className="marketingServiceCards">{form.serviceEntries.map((service, index) => <div className="marketingServiceCard" key={index}><div className="marketingServiceCardHeader"><strong>Service {index + 1}</strong><div><button type="button" onClick={() => setForm((current) => ({ ...current, serviceEntries: [...current.serviceEntries, { ...service }] }))}>Duplicate</button><button type="button" onClick={() => removeService(index)}>Remove</button></div></div><div className="setupFieldGrid"><label>Service name *<input value={service.name} onChange={(event) => updateService(index, "name", event.target.value)} placeholder="e.g. Consultation" /></label><label>Description <span className="marketingOptional">Optional</span><input value={service.description} onChange={(event) => updateService(index, "description", event.target.value)} placeholder="Short description" /></label><label>Duration<select value={service.durationMinutes} onChange={(event) => updateService(index, "durationMinutes", event.target.value)}><option value="">Choose duration</option>{[15,30,45,60,90,120].map((minutes) => <option value={minutes} key={minutes}>{minutes} minutes</option>)}</select></label><label>Price in PHP <span className="marketingOptional">Optional</span><input type="number" min="0" step="0.01" value={service.price} onChange={(event) => updateService(index, "price", event.target.value)} placeholder="e.g. 500" /></label></div></div>)}</div><button type="button" className="marketingAddService" onClick={addService}>+ Add another service</button><label className="marketingPriceVaries"><input type="checkbox" /> Price varies — we will confirm pricing during setup.</label></div>}
+    {step === 3 && <div className="marketingOnboardingAvailability"><div className="marketingOnboardingStepHeading"><h2>Business schedule</h2><p>Pick a preset, then adjust individual days if needed.</p></div><div className="marketingPresetRow">{[["Weekdays","Monday, Tuesday, Wednesday, Thursday, Friday"],["Monday–Saturday","Monday, Tuesday, Wednesday, Thursday, Friday, Saturday"],["Every day",weekdays.join(", ")],["Weekends","Saturday, Sunday"]].map(([label, days]) => <button type="button" key={label} onClick={() => { const selected = Object.fromEntries(weekdays.map((day) => [day, days.includes(day)])); setAvailabilityDays(selected); setForm((current) => ({ ...current, openDays: days })); }}>{label}</button>)}</div><div className="marketingWeekGrid">{weekdays.map((day) => <button type="button" className={availabilityDays[day] ? "selected" : ""} onClick={() => toggleDay(day)} key={day}><span>{day.slice(0, 3)}</span><strong>{availabilityDays[day] ? "Open" : "Closed"}</strong></button>)}</div><div className="marketingPresetRow">{["8:00 AM to 5:00 PM", "9:00 AM to 6:00 PM", "10:00 AM to 7:00 PM"].map((hours) => <button type="button" key={hours} onClick={() => setForm((current) => ({ ...current, openHours: hours }))}>{hours}</button>)}</div><div className="setupFieldGrid"><label>Opening and closing times *<input name="openHours" value={form.openHours} onChange={update} placeholder="9:00 AM to 6:00 PM" required /></label><label>Booking interval<select name="bookingInterval" value={form.bookingInterval} onChange={update}><option value="">Choose interval</option><option>15 minutes</option><option>30 minutes</option><option>45 minutes</option><option>60 minutes</option></select></label><label className="setupFullWidth">Scheduling notes <span className="marketingOptional">Optional</span><textarea name="scheduleNotes" value={form.scheduleNotes} onChange={update} rows="3" placeholder="Anything we should know about your schedule?" /></label></div></div>}
+    {step === 4 && <div className="marketingOnboardingStep"><div className="marketingOnboardingStepHeading"><h2>Branding & preferences</h2><p>Choose a preset or set your own colors for the public booking page.</p></div><div className="setupFieldGrid"><label>Quick palette<select value={form.preferredColors} onChange={(event) => applyPalette(event.target.value)}><option value="">Custom colors</option><option value="#6547D9, #F1EEFF">Slotwise Violet</option><option value="#087F68, #C7F2DD">Fresh Emerald</option><option value="#315CF5, #EAF1FF">Soft Blue</option></select></label><label>Logo URL <span className="marketingOptional">Optional</span><input name="logoUrl" type="url" value={form.logoUrl} onChange={update} placeholder="https://..." /></label>{[["primaryColor","Primary brand color"],["secondaryColor","Secondary brand color"],["accentColor","Accent color"],["pageBackgroundColor","Background color"],["textColor","Text color"]].map(([name, label]) => <label className="colorField" key={name}>{label}<div><input type="color" value={normalizeBrandColor(form[name], defaultBrandColors[name])} onChange={(event) => updateColor(name, event.target.value)} /><input name={name} value={form[name] || defaultBrandColors[name]} onChange={(event) => updateColor(name, event.target.value)} pattern="^#[0-9a-fA-F]{6}$" maxLength="7" aria-label={`${label} HEX`} /></div></label>)}<div className="brandingColorPreview" style={{ background: form.pageBackgroundColor || defaultBrandColors.pageBackgroundColor, color: form.textColor || defaultBrandColors.textColor, "--preview-primary": form.primaryColor || defaultBrandColors.primaryColor, "--preview-accent": form.accentColor || defaultBrandColors.accentColor }}><strong>Live branding preview</strong><button type="button">Sample booking button</button><span>Colors will be reviewed before activation.</span></div><label>Additional requests<select value={form.requestedFeatures} onChange={(event) => setForm((current) => ({ ...current, requestedFeatures: event.target.value }))}><option value="">Choose an option</option><option>Email notifications</option><option>Custom booking instructions</option><option>Additional staff</option><option>Other customization</option><option>None for now</option></select></label><label className="setupFullWidth">Custom notes <span className="marketingOptional">Optional</span><textarea name="specialInstructions" value={form.specialInstructions} onChange={update} rows="3" placeholder="Anything else you would like us to know?" /></label></div></div>}
+    {step === 5 && <div className="marketingOnboardingFinal"><div className="marketingOnboardingStepHeading"><h2>Review & submit</h2><p>Everything looks good? You can go back to edit any section before sending.</p></div><div className="marketingReviewGrid"><article><h3>Business</h3><p><strong>{form.businessName || "Not provided"}</strong><br />{form.industry === "Other" ? form.customIndustry : form.industry}<br />{form.ownerName} · {form.contactEmail}</p><button type="button" onClick={() => setStep(0)}>Edit</button></article><article><h3>Package</h3><p><strong>{packageDetail.name} · {packageDetail.price}</strong><br />{packageDetail.position}</p><button type="button" onClick={() => setStep(1)}>Edit</button></article><article><h3>Services</h3><p>{form.serviceEntries.filter((service) => service.name.trim()).map((service) => service.name).join(", ") || "None added"}</p><button type="button" onClick={() => setStep(2)}>Edit</button></article><article><h3>Schedule</h3><p>{form.openDays || "No days selected"}<br />{form.openHours || "Hours pending"}{form.bookingInterval ? ` · ${form.bookingInterval}` : ""}</p><button type="button" onClick={() => setStep(3)}>Edit</button></article><article><h3>Branding & requests</h3><p><span className="reviewColorSwatches"><i style={{ background: form.primaryColor || defaultBrandColors.primaryColor }} /><i style={{ background: form.secondaryColor || defaultBrandColors.secondaryColor }} /><i style={{ background: form.accentColor || defaultBrandColors.accentColor }} /><i style={{ background: form.pageBackgroundColor || defaultBrandColors.pageBackgroundColor }} /><i style={{ background: form.textColor || defaultBrandColors.textColor }} /></span>{form.preferredColors || "Custom colors"}<br />{form.requestedFeatures || "None selected"}</p><button type="button" onClick={() => setStep(4)}>Edit</button></article></div><div className="marketingOnboardingReview"><strong>Package assignment is confirmed by SMM Admin.</strong><span>Your request will be reviewed before any business page is activated.</span></div></div>}
+    {error && <div className="setupSaveStatus error" role="alert">{error}</div>}<div className="marketingOnboardingActions">{step > 0 && <button type="button" onClick={() => { setError(""); setStep((current) => current - 1); }}>Back</button>}{step < 5 ? <button type="button" className="marketingButton" onClick={next}>Continue <ArrowRight size={16} /></button> : <button type="submit" className="marketingButton" disabled={saving}>{saving ? "Submitting..." : "Submit onboarding request"} <ArrowRight size={16} /></button>}</div>
+  </form></section></main></MarketingShell>;
 }
 
 function App() {
@@ -3057,7 +3353,7 @@ function App() {
 
   const loadBusinessConfigs = async (scopeSlug = "", accessToken = "") => {
     if (!supabaseUrl || !supabaseAnonKey) return [];
-    const publicBusinessFields = "slug,industry,business_type,business,booking_link,logo_url,primary_color,accent_color,page_background_type,phone,messenger_link,address,description,booking_mode,booking_template,demo_started_at,demo_expires_at,status,business_package,feature_flags,cover_url,page_background_color,page_background_color_2";
+    const publicBusinessFields = "slug,industry,business_type,business,booking_link,logo_url,primary_color,secondary_color,accent_color,text_color,page_background_type,phone,messenger_link,address,description,booking_mode,booking_template,demo_started_at,demo_expires_at,status,business_package,feature_flags,cover_url,page_background_color,page_background_color_2";
     const businessQuery = scopeSlug
       ? `?select=${!accessToken ? publicBusinessFields : "*"}&slug=eq.${encodeURIComponent(scopeSlug)}`
       : "?select=*&order=created_at.desc";
@@ -3154,6 +3450,8 @@ function App() {
   useEffect(() => {
     const cleanPath = window.location.pathname.replace(/^\/+|\/+$/g, "");
     const isSmmAdminPath = cleanPath === "smm-admin";
+    if (!cleanPath) setPage("home");
+    if (marketingRoutes.has(cleanPath)) setPage(cleanPath);
     if (isSmmAdminPath) {
       setPage("smmAdmin");
     }
@@ -3240,38 +3538,39 @@ function App() {
   };
 
   const saveSetupRequest = async (setup) => {
-    const slug = makeSlug(setup.slug || setup.businessName);
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error("Onboarding is temporarily unavailable because the Slotwise database is not configured.");
+    }
+    const slug = setup.slug?.trim() ? makeSlug(setup.slug) : "";
     const requestId = `SETUP-${Date.now()}`;
     const nextRequest = { ...setup, businessSlug: slug, slug, id: requestId, status: "Ready for review" };
     let savedRequest = nextRequest;
     let saveResult = {
       savedOnline: false,
+      id: requestId,
       slug,
-      publicPath: `/${slug}`,
+      publicPath: slug ? `/${slug}` : "",
       message: "Saved locally only. Supabase is not connected.",
     };
     try {
       if (supabaseUrl && supabaseAnonKey) {
-        const [onlineRequest] = await supabaseRequest("setup_requests", {
+        await supabaseRequest("setup_requests", {
           method: "POST",
+          // Public onboarding is insert-only; do not request a representation that would require SELECT access.
+          prefer: "return=minimal",
           body: setupRequestToDatabase(nextRequest),
         });
-        savedRequest = onlineRequest ? normalizeSetupRequest(onlineRequest) : nextRequest;
+        savedRequest = nextRequest;
         saveResult = {
           savedOnline: true,
+          id: requestId,
           slug,
-          publicPath: `/${slug}`,
+          publicPath: slug ? `/${slug}` : "",
           message: "Saved online to Supabase. SMM admin can review and provision the permanent page.",
         };
       }
     } catch (error) {
-      // Keep the setup request in local demo storage if the online database rejects it.
-      saveResult = {
-        savedOnline: false,
-        slug,
-        publicPath: `/${slug}`,
-        message: `Saved locally only. Supabase rejected it: ${error.message}`,
-      };
+      throw new Error(`Onboarding request could not be saved to Supabase: ${error.message}`);
     }
     const nextRequests = [savedRequest, ...setupRequests];
     setSetupRequests(nextRequests);
@@ -3668,11 +3967,21 @@ function App() {
     );
   }
 
+  if (page === "home") return <MarketingHome />;
+  if (page === "features") return <MarketingFeatures />;
+  if (page === "packages") return <MarketingPackages />;
+  if (page === "demo") return <MarketingDemo />;
+  if (page === "updates") return <MarketingUpdates />;
+  if (page === "faq") return <MarketingFaq />;
+  if (page === "partners") return <MarketingPartners />;
+  if (page === "onboarding") return <PublicOnboardingForm onSaveSetup={saveSetupRequest} />;
+
   if (page === "smmAdmin") {
     return (
       <SmmMasterAdmin
         businesses={smmAdminBusinesses}
         bookings={bookings}
+        setupRequests={setupRequests}
         onBack={() => setPage("home")}
         onRefresh={() => loadBusinessConfigs()}
         onSaveClient={saveAdminClient}
@@ -4276,11 +4585,69 @@ function PublicBusinessEntry({ business, mode, onNavigate, onBack, onSaveBooking
   return <BusinessUnavailablePage business={business} onBack={onBack} />;
 }
 
+function ThryveLabHomepage({ business, onNavigate }) {
+  const services = (business.serviceDetails || []).filter((service) => String(service.status || "Active").toLowerCase() !== "inactive");
+  const groupFitness = services.filter((service) => String(service.serviceCategory || "").toUpperCase() === "GROUP FITNESS");
+  const personalTraining = services.find((service) => String(service.serviceCategory || "").toUpperCase() === "WOW PERSONAL TRAINING");
+  const consultation = services.find((service) => String(service.serviceCategory || "").toUpperCase() === "FREE WELLNESS CONSULTATION");
+  const availability = business.availability || {};
+  const availabilityLabel = availability.days || availability.openDays || "Availability to be configured";
+  const availabilityHours = availability.hours || availability.openHours || "Contact ThryveLab for schedule details";
+  const scrollToPrograms = () => document.getElementById("thryvelab-programs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  return <main className="thryvePage" style={{ "--thryve-teal": business.primaryColor || "#198F83", "--thryve-mint": business.secondaryColor || "#8FD9CC", "--thryve-yellow": business.accentColor || "#F5CF45", "--thryve-ink": business.textColor || "#183B43" }}>
+    <header className="thryveHeader"><a href="/thryvelab" className="thryveLogoLink"><img src={business.slug === "thryvelab" ? "/thryvelab-logo.png" : business.logo} alt="ThryveLab" /></a><nav aria-label="ThryveLab navigation"><a href="#programs">Programs</a><a href="#coach">Coach Thel</a><a href="#contact">Contact</a></nav><button type="button" className="thryveHeaderButton" onClick={() => onNavigate("book")}><CalendarCheck size={16} /> Book a Session</button></header>
+    <section className="thryveHero"><div className="thryveHeroCopy"><span className="thryveEyebrow">PERSONALIZED COACHING FOR A HEALTHIER YOU</span><h1>Small habits.<br /><em>Big results.</em></h1><p>Simple, science-based coaching for people who want real, sustainable transformation.</p><div className="thryveHeroActions"><button type="button" className="thryvePrimaryButton" onClick={scrollToPrograms}>Explore Programs <ArrowRight size={16} /></button><button type="button" className="thryveTextButton" onClick={() => onNavigate("book")}>Book a Session <ArrowRight size={16} /></button></div><div className="thryveTrustRow"><span><User size={17} /> Personalized coaching</span><span><HeartPulse size={17} /> Wellness guidance</span><span><Check size={17} /> Sustainable habits</span></div></div><div className="thryveHeroGrid" aria-label="ThryveLab wellness preview"><div className="thryvePhotoPanel thryvePhotoMain"><span>ThryveLab</span><small>Move with purpose</small></div><div className="thryvePhotoPanel thryvePhotoMint"><HeartPulse size={28} /><span>Strength</span><small>Built one habit at a time</small></div><div className="thryvePhotoPanel thryvePhotoYellow"><span>Coach Thel</span><small>Guidance that meets you where you are</small></div><div className="thryvePhotoNote"><Sparkles size={17} /><span>Wellness is a practice, not a finish line.</span></div></div></section>
+    <section className="thryveIntro"><div><span className="thryveEyebrow">A PRACTICAL APPROACH</span><h2>Build a routine that fits real life.</h2></div><p>ThryveLab combines movement, accountability, and everyday wellness guidance into a coaching experience designed around steady progress.</p></section>
+    <section id="programs" className="thryvePrograms"><div className="thryveSectionHeading"><span className="thryveEyebrow">PROGRAMS</span><h2>Choose your next step.</h2><p>Explore the configured ThryveLab programs below. Package details remain managed by the ThryveLab team.</p></div><div id="thryvelab-programs" className="thryveProgramGrid">{groupFitness.map((service) => <article className="thryveProgramCard" key={service.id || service.name}><span className="thryveCardTag">GROUP FITNESS</span><h3>{service.name}</h3><p>{service.description}</p><strong>{service.price === null || service.price === undefined ? "Details on request" : formatPeso(service.price)}</strong><small>{service.durationMinutes ? `${service.durationMinutes} minute session` : "Schedule to be confirmed"}</small></article>)}<article className="thryveProgramCard thryveProgramCardSoft"><span className="thryveCardTag">WOW PERSONAL TRAINING</span><h3>{personalTraining?.name || "WOW Personal Training"}</h3><p>{personalTraining?.description || "Personal-training details are being prepared by the ThryveLab team."}</p><button type="button" onClick={() => onNavigate("book")}>Ask about this program <ArrowRight size={15} /></button></article><article className="thryveProgramCard thryveProgramCardSoft"><span className="thryveCardTag">FREE CONSULTATION</span><h3>{consultation?.name || "Free Wellness Consultation"}</h3><p>{consultation?.description || "Start with a conversation about your wellness goals."}</p><button type="button" onClick={() => onNavigate("book")}>Request a consultation <ArrowRight size={15} /></button></article></div></section>
+    <section id="coach" className="thryveCoach"><div className="thryveCoachMark">TM</div><div><span className="thryveEyebrow">MEET YOUR COACH</span><h2>Thelma Almonte Margate</h2><p>ThryveLab is led by Coach Thelma, helping clients turn small, consistent choices into meaningful progress.</p></div></section>
+    <section id="contact" className="thryveBookCta"><div><span className="thryveEyebrow">READY WHEN YOU ARE</span><h2>Start with one good decision.</h2><p>Choose a program, select an available schedule, and send your booking request through Slotwise.</p></div><div className="thryveAvailability"><strong>{availabilityLabel}</strong><span>{availabilityHours}</span><button type="button" className="thryvePrimaryButton" onClick={() => onNavigate("book")}>Book a Session <ArrowRight size={16} /></button></div></section>
+    <footer className="thryveFooter"><span>© {new Date().getFullYear()} ThryveLab</span><span>Powered by Slotwise</span></footer>
+  </main>;
+}
+
 function BookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, onSubmitPayment, smmOffers = null }) {
   if (normalizeBookingTemplate(incomingBusiness?.bookingTemplate) === "AIRCON_SERVICES") {
     return <AirconBooking business={normalizeBusinessConfig(incomingBusiness)} onBack={onBack} onSaveBooking={onSaveBooking} helpers={{ calculateBookingTotal, formatPeso, formatDashboardPeso, getTodayDateValue, formatBookingDate, timeInputToDisplay, displayTimeToInput, isPastPreferredSchedule, isBusinessOpen24Hours, getPackageCapabilities, isDemoExpired }} />;
   }
   return <StandardBookingPrototype business={incomingBusiness} onBack={onBack} onSaveBooking={onSaveBooking} onSubmitPayment={onSubmitPayment} smmOffers={smmOffers} />;
+}
+
+function ThryveLabTermsPanel({ acceptance, setAcceptance, requiresStarterAcknowledgment, summary, onContinue, saving, error, blockedReason }) {
+  const sections = useMemo(() => {
+    const lines = THRYVELAB_TERMS_TEXT.split("\n");
+    const result = [];
+    let current = null;
+    for (const line of lines) {
+      const value = line.trim();
+      if (!value) continue;
+      const heading = /^[A-Z0-9][A-Z0-9 —&,.()'-]{5,}$/.test(value) || value === "THRYVELAB VIRTUAL FITNESS";
+      if (heading) {
+        current = { heading: value, paragraphs: [], bullets: [] };
+        result.push(current);
+      } else if (value.startsWith("• ")) {
+        if (!current) { current = { heading: "Terms", paragraphs: [], bullets: [] }; result.push(current); }
+        current.bullets.push(value.slice(2));
+      } else {
+        if (!current) { current = { heading: "Terms", paragraphs: [], bullets: [] }; result.push(current); }
+        current.paragraphs.push(value);
+      }
+    }
+    return result;
+  }, []);
+  return <section className="thryveTermsPanel" aria-labelledby="thryve-terms-title">
+    <div className="thryveTermsHeader"><span className="paymentEyebrow">BEFORE PAYMENT</span><h3 id="thryve-terms-title">ThryveLab Terms &amp; Conditions of Enrollment</h3><p>Please review the complete terms before continuing to payment. Effective {THRYVELAB_TERMS_EFFECTIVE_DATE} · Version {THRYVELAB_TERMS_VERSION}.</p></div>
+    <div className="thryveTermsSummary"><strong>Your booking summary</strong><dl>{summary.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "Not provided"}</dd></div>)}</dl></div>
+    <div className="thryveTermsScroll" tabIndex={0}>{sections.map((section, index) => <section key={`${section.heading}-${index}`}><h4>{section.heading}</h4>{section.paragraphs.map((paragraph, paragraphIndex) => <p key={paragraphIndex}>{paragraph}</p>)}{section.bullets.length > 0 && <ul>{section.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul>}</section>)}</div>
+    <div className="thryveTermsChecks">
+      <label><input type="checkbox" checked={acceptance.terms} onChange={(event) => setAcceptance((current) => ({ ...current, terms: event.target.checked }))} /> <span>I have read and agree to ThryveLab's Terms &amp; Conditions.</span></label>
+      <label><input type="checkbox" checked={acceptance.review} onChange={(event) => setAcceptance((current) => ({ ...current, review: event.target.checked }))} /> <span>I confirm that I have reviewed my selected package, total price, appointment schedule, and applicable expiry date.</span></label>
+      <label><input type="checkbox" checked={acceptance.policy} onChange={(event) => setAcceptance((current) => ({ ...current, policy: event.target.checked }))} /> <span>I understand the cancellation, rescheduling, and refund policies applicable to my selected package.</span></label>
+      {requiresStarterAcknowledgment && <label><input type="checkbox" checked={acceptance.starter} onChange={(event) => setAcceptance((current) => ({ ...current, starter: event.target.checked }))} /> <span>I understand that the confirmed appointments cannot be canceled or rescheduled at my request, and that missed sessions are subject to the stated policies and exceptions.</span></label>}
+    </div>
+    {blockedReason && <p className="formError premiumError" role="alert">{blockedReason}</p>}
+    {error && <p className="formError premiumError" role="alert">{error}</p>}
+    <button type="button" className="thryveTermsContinue" disabled={saving || Boolean(blockedReason) || !(acceptance.terms && acceptance.review && acceptance.policy && (!requiresStarterAcknowledgment || acceptance.starter))} onClick={onContinue}>{saving ? "Saving acceptance..." : "Continue to payment"}<ChevronRight size={18} /></button>
+  </section>;
 }
 
 function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBooking, onSubmitPayment, smmOffers = null }) {
@@ -4371,6 +4738,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
   const [confirmed, setConfirmed] = useState(null);
   const [confirmedPayment, setConfirmedPayment] = useState(null);
   const [bookingError, setBookingError] = useState("");
+  const [scheduleCapacity, setScheduleCapacity] = useState(null);
   const [customerPdfMessage, setCustomerPdfMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -4380,6 +4748,11 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
   const [paymentForm, setPaymentForm] = useState({ method: "", amount: "", reference: "", note: "" });
   const [paymentProofFile, setPaymentProofFile] = useState(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState("");
+  const [thryveTermsAcceptance, setThryveTermsAcceptance] = useState({ terms: false, review: false, policy: false, starter: false });
+  const [thryveTermsSaving, setThryveTermsSaving] = useState(false);
+  const [thryveTermsError, setThryveTermsError] = useState("");
+  const [thryveTermsReviewMode, setThryveTermsReviewMode] = useState(false);
+  const [thryveTermsPaymentUnlocked, setThryveTermsPaymentUnlocked] = useState(false);
   const paymentFormRef = useRef(null);
   const [copiedPaymentMethod, setCopiedPaymentMethod] = useState("");
   const [bookingPossessionToken, setBookingPossessionToken] = useState("");
@@ -4423,6 +4796,22 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
   const isDmonster = business.slug === "dmonster-pest-control-services";
   const isPartyXpress = business.slug === "party-xpress-rentals";
   const isXtremeDancers = business.slug === "xtreme-dancers-studio";
+  const isThryveLab = business.slug === "thryvelab";
+  const thryveWowVariants = useMemo(() => isThryveLab
+    ? (business.serviceDetails || []).filter((service) => String(service.serviceCategory || "").toUpperCase() === "WOW PERSONAL TRAINING")
+      .sort((a, b) => Number(a.displayOrder || 0) - Number(b.displayOrder || 0))
+    : [], [business.serviceDetails, isThryveLab]);
+  const thryveWowVariantKey = (service) => {
+    const match = String(service?.name || "").match(/\b(45|60)\s*Minutes?\b.*?\b(1|3|8|12|24)\s*Sessions?\b/i);
+    return match ? `${match[1]}-${match[2]}` : "";
+  };
+  const selectedThryveWowVariant = thryveWowVariants.find((service) => service.name === pickedService) || thryveWowVariants[0] || null;
+  const thryveWowDuration = selectedThryveWowVariant ? String(selectedThryveWowVariant.durationMinutes || "") : "";
+  const thryveWowSessions = selectedThryveWowVariant ? (thryveWowVariantKey(selectedThryveWowVariant).split("-")[1] || "") : "";
+  const thryvePhone = isThryveLab ? "+63 921 482 7629" : business.phone;
+  const thryveEmail = isThryveLab ? "almonte.thelma@outlook.com" : business.primaryEmail;
+  const thryveHours = isThryveLab ? "8:00 AM – 8:00 PM" : business.availability?.hours;
+  const thryveWhatsappHref = isThryveLab ? "https://wa.me/639214827629" : "";
   const xtremeFacebookUrl = isXtremeDancers
     ? business.featureFlags?.facebookPage || "https://www.facebook.com/CraveYardStudio"
     : "";
@@ -4442,6 +4831,9 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
     return groups;
   }, [business.serviceDetails, isXtremeDancers]);
   const xtremePrimaryOptions = ["XTREME STEPPER", "WEEKEND DANCE CLASS", "PRIVATE CLASS", "STUDIO RENTAL"];
+  const selectedServiceCapacity = isXtremeDancers
+    ? Number(business.featureFlags?.service_capacities?.[pickedService] || 0) || null
+    : null;
   const isPhisavong = business.slug === "phisavong-world-travel-and-tours";
   const travelSeasonalNoticeTitle = String(
     business.featureFlags?.seasonalRatesNoticeTitle || "Seasonal Rates & Packages",
@@ -4489,7 +4881,9 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
   const paymentMethods = paymentCapability.validPaymentMethods;
   const allowMultipleServices = Boolean(flags.allowMultipleServices);
   const getServiceDetail = (serviceName) => {
-    const detail = business.serviceDetails?.find((item) => item.name === serviceName);
+    const detail = serviceName === "WOW Personal Training"
+      ? selectedThryveWowVariant
+      : business.serviceDetails?.find((item) => item.name === serviceName);
     const hasTravelRate = detail?.price !== null && detail?.price !== "" && detail?.price !== undefined;
     const storedPricingType = normalizePricingType(detail?.pricingType, isAccommodation ? "PER_NIGHT" : isToursTravel ? detail?.pricingUnit || "FIXED" : "FIXED");
     return {
@@ -4526,6 +4920,9 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
     pricingUnit: "FLAT",
   });
   const displayServices = isXtremeDancers ? xtremePrimaryOptions : business.services;
+  const serviceItemsForDisplay = isThryveLab && thryveWowVariants.length
+    ? [...displayServices.filter((item) => !business.serviceDetails?.some((detail) => detail.name === item && String(detail.serviceCategory || "").toUpperCase() === "WOW PERSONAL TRAINING")), "WOW Personal Training"]
+    : displayServices;
   const isXtremeWeekendClass = isXtremeDancers && xtremePrimary === "WEEKEND DANCE CLASS";
   const isXtremeRental = isXtremeDancers && xtremePrimary === "STUDIO RENTAL";
   const isXtremePrivateClass = isXtremeDancers && xtremePrimary === "PRIVATE CLASS";
@@ -4574,10 +4971,33 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
   const manualPaymentEnabled = paymentCapability.manualPaymentsEnabled;
   const paymentAvailable = paymentCapability.canUseManualPayments;
   const paymentRequired = paymentAvailable && requiredPaymentAmount !== null;
+  const requiresThryveStarterAcknowledgment = isThryveLab && selectedServiceDetails.some((service) => /(?:thryvestart\s*[-–]\s*7\s*days|7-day\s+starter\s+kit\s+entry\s+offer)/i.test(String(service.name || service.service || "")));
+  const thryveStarterSchedulingBlocked = requiresThryveStarterAcknowledgment
+    ? "The 7-Day Starter Kit requires three agreed appointment dates before payment. This booking flow currently collects one appointment date, so payment cannot proceed yet."
+    : "";
+  const thryveTermsReady = !isThryveLab || (thryveTermsAcceptance.terms && thryveTermsAcceptance.review && thryveTermsAcceptance.policy && (!requiresThryveStarterAcknowledgment || thryveTermsAcceptance.starter));
+  const thryveTermsSummary = isThryveLab ? [
+    ["Selected package", selectedServiceDetails.map((service) => service.name || service.service).filter(Boolean).join(", ")],
+    ["Price", publicPriceLabel(estimatedTotal)],
+    ["Sessions and duration", selectedServiceDetails.map((service) => `${service.durationMinutes || service.duration || "Configured"} ${service.durationMinutes ? "minutes" : ""}`).join(", ")],
+    ["Appointment", `${formatBookingDate(selectedBookingDate)}${effectivePickedSlot ? ` at ${effectivePickedSlot}` : ""}`],
+    ["Activation / expiry", "To be confirmed in writing by ThryveLab"],
+  ] : [];
 
   useEffect(() => {
-    setPickedService(business.services[0]);
-    setPickedServices([business.services[0]].filter(Boolean));
+    const requestedService = isThryveLab
+      ? new URLSearchParams(window.location.search).get("service")
+      : "";
+    const requestedDetail = requestedService
+      ? (business.serviceDetails || []).find((service) => (
+        String(service.id || "") === requestedService
+        || String(service.name || "").toLowerCase() === requestedService.toLowerCase()
+        || (String(service.serviceCategory || "").toUpperCase() === "WOW PERSONAL TRAINING" && requestedService.toLowerCase() === "wow-personal-training")
+      ))
+      : null;
+    const initialService = requestedDetail?.name || business.services[0];
+    setPickedService(initialService);
+    setPickedServices([initialService].filter(Boolean));
     setPickedSlot(usesPreferredSchedule ? timeInputToDisplay(getCurrentTimeInputValue()) : availableSlots[1] || availableSlots[0] || "10:15 AM");
     setSelectedBookingDate(getTodayDateValue());
     setSelectedCheckoutDate(() => {
@@ -4615,6 +5035,25 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
     setPickedSlot(timeInputToDisplay(getCurrentTimeInputValue()));
   }, [usesPreferredSchedule, selectedBookingDate, pickedSlot]);
 
+  useEffect(() => {
+    let active = true;
+    if (!selectedServiceCapacity || !selectedBookingDate || !effectivePickedSlot || !supabaseUrl || !supabaseAnonKey) {
+      setScheduleCapacity(null);
+      return undefined;
+    }
+    supabaseRpcRequest("get_public_booking_capacity", {
+      business_slug_value: business.slug,
+      service_value: pickedService,
+      booking_date_value: selectedBookingDate,
+      slot_value: effectivePickedSlot,
+    }).then((result) => {
+      if (active) setScheduleCapacity(Array.isArray(result) ? result[0] : result);
+    }).catch(() => {
+      if (active) setScheduleCapacity(null);
+    });
+    return () => { active = false; };
+  }, [business.slug, pickedService, selectedBookingDate, effectivePickedSlot, selectedServiceCapacity]);
+
   const openServiceLink = (detail) => {
     const href = normalizeServiceLink(detail?.imageUrl);
     if (!href) return;
@@ -4622,9 +5061,12 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
   };
 
   const toggleService = (serviceName) => {
+    const resolvedServiceName = isThryveLab && serviceName === "WOW Personal Training"
+      ? (selectedThryveWowVariant?.name || thryveWowVariants[0]?.name || serviceName)
+      : serviceName;
     if (!allowMultipleServices) {
-      setPickedService(serviceName);
-      setPickedServices([serviceName]);
+      setPickedService(resolvedServiceName);
+      setPickedServices([resolvedServiceName]);
       if (isDmonster) {
         setPestControlDetails((current) => ({
           ...current,
@@ -4847,6 +5289,11 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
       setSubmitting(false);
       return;
     }
+    if (scheduleCapacity?.fully_booked) {
+      setBookingError("This class is fully booked. Please choose another schedule.");
+      setSubmitting(false);
+      return;
+    }
     if (isAccommodation && currentNights < 1) {
       setBookingError("Check-out date must be after check-in date.");
       setSubmitting(false);
@@ -4877,6 +5324,10 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
     try {
       const savedBooking = canPersistPublicBooking ? await onSaveBooking(booking) : { ...booking, id: `DEMO-${Date.now().toString().slice(-5)}` };
       setConfirmed(savedBooking);
+      setThryveTermsAcceptance({ terms: false, review: false, policy: false, starter: false });
+      setThryveTermsError("");
+      setThryveTermsReviewMode(false);
+      setThryveTermsPaymentUnlocked(false);
       setBookingPossessionToken(savedBooking.public_possession_token || "");
       setPaymentChoice("");
       setPaymentOpen(false);
@@ -4978,9 +5429,50 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
         business_slug: business.slug,
         possession_token: bookingPossessionToken ? "present" : "missing",
       });
-      setPaymentStatus(error.message || "Payment details could not be submitted. Please try again.");
+      const message = error.message || "Payment details could not be submitted. Please try again.";
+      if (isThryveLab && /terms acceptance is required|terms acceptance|required.*terms/i.test(message)) {
+        setPaymentChoice("");
+        setPaymentOpen(false);
+        setPaymentStatus("");
+        setThryveTermsError("Terms acceptance is missing for this booking. Review and accept the terms before submitting payment.");
+        setThryveTermsReviewMode(true);
+        setThryveTermsPaymentUnlocked(false);
+      } else {
+        setPaymentStatus(message);
+      }
     } finally {
       setPaymentSubmitting(false);
+    }
+  };
+
+  const continueToThryvePayment = async () => {
+    if (!isThryveLab) return;
+    if (!confirmed?.id || !bookingPossessionToken) {
+      setThryveTermsError("This booking session has expired. Please start a new booking.");
+      return;
+    }
+    if (!thryveTermsReady) {
+      setThryveTermsError("Please accept all applicable acknowledgments before continuing.");
+      return;
+    }
+    setThryveTermsError("");
+    setThryveTermsSaving(true);
+    try {
+      await supabaseRpcRequest("record_thryvelab_terms_acceptance", {
+        booking_id_value: confirmed.id,
+        business_slug_value: business.slug,
+        booking_possession_token_value: bookingPossessionToken,
+        terms_version_value: THRYVELAB_TERMS_VERSION,
+        terms_effective_date_value: THRYVELAB_TERMS_EFFECTIVE_DATE,
+        acknowledgment_values: { ...thryveTermsAcceptance, starter_required: requiresThryveStarterAcknowledgment },
+      });
+      setThryveTermsReviewMode(false);
+      setThryveTermsPaymentUnlocked(true);
+      setPaymentChoice("");
+    } catch (error) {
+      setThryveTermsError(error.message || "Terms acceptance could not be saved. Please try again.");
+    } finally {
+      setThryveTermsSaving(false);
     }
   };
 
@@ -5010,17 +5502,19 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
 
   return (
     <main
-      className={`bookingPage premiumBookingPage ${bookingTone} package-${currentPackage.toLowerCase()}${isXtremeDancers ? " xtreme-dancers" : ""}`}
+      className={`bookingPage premiumBookingPage ${bookingTone} package-${currentPackage.toLowerCase()}${isXtremeDancers ? " xtreme-dancers" : ""}${isThryveLab ? " thryvelab" : ""}`}
       style={{
         "--booking-primary": business.primaryColor,
+        "--booking-secondary": business.secondaryColor,
         "--booking-accent": business.accentColor,
+        "--booking-text": business.textColor,
         ...getBusinessPageBackgroundStyle(business, bookingTone),
       }}
     >
-      {isHealthWellness && (
+      {isHealthWellness && !isThryveLab && (
         <header className={isProHealthWellness ? "wellnessPublicNav pro" : hasExpandedWellnessPage ? "wellnessPublicNav business" : "wellnessPublicNav simple"}>
           <a href="#wellness-home" className="wellnessNavBrand">
-            <span>{business.logo ? <img src={business.logo} alt={`${business.business} logo`} /> : brandInitials}</span>
+            <span>{(isThryveLab || business.logo) ? <img src={isThryveLab ? "/thryvelab-logo.png" : business.logo} alt={`${business.business} logo`} /> : brandInitials}</span>
             <strong>{business.business}</strong>
           </a>
           {hasExpandedWellnessPage && (
@@ -5081,21 +5575,16 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                 <a href={business.messengerLink ? normalizeServiceLink(business.messengerLink) : business.primaryEmail ? `mailto:${business.primaryEmail}` : normalizePhoneLink(business.phone)} target={business.messengerLink ? "_blank" : undefined} rel={business.messengerLink ? "noopener noreferrer" : undefined}>Contact Clinic</a>
               </div>
             )}
-            {isHealthWellness && (
-              <div className="wellnessHeroActions">
-                <a href="#wellness-options">Explore Options</a>
-                <a href={hasExpandedWellnessPage ? "#wellness-contact" : business.primaryEmail ? `mailto:${business.primaryEmail}` : normalizePhoneLink(business.phone)}>Contact Us</a>
-              </div>
-            )}
             {isRealEstate && <a className="realEstateHeroCta" href="#property-inquiry">Send Property Inquiry <ChevronRight size={18} /></a>}
             {isPestControl && <div className="pestHeroActions"><a className="pestControlHeroCta" href="#pest-service-request">Request Service <ChevronRight size={18} /></a><span className="pestOpenBadge"><Clock size={14} /> {business.availability?.hours || business.availability?.days}</span></div>}
           </div>
           {hasExpandedWellnessPage ? (
             <div className={isProHealthWellness ? "wellnessBusinessCard pro" : "wellnessBusinessCard"} id="wellness-contact">
               <strong>Business Information</strong>
-              <div><Clock size={17} /><span><small>Business Hours</small><b>{business.availability?.days}<br />{business.availability?.hours}</b></span></div>
-              {business.phone && <a href={normalizePhoneLink(business.phone)}><Phone size={17} /><span><small>Phone</small><b>{business.phone}</b></span></a>}
-              {business.primaryEmail && <a href={`mailto:${business.primaryEmail}`}><Mail size={17} /><span><small>Email</small><b>{business.primaryEmail}</b></span></a>}
+              <div><Clock size={17} /><span><small>Business Hours</small><b>{isThryveLab ? "Monday – Saturday" : business.availability?.days}<br />{thryveHours}</b></span></div>
+              {thryvePhone && <a href={normalizePhoneLink(thryvePhone)}><Phone size={17} /><span><small>Phone</small><b>{thryvePhone}</b></span></a>}
+              {thryveEmail && <a href={`mailto:${thryveEmail}`}><Mail size={17} /><span><small>Email</small><b>{thryveEmail}</b></span></a>}
+              {thryveWhatsappHref && <a href={thryveWhatsappHref} target="_blank" rel="noopener noreferrer"><MessageCircle size={17} /><span><small>WhatsApp inquiries</small><b>Chat with ThryveLab</b></span></a>}
               {business.messengerLink && <a href={normalizeServiceLink(business.messengerLink)} target="_blank" rel="noopener noreferrer"><MessageCircle size={17} /><span><small>Messenger</small><b>Send a message</b></span></a>}
             </div>
           ) : hasEnhancedBeautyPage ? (
@@ -5154,12 +5643,12 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                   </span>
                 </aside>
               )}
-              {!isToursTravel && (business.phone || business.mobileNumbers || business.primaryEmail || business.website || business.address) && (
+              {!isToursTravel && (thryvePhone || business.mobileNumbers || thryveEmail || business.website || business.address) && (
                 <div className="bookingContactLine">
-                  {business.phone && <span><Phone size={13} /><strong>Phone</strong>{business.phone}</span>}
+                  {thryvePhone && <span><Phone size={13} /><strong>Phone</strong>{thryvePhone}</span>}
                   {isProBeauty && business.availability?.openDays && <span><Clock size={13} /><strong>Open</strong>{business.availability.openDays}</span>}
                   {business.mobileNumbers && <span><Smartphone size={13} /><strong>Mobile</strong>{business.mobileNumbers}</span>}
-                  {business.primaryEmail && <span><Mail size={13} /><strong>Email</strong>{business.primaryEmail}</span>}
+                  {thryveEmail && <span><Mail size={13} /><strong>Email</strong>{thryveEmail}</span>}
                   {business.website && <a href={normalizeServiceLink(business.website)} target="_blank" rel="noopener noreferrer"><Globe size={13} /><strong>Visit Website</strong></a>}
                   {business.messengerLink && <a href={normalizeServiceLink(business.messengerLink)} target="_blank" rel="noopener noreferrer"><MessageCircle size={13} /><strong>Messenger</strong></a>}
                   {business.address && <span><MapPinned size={13} /><strong>Address</strong>{business.address}</span>}
@@ -5230,13 +5719,15 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
             <div className="bookingStepTitle"><span>1</span><strong><ServiceStepIcon size={16} />{serviceStepLabel}</strong></div>
             {business.status === "DEMO" && business.featureFlags?.sampleServiceNotice && <p className="sampleServiceNotice">{business.featureFlags.sampleServiceNotice}</p>}
             <div className={isConsultant ? "premiumServiceGrid consultantServiceGrid" : isRealEstate ? "premiumServiceGrid realEstatePropertyGrid" : isPestControl ? "premiumServiceGrid pestControlServiceGrid" : isOpticalClinic ? "premiumServiceGrid opticalPackageGrid" : "premiumServiceGrid"}>
-              {displayServices.map((item) => {
+              {serviceItemsForDisplay.map((item) => {
                 const detail = isXtremeDancers ? getXtremeCardDetail(item) : getServiceDetail(item);
                 const ServiceIcon = isXtremeDancers
                   ? item === "XTREME STEPPER" ? Zap : item === "WEEKEND DANCE CLASS" ? Users : item === "PRIVATE CLASS" ? User : Building2
                   : resolveServiceIcon(item, business);
                 const ConsultantIcon = resolveConsultantServiceIcon(detail, business);
-                const isSelected = isXtremeDancers ? xtremePrimary === item : selectedServiceNames.includes(item);
+                const isSelected = isXtremeDancers ? xtremePrimary === item : item === "WOW Personal Training"
+                  ? thryveWowVariants.some((variant) => selectedServiceNames.includes(variant.name))
+                  : selectedServiceNames.includes(item);
                 const serviceLink = normalizeServiceLink(detail.imageUrl);
                 const mediaUrl = isConsultant || isToursTravel || !isDirectImageLink(detail.imageUrl) ? "" : normalizeServiceLink(detail.imageUrl);
                 const departures = isToursTravel ? getUpcomingDepartures(detail.departureDates) : [];
@@ -5338,6 +5829,18 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                 );
               })}
             </div>
+            {isThryveLab && thryveWowVariants.length > 0 && selectedServiceNames.some((name) => thryveWowVariants.some((variant) => variant.name === name)) && (
+              <div className="thryveWowVariantPicker" aria-label="WOW Personal Training package options">
+                <div className="thryveWowPickerHeading"><strong>WOW Personal Training</strong><small>Choose appointment length, then select the included session package.</small></div>
+                <div className="thryveWowPickerGroup"><span>Appointment length</span><div>{["45", "60"].map((duration) => <button type="button" key={duration} className={thryveWowDuration === duration ? "active" : ""} onClick={() => {
+                  const next = thryveWowVariants.find((variant) => String(variant.durationMinutes) === duration && thryveWowVariantKey(variant).endsWith(`-${thryveWowSessions || "1"}`))
+                    || thryveWowVariants.find((variant) => String(variant.durationMinutes) === duration);
+                  if (next) { setPickedService(next.name); setPickedServices([next.name]); }
+                }}>{duration} minutes</button>)}</div></div>
+                <div className="thryveWowPickerGroup"><span>Package size</span><div>{["1", "3", "8", "12", "24"].map((sessions) => { const variant = thryveWowVariants.find((item) => thryveWowVariantKey(item) === `${thryveWowDuration}-${sessions}`); return <button type="button" key={sessions} disabled={!variant} className={thryveWowSessions === sessions ? "active" : ""} onClick={() => { if (variant) { setPickedService(variant.name); setPickedServices([variant.name]); } }}>{sessions} session{sessions === "1" ? "" : "s"}</button>; })}</div></div>
+                {selectedThryveWowVariant && <p className="thryveWowPickerSummary">{selectedThryveWowVariant.name} · {publicPriceLabel(selectedThryveWowVariant.price)} · {selectedThryveWowVariant.durationMinutes} minutes per appointment</p>}
+              </div>
+            )}
             {isXtremeDancers && (
               <div className="xtremeOptionPanel">
                 <strong>{xtremePrimary === "WEEKEND DANCE CLASS" ? "CHOOSE CLASS" : xtremePrimary === "STUDIO RENTAL" ? "CHOOSE RENTAL TYPE" : xtremePrimary === "XTREME STEPPER" ? "CHOOSE BOOKING OPTION" : "SELECT YOUR DATE AND TIME"}</strong>
@@ -5491,6 +5994,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                   <span className="xtremeScheduleEyebrow">{isXtremeWeekendClass ? "SELECTED CLASS SCHEDULE" : "SELECTED SCHEDULE"}</span>
                   <strong>{normalizedAvailableSlots[0]}</strong>
                   <small>{xtremePrimary === "XTREME STEPPER" && String(pickedService || "").includes("MONTHLY") ? "8 sessions • Twice per week • Schedule coordinated after this request" : `${pickedServiceDetail.durationMinutes || 90} minutes${pickedPricing.price !== null && pickedPricing.price !== undefined ? ` • ${publicPriceLabel(pickedPricing.price)}` : ""}`}</small>
+                  {scheduleCapacity && <strong className="xtremeCapacityNotice">{scheduleCapacity.fully_booked ? "Fully Booked" : `${scheduleCapacity.remaining} of ${scheduleCapacity.capacity} slots remaining`}</strong>}
                 </div>
               )}
               {!isAccommodation && !isXtremeWeekendClass && !isXtremeFixedSchedule && (
@@ -5644,7 +6148,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
             </div>
           )}
 
-          {business.services.length > 0 && <button className="premiumConfirmButton" type="submit" disabled={submitting || isBlockedDate} onFocus={() => { if (isToursTravel) setTravelActiveStep(5); if (isRealEstate) setRealEstateActiveStep(4); if (isPestControl) setPestControlActiveStep(4); }}>
+          {business.services.length > 0 && <button className="premiumConfirmButton" type="submit" disabled={submitting || isBlockedDate || scheduleCapacity?.fully_booked} onFocus={() => { if (isToursTravel) setTravelActiveStep(5); if (isRealEstate) setRealEstateActiveStep(4); if (isPestControl) setPestControlActiveStep(4); }}>
             {submitting ? "Submitting request..." : submitLabel} <ChevronRight size={22} />
           </button>}
           {bookingError && <p className="formError premiumError">{bookingError}</p>}
@@ -5696,12 +6200,16 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                 <div><dt>Name</dt><dd>{confirmed.customer}</dd></div>
                 <div><dt>Reference</dt><dd>{confirmed.id || "Request received"}</dd></div>
               </dl>
-              {paymentAvailable && (
+              {paymentAvailable && isThryveLab && !thryveTermsPaymentUnlocked && (
+                <ThryveLabTermsPanel acceptance={thryveTermsAcceptance} setAcceptance={setThryveTermsAcceptance} requiresStarterAcknowledgment={requiresThryveStarterAcknowledgment} summary={thryveTermsSummary} onContinue={continueToThryvePayment} saving={thryveTermsSaving} error={thryveTermsError} blockedReason={thryveStarterSchedulingBlocked} />
+              )}
+              {paymentAvailable && (!isThryveLab || thryveTermsPaymentUnlocked) && (
                 <div className={`paymentInstructions paymentShell ${!paymentRequired ? "paymentOptionalNextStep" : ""}`}>
                   <div className="paymentHeader">
                     <span className="paymentEyebrow">{paymentRequired ? "PAYMENT REQUIRED" : "OPTIONAL NEXT STEP"}</span>
                     <strong>{paymentRequired ? "COMPLETE YOUR PAYMENT" : "WOULD YOU LIKE TO MAKE A PAYMENT NOW?"}</strong>
                     <p>{paymentRequired ? "Your booking request has been submitted. Complete the payment details to continue." : "Your booking request has already been submitted. Payment is optional and can be completed now or arranged with the business later."}</p>
+                    {isThryveLab && <button type="button" className="thryveTermsBackButton" onClick={() => { setPaymentChoice(""); setPaymentOpen(false); setPaymentStatus(""); setThryveTermsError(""); setThryveTermsReviewMode(true); setThryveTermsPaymentUnlocked(false); }}>Back to Terms &amp; Conditions</button>}
                   </div>
                   {paymentRequired && <p><strong>Required {normalizePaymentRequirement(paymentSettings.requirement_type) === "DEPOSIT_REQUIRED" ? "Deposit" : "Payment"}:</strong> {formatPeso(requiredPaymentAmount)}</p>}
                   {!paymentChoice && <div className="publicPaymentChoices">
@@ -5772,7 +6280,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                     <FileDown size={17} /> Download Booking PDF
                   </button>
                 )}
-                <button type="button" onClick={() => setConfirmed(null)}>Book Another</button>
+                <button type="button" onClick={() => { setConfirmed(null); setThryveTermsAcceptance({ terms: false, review: false, policy: false, starter: false }); setThryveTermsError(""); setThryveTermsReviewMode(false); setThryveTermsPaymentUnlocked(false); setPaymentChoice(""); }}>Book Another</button>
                 {business.messengerLink && <a href={business.messengerLink} target="_blank" rel="noreferrer">Contact Business</a>}
               </div>
               {customerPdfMessage && <small className="customerPdfMessage" role="status">{customerPdfMessage}</small>}
@@ -6538,6 +7046,7 @@ function emptyAdminClient() {
     pageBackgroundType: "SOLID",
     pageBackgroundColor: "",
     pageBackgroundColor2: "",
+    textColor: "#24213A",
     services: "",
     serviceEntries: emptyStructuredServices(),
     openDays: "Monday to Saturday",
@@ -6576,10 +7085,12 @@ function businessToAdminClient(business) {
     logo: business.logo || "",
     cover: business.cover || "",
     primaryColor: business.primaryColor || "#bd5d6d",
+    secondaryColor: business.secondaryColor || "#9183F2",
     accentColor: business.accentColor || "#f6dfe3",
     pageBackgroundType: (business.pageBackgroundType || business.page_background_type || "SOLID").toUpperCase(),
     pageBackgroundColor: normalizeHexColor(business.pageBackgroundColor || business.page_background_color, ""),
     pageBackgroundColor2: normalizeHexColor(business.pageBackgroundColor2 || business.page_background_color_2, ""),
+    textColor: business.textColor || "#24213A",
     services: serviceText,
     serviceEntries,
     openDays: business.availability?.days || defaultAvailability.days,
@@ -6649,7 +7160,7 @@ function normalizeSmmOffers(row = {}) {
   };
 }
 
-function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient, onUpdateStatus, onPreview }) {
+function SmmMasterAdmin({ businesses, bookings, setupRequests = [], onBack, onRefresh, onSaveClient, onUpdateStatus, onPreview }) {
   const [authState, setAuthState] = useState("checking");
   const [adminSession, setAdminSession] = useState(null);
   const [adminRole, setAdminRole] = useState("");
@@ -6685,11 +7196,37 @@ function SmmMasterAdmin({ businesses, bookings, onBack, onRefresh, onSaveClient,
     operation: "",
   });
   const [smmOffersToast, setSmmOffersToast] = useState("");
+  const [adminSetupRequests, setAdminSetupRequests] = useState(setupRequests);
   const logoUploadRef = useRef(null);
   const coverUploadRef = useRef(null);
   const announcementUploadRef = useRef(null);
   const smmOfferOneUploadRef = useRef(null);
   const smmOfferTwoUploadRef = useRef(null);
+
+  useEffect(() => {
+    if (authState !== "authorized" || !adminSession?.access_token) return;
+    supabaseRequest("setup_requests", { query: "?select=*&order=created_at.desc", accessToken: adminSession.access_token })
+      .then((rows) => setAdminSetupRequests((rows || []).map(normalizeSetupRequest)))
+      .catch((error) => setStatusMessage(`Onboarding requests could not be loaded: ${error.message}`));
+  }, [authState, adminSession]);
+
+  const updateOnboardingStatus = async (request, status) => {
+    if (!adminSession?.access_token) return false;
+    try {
+      await supabaseRequest("setup_requests", { method: "PATCH", query: `?id=eq.${encodeURIComponent(request.id)}`, body: { status }, accessToken: adminSession.access_token });
+      setAdminSetupRequests((current) => current.map((item) => item.id === request.id ? { ...item, status } : item));
+      setStatusMessage(`Onboarding request ${status.toLowerCase()}.`);
+      return true;
+    } catch (error) { setStatusMessage(`Could not update onboarding request: ${error.message}`); return false; }
+  };
+
+  const openOnboardingForProvisioning = async (request) => {
+    const updated = await updateOnboardingStatus(request, "Approved");
+    if (!updated) return;
+    setForm({ ...emptyAdminClient(), businessName: request.businessName, slug: request.businessSlug, ownerName: request.ownerName, contact: request.contact, primaryEmail: request.contactEmail, industry: request.industry, facebookPage: request.facebookPage, rules: request.businessDescription, openDays: request.openDays, openHours: request.openHours, package: request.selectedPackage || "STARTER", business_package: request.selectedPackage || "STARTER", serviceEntries: request.serviceEntries || [], primaryColor: request.primaryColor || "#6547D9", secondaryColor: request.secondaryColor || "#9183F2", accentColor: request.accentColor || "#F1EEFF", pageBackgroundColor: request.pageBackgroundColor || "#FAF9FD", textColor: request.textColor || "#24213A" });
+    setEditingSlug("");
+    setMode("form");
+  };
 
   const loadClientAccess = async (session) => {
     if (!session?.access_token) return [];
@@ -7644,7 +8181,10 @@ After login, you will only see the bookings and features assigned to your busine
             <label>Messenger/contact link<input name="facebookPage" value={form.facebookPage} onChange={updateForm} /></label>
             <label>Address<input name="address" value={form.address} onChange={updateForm} /></label>
             <label>Primary color<input name="primaryColor" type="color" value={form.primaryColor} onChange={updateForm} /></label>
+            <label>Secondary color<input name="secondaryColor" type="color" value={form.secondaryColor} onChange={updateForm} /></label>
             <label>Accent color<input name="accentColor" type="color" value={form.accentColor} onChange={updateForm} /></label>
+            <label>Background color<input name="pageBackgroundColor" type="color" value={form.pageBackgroundColor || "#FAF9FD"} onChange={updateForm} /></label>
+            <label>Text color<input name="textColor" type="color" value={form.textColor || "#24213A"} onChange={updateForm} /></label>
             <label>Open days<input name="openDays" value={form.openDays} onChange={updateForm} /></label>
             <label>Open hours<input name="openHours" value={form.openHours} onChange={updateForm} /></label>
             <label>Time slots<input name="slotsText" value={form.slotsText} onChange={updateForm} /></label>
@@ -8172,6 +8712,11 @@ After login, you will only see the bookings and features assigned to your busine
           <button className="smmSaveButton" type="submit" disabled={saving || serviceImageUploading}>{serviceImageUploading ? "Uploading photo..." : saving ? "Saving..." : "Save client"}</button>
         </form>
       ) : (
+        <>
+        <section className="smmClientList smmOnboardingRequests">
+          <div className="smmFormTop"><div><p className="eyebrow">Client onboarding</p><h2>Requests awaiting review</h2></div><span>{adminSetupRequests.length} submitted</span></div>
+          {adminSetupRequests.length === 0 ? <p>No onboarding submissions loaded.</p> : adminSetupRequests.map((request) => <article className="smmClientCard" key={request.id}><div><span className="smmStatus">{request.status}</span><h2>{request.businessName}</h2><p>{request.ownerName} · {request.contactEmail || request.contact}</p><small>{request.selectedPackage || "STARTER"} · {request.industry} · {request.serviceEntries?.length || 0} services</small></div><div className="smmClientControls"><button type="button" onClick={() => updateOnboardingStatus(request, "Rejected")}>Reject</button><button type="button" onClick={() => openOnboardingForProvisioning(request)}>Approve & provision</button></div></article>)}
+        </section>
         <section className="smmClientList">
           {businesses.map((business) => {
             const bookingCount = bookings.filter((booking) => (booking.businessSlug || booking.business_slug) === business.slug).length;
@@ -8199,6 +8744,7 @@ After login, you will only see the bookings and features assigned to your busine
             );
           })}
         </section>
+        </>
       )}
     </main>
   );
@@ -8411,6 +8957,8 @@ function ClientDashboard({
   const [paymentSettings, setPaymentSettings] = useState({ enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [bookingPayments, setBookingPayments] = useState([]);
+  const [meetingEmailStatuses, setMeetingEmailStatuses] = useState({});
+  const meetingEmailTimers = useRef(new Map());
   const [activeTab, setActiveTab] = useState(initialView === "login" ? "dashboard" : "dashboard");
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpSearch, setHelpSearch] = useState("");
@@ -8435,7 +8983,7 @@ function ClientDashboard({
   const [serviceForm, setServiceForm] = useState(emptyServiceForm);
   const [clientServiceEntries, setClientServiceEntries] = useState(emptyStructuredServices());
   const [availabilityForm, setAvailabilityForm] = useState({ days: defaultAvailability.days, hours: defaultAvailability.hours, slotsText: slots.join(", ") });
-  const [profileForm, setProfileForm] = useState({ businessName: "", description: "", phone: "", mobileNumbers: "", primaryEmail: "", notificationEmail: "", additionalEmails: "", website: "", messengerLink: "", logo: "", primaryColor: "#b68a2c", accentColor: "#f6e8ba" });
+  const [profileForm, setProfileForm] = useState({ businessName: "", description: "", phone: "", mobileNumbers: "", primaryEmail: "", notificationEmail: "", additionalEmails: "", website: "", messengerLink: "", logo: "", primaryColor: "#b68a2c", secondaryColor: "#9183F2", accentColor: "#f6e8ba", pageBackgroundColor: "#FAF9FD", textColor: "#24213A" });
   const [blockedDateForm, setBlockedDateForm] = useState({ blockedDate: "", reason: "" });
   const [paymentMethodForm, setPaymentMethodForm] = useState({ method_type: "GCASH", method_name: "GCash", account_name: "", account_number: "", instructions: "", active: true });
   const [serviceImageUploading, setServiceImageUploading] = useState(false);
@@ -8484,6 +9032,38 @@ function ClientDashboard({
   const [clientServiceRecordForm, setClientServiceRecordForm] = useState(emptyClientServiceRecordForm);
   const [clientServiceRecordModalOpen, setClientServiceRecordModalOpen] = useState(false);
   const clientServiceSavePending = useRef(false);
+
+  const loadMeetingEmailStatus = async (payment, options = {}) => {
+    const businessSlug = options.businessSlug || selectedBusinessSlug;
+    if (businessSlug !== "thryvelab" || !payment?.id || payment.payment_status !== "VERIFIED") return null;
+    const { poll = false, attempt = 0 } = options;
+    try {
+      const result = await supabaseRpcRequest("get_thryvelab_meeting_email_status", {
+        payment_id_value: payment.id,
+      }, clientSession?.access_token);
+      const statusRow = Array.isArray(result) ? result[0] : result;
+      const normalizedStatus = String(statusRow?.status || "PENDING").toUpperCase();
+      setMeetingEmailStatuses((current) => ({ ...current, [payment.id]: statusRow || { status: normalizedStatus } }));
+      const terminal = ["SENT", "FAILED", "SKIPPED_NO_RECIPIENT", "NOT_CONFIGURED"].includes(normalizedStatus);
+      if (poll && !terminal && attempt < 12) {
+        const timer = window.setTimeout(() => loadMeetingEmailStatus(payment, { poll: true, attempt: attempt + 1 }), 1500);
+        meetingEmailTimers.current.set(payment.id, timer);
+      } else if (terminal || attempt >= 12) {
+        meetingEmailTimers.current.delete(payment.id);
+      }
+      return statusRow;
+    } catch (error) {
+      const statusRow = { status: "LOOKUP_ERROR", error_message: error.message || "Unable to check email status." };
+      setMeetingEmailStatuses((current) => ({ ...current, [payment.id]: statusRow }));
+      meetingEmailTimers.current.delete(payment.id);
+      return statusRow;
+    }
+  };
+
+  useEffect(() => () => {
+    meetingEmailTimers.current.forEach((timer) => window.clearTimeout(timer));
+    meetingEmailTimers.current.clear();
+  }, []);
 
   const loadSlotwiseUpdateState = async (session, businessSlug) => {
     const [updates, readRows] = await Promise.all([
@@ -8590,7 +9170,10 @@ function ClientDashboard({
       messengerLink: normalizedClientBusiness.messengerLink || "",
       logo: normalizedClientBusiness.logo || "",
       primaryColor: normalizedClientBusiness.primaryColor || "#b68a2c",
+      secondaryColor: normalizedClientBusiness.secondaryColor || "#9183F2",
       accentColor: normalizedClientBusiness.accentColor || "#f6e8ba",
+      pageBackgroundColor: normalizedClientBusiness.pageBackgroundColor || "#FAF9FD",
+      textColor: normalizedClientBusiness.textColor || "#24213A",
     });
     const visibleServiceRows = filterLegacyToursSeedRows(serviceRows || [], businessRow?.booking_template);
     setClientBookings(attachBookingItems(bookingRows || [], bookingItemRows || []));
@@ -8609,6 +9192,13 @@ function ClientDashboard({
     setPaymentSettings(paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
     setPaymentMethods(paymentMethodRows || []);
     setBookingPayments(paymentRows || []);
+    if (chosenSlug === "thryvelab") {
+      (paymentRows || []).filter((payment) => payment.payment_status === "VERIFIED").forEach((payment) => {
+        loadMeetingEmailStatus(payment, { businessSlug: chosenSlug });
+      });
+    } else {
+      setMeetingEmailStatuses({});
+    }
     if (!hasClientRecordsAddon) {
       setSelectedClientRecord(null);
       setClientServiceRecordModalOpen(false);
@@ -8760,6 +9350,13 @@ function ClientDashboard({
       setPaymentSettings(paymentSettingsRow || { enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
       setPaymentMethods(paymentMethodRows || []);
       setBookingPayments(paymentRows || []);
+      if (nextSlug === "thryvelab") {
+        (paymentRows || []).filter((payment) => payment.payment_status === "VERIFIED").forEach((payment) => {
+          loadMeetingEmailStatus(payment, { businessSlug: nextSlug });
+        });
+      } else {
+        setMeetingEmailStatuses({});
+      }
       setAnnouncementDismissals(dismissalRows || []);
       await loadSlotwiseUpdateState(clientSession, nextSlug);
       setSelectedBooking(null);
@@ -9092,7 +9689,10 @@ function ClientDashboard({
         messenger_link_value: profileForm.messengerLink,
         logo_url_value: profileForm.logo,
         primary_color_value: profileForm.primaryColor,
+        secondary_color_value: profileForm.secondaryColor,
         accent_color_value: profileForm.accentColor,
+        page_background_color_value: profileForm.pageBackgroundColor,
+        text_color_value: profileForm.textColor,
       }, clientSession?.access_token);
       await loadClientData(clientSession);
       setStatusMessage("Business details saved.");
@@ -9201,7 +9801,13 @@ function ClientDashboard({
       }
       const nextStatus = action === "verify" ? "VERIFIED" : "REJECTED";
       setBookingPayments((current) => current.map((item) => item.id === payment.id ? { ...item, payment_status: nextStatus, rejection_note: rejectionNote } : item));
-      setStatusMessage(action === "verify" ? "Payment verified." : "Payment rejected.");
+      if (action === "verify" && selectedBusinessSlug === "thryvelab") {
+        setMeetingEmailStatuses((current) => ({ ...current, [payment.id]: { status: "PENDING" } }));
+        setStatusMessage("Payment verified. Sending the session link to the customer...");
+        loadMeetingEmailStatus({ ...payment, payment_status: "VERIFIED" }, { poll: true });
+      } else {
+        setStatusMessage(action === "verify" ? "Payment verified." : "Payment rejected.");
+      }
     } catch (error) {
       setStatusMessage(error.message);
     }
@@ -9412,6 +10018,17 @@ function ClientDashboard({
   }, {});
   const selectedBookingPayments = selectedBooking ? paymentsByBooking[selectedBooking.id] || [] : [];
   const latestSelectedPayment = selectedBookingPayments[0];
+  const latestMeetingEmailStatus = latestSelectedPayment ? meetingEmailStatuses[latestSelectedPayment.id] : null;
+  const meetingEmailStatusValue = String(latestMeetingEmailStatus?.status || "").toUpperCase();
+  const meetingEmailStatusLabel = meetingEmailStatusValue === "SENT"
+    ? "SENT"
+    : meetingEmailStatusValue === "FAILED"
+      ? "FAILED"
+      : meetingEmailStatusValue === "NOT_CONFIGURED" || meetingEmailStatusValue === "SKIPPED_NO_RECIPIENT"
+        ? "NOT CONFIGURED"
+        : meetingEmailStatusValue === "LOOKUP_ERROR"
+          ? "UNAVAILABLE"
+        : "SENDING";
   const selectedBookingItems = selectedBooking ? getBookingLineItems(selectedBooking) : [];
   const selectedBookingPersistedTotal = selectedBooking?.metadata?.calculated_price
     ?? selectedBooking?.metadata?.pest_estimated_price
@@ -10544,7 +11161,10 @@ function ClientDashboard({
                 <input value={profileForm.messengerLink} onChange={(event) => setProfileForm((current) => ({ ...current, messengerLink: event.target.value }))} placeholder="Messenger link" />
                 <input type="url" value={profileForm.logo} onChange={(event) => setProfileForm((current) => ({ ...current, logo: event.target.value }))} placeholder="Logo URL" />
                 <label>Primary color<input type="color" value={profileForm.primaryColor} onChange={(event) => setProfileForm((current) => ({ ...current, primaryColor: event.target.value }))} /></label>
+                <label>Secondary color<input type="color" value={profileForm.secondaryColor} onChange={(event) => setProfileForm((current) => ({ ...current, secondaryColor: event.target.value }))} /></label>
                 <label>Accent color<input type="color" value={profileForm.accentColor} onChange={(event) => setProfileForm((current) => ({ ...current, accentColor: event.target.value }))} /></label>
+                <label>Background color<input type="color" value={profileForm.pageBackgroundColor} onChange={(event) => setProfileForm((current) => ({ ...current, pageBackgroundColor: event.target.value }))} /></label>
+                <label>Text color<input type="color" value={profileForm.textColor} onChange={(event) => setProfileForm((current) => ({ ...current, textColor: event.target.value }))} /></label>
                 <button type="submit">Save business details</button>
               </form>
               <p><strong>Email:</strong> {clientSession?.user?.email}</p>
@@ -10751,6 +11371,28 @@ function ClientDashboard({
                       <p><strong>Note:</strong> {latestSelectedPayment.customer_note || "No note"}</p>
                       {latestSelectedPayment.submitted_at && <p><strong>Submitted At:</strong> {formatFriendlyDateTime(latestSelectedPayment.submitted_at)}</p>}
                       {latestSelectedPayment.verified_at && <p><strong>Verified At:</strong> {formatFriendlyDateTime(latestSelectedPayment.verified_at)}</p>}
+                      {selectedBusinessSlug === "thryvelab" && latestSelectedPayment.payment_status === "VERIFIED" && (
+                        <div className={`meetingEmailStatus meetingEmailStatus-${meetingEmailStatusLabel.toLowerCase().replace(/\s+/g, "-")}`} role="status">
+                          <div className="meetingEmailStatusHeader">
+                            <strong>Meeting Link Email</strong>
+                            <span>{meetingEmailStatusLabel}</span>
+                          </div>
+                          <p>
+                            {meetingEmailStatusValue === "SENT"
+                              ? "Zoom meeting link successfully sent to the customer's email."
+                              : meetingEmailStatusValue === "FAILED"
+                                ? "Payment verified, but the meeting link email could not be sent."
+                                : meetingEmailStatusValue === "NOT_CONFIGURED" || meetingEmailStatusValue === "SKIPPED_NO_RECIPIENT"
+                                  ? "Payment verified. Automated meeting link delivery is not configured."
+                                  : meetingEmailStatusValue === "LOOKUP_ERROR"
+                                    ? "Unable to check email status."
+                                  : "Payment verified. Sending the session link to the customer..."}
+                          </p>
+                          {latestMeetingEmailStatus?.sent_at && <small>Sent {formatFriendlyDateTime(latestMeetingEmailStatus.sent_at)}</small>}
+                          {latestMeetingEmailStatus?.recipient_email && <small>Recipient: {latestMeetingEmailStatus.recipient_email}</small>}
+                          {meetingEmailStatusValue === "FAILED" && latestMeetingEmailStatus?.error_message && <small>{latestMeetingEmailStatus.error_message}</small>}
+                        </div>
+                      )}
                       {String(latestSelectedPayment.proof_storage_path || "").trim() && <button type="button" className="clientSecondaryButton" onClick={() => openPaymentProof(latestSelectedPayment)}>View Payment Proof</button>}
                       {latestSelectedPayment.rejection_note && <p><strong>Rejection Note:</strong> {latestSelectedPayment.rejection_note}</p>}
                       {latestSelectedPayment.payment_status === "PENDING_VERIFICATION" && (
