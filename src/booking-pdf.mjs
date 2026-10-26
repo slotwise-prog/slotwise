@@ -95,6 +95,14 @@ function pricingIsQuoteOnly(metadata = {}, total) {
     || ((total === null || total === undefined || total === "") && !hasDepartureRate);
 }
 
+function assignedCapacitySlot(booking = {}) {
+  const metadata = booking.metadata || {};
+  const number = Number(metadata.capacity_slot_number ?? metadata.assigned_slot_number);
+  const capacity = Number(metadata.capacity_slot_capacity ?? metadata.capacity ?? 0);
+  if (!Number.isInteger(number) || number < 1 || !Number.isInteger(capacity) || capacity < number) return null;
+  return `${number} of ${capacity}${metadata.test_booking ? " (DEMO / TEST BOOKING)" : ""}`;
+}
+
 function bookingFieldRows({ booking, template, quoteOnly }) {
   const metadata = booking.metadata || {};
   const templateKey = String(metadata.booking_template || template || "GENERAL").toUpperCase();
@@ -167,6 +175,9 @@ function bookingFieldRows({ booking, template, quoteOnly }) {
     add("Estimated Guests", metadata.estimated_guest_count);
     add("Notes", notes);
   }
+
+  const assignedSlot = assignedCapacitySlot(booking);
+  if (assignedSlot) add("Slot Number", assignedSlot);
 
   if (templateKey !== "TOURS_TRAVEL" && metadata.guest_count && !rows.some(([label]) => label.includes("Guest") || label === "Pax")) {
     add("Guests", metadata.guest_count);
@@ -371,9 +382,16 @@ export async function createBookingPdf({
   startPage();
   const logo = await imageToJpeg(business.logo);
   const businessName = cleanValue(business.business || business.name) || "Business";
+  const isDemoBusiness = String(business.status || "").toUpperCase() === "DEMO";
+  const normalizedBookingStatus = String(booking.status || statusLabel || "PENDING").toUpperCase();
+  const displayStatusLabel = isDemoBusiness
+    ? "DEMO / TEST BOOKING - NOT A VALID APPOINTMENT"
+    : normalizedBookingStatus === "CONFIRMED"
+      ? "Appointment Confirmed"
+      : "Booking Request Received - Pending Confirmation";
   text(PAGE_LEFT, 42, businessName, 16, true, [0.09, 0.12, 0.17]);
   let contactY = 63;
-  [business.phone, business.primaryEmail, business.website, business.messengerLink].forEach((item) => {
+  [business.phone, business.primaryEmail, business.address, business.website].forEach((item) => {
     const value = cleanValue(item);
     if (value) {
       const lines = wrapLine(value, 74);
@@ -392,7 +410,7 @@ export async function createBookingPdf({
   }
   const isInquiry = documentType === "inquiry" || String(metadata.request_type || "").toLowerCase().includes("inquiry");
   const isConfirmation = String(booking.status || "").toUpperCase() === "CONFIRMED";
-  const title = isInquiry ? "Inquiry Summary" : isConfirmation ? "Booking Confirmation" : "Reservation Details";
+  const title = isInquiry ? "Inquiry Summary" : isConfirmation ? "Booking Confirmation" : "Appointment Slip";
   const titleTop = Math.max(102, contactY + 9);
   text(PAGE_LEFT, titleTop, title, 19, true, accent);
   y = titleTop + 31;
@@ -401,7 +419,7 @@ export async function createBookingPdf({
 
   section("RECORD SUMMARY");
   paragraph("Reference", booking.id);
-  paragraph("Status", statusLabel);
+  paragraph("Status", displayStatusLabel);
   paragraph("Date Created", safeDate(booking.created_at));
 
   section("CUSTOMER");
@@ -413,6 +431,8 @@ export async function createBookingPdf({
   section("BOOKING DETAILS");
   const templateRows = bookingFieldRows({ booking, template, quoteOnly });
   templateRows.forEach(([label, value]) => paragraph(label, value));
+  section("APPOINTMENT INSTRUCTIONS");
+  paragraph("Instructions", "Please keep this slip and your booking reference. The business will contact you if confirmation or additional details are required.");
 
   const normalizedItems = bookingItems.filter((item) => cleanValue(item.serviceName || item.service_name || item.name));
   if (normalizedItems.length) {
@@ -473,7 +493,7 @@ export async function createBookingPdf({
   const blob = new Blob([bytes], { type: "application/pdf" });
   const reference = escapePdfName(booking.id || (isInquiry ? "Inquiry" : "Reservation"));
   const customer = escapePdfName(booking.customer || booking.customer_name || "Customer");
-  const prefix = isInquiry ? "Inquiry" : isConfirmation ? "Booking" : "Reservation";
+  const prefix = isInquiry ? "Inquiry" : documentType === "booking" ? "Booking" : isConfirmation ? "Booking" : "Reservation";
   const filename = `${prefix}-${reference}-${customer}.pdf`;
   return { filename, blob, pages: pages.length };
 }

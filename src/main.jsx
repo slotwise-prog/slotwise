@@ -4,14 +4,21 @@ import AirconBooking from "./AirconBooking.jsx";
 import { koolmateBusiness } from "./aircon-config.mjs";
 import { downloadBookingPdf } from "./booking-pdf.mjs";
 import { createRoot } from "react-dom/client";
+import { PublicOrdersPage, OrdersDashboardPanel } from "./orders.jsx";
 import {
   BarChart3,
   CalendarDays,
+  CalendarCheck,
+  CalendarClock,
+  CalendarOff,
   Check,
   ChevronLeft,
   ChevronRight,
   Clock,
+  Clock3,
   CreditCard,
+  Package,
+  ShoppingBag,
   ExternalLink,
   LayoutDashboard,
   MessageSquare,
@@ -24,6 +31,7 @@ import {
   Scale,
   Users,
   User,
+  UserRound,
   Phone,
   FileText,
   FileDown,
@@ -43,7 +51,6 @@ import {
   ClipboardCheck,
   ClipboardPlus,
   Cross,
-  CalendarCheck,
   Snowflake,
   Wrench,
   Settings,
@@ -142,6 +149,91 @@ const defaultAvailability = {
   slots,
 };
 
+const scheduleWeekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const defaultBookingWindows = scheduleWeekdays.reduce((days, day) => ({ ...days, [day]: [{ start: "09:00", end: "17:00" }] }), {});
+
+function timeToMinutes(value = "") {
+  const match = String(value).match(/^(\d{2}):(\d{2})$/);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : NaN;
+}
+
+function to24Hour(value = "") {
+  const match = String(value).trim().match(/^(\d{1,2}):(\d{2})\s*([AP]M)$/i);
+  if (!match) return "";
+  let hour = Number(match[1]) % 12;
+  if (match[3].toUpperCase() === "PM") hour += 12;
+  return `${String(hour).padStart(2, "0")}:${match[2]}`;
+}
+
+function buildSlotsFromWindows(windows = [], durationMinutes = null, intervalMinutes = null) {
+  return windows.flatMap((window) => {
+    const start = timeToMinutes(window.start);
+    const end = timeToMinutes(window.end);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
+    const result = [];
+    const duration = Number(durationMinutes);
+    if (!Number.isFinite(duration) || duration <= 0) return [];
+    const interval = Number(intervalMinutes) > 0 ? Number(intervalMinutes) : duration;
+    for (let current = start; current + duration <= end; current += interval) {
+      const hour = Math.floor(current / 60);
+      const minute = current % 60;
+      const period = hour >= 12 ? "PM" : "AM";
+      const displayHour = hour % 12 || 12;
+      result.push(`${displayHour}:${String(minute).padStart(2, "0")} ${period}`);
+    }
+    return result;
+  });
+}
+
+function scheduleWindowsFromForm(schedule = {}) {
+  return scheduleWeekdays.reduce((result, day) => ({ ...result, [day]: Array.isArray(schedule[day]) ? schedule[day] : [] }), {});
+}
+
+function validateBookingSchedule(schedule = {}, operatingHours = "") {
+  const range = String(operatingHours || "").match(/(\d{1,2}:\d{2}\s*[AP]M).*?(\d{1,2}:\d{2}\s*[AP]M)/i);
+  const operatingStart = range ? timeToMinutes(to24Hour(range[1])) : 0;
+  const operatingEnd = range ? timeToMinutes(to24Hour(range[2])) : 1440;
+  for (const day of scheduleWeekdays) {
+    const windows = scheduleWindowsFromForm(schedule)[day].map((window) => ({ start: timeToMinutes(window.start), end: timeToMinutes(window.end) })).sort((a, b) => a.start - b.start);
+    for (let index = 0; index < windows.length; index += 1) {
+      const window = windows[index];
+      if (!Number.isFinite(window.start) || !Number.isFinite(window.end) || window.end <= window.start) return `${day} has an invalid time window.`;
+      if (window.start < operatingStart || window.end > operatingEnd) return `${day} must stay within the configured operating hours.`;
+      if (index > 0 && window.start < windows[index - 1].end) return `${day} has overlapping time windows.`;
+    }
+  }
+  return "";
+}
+
+function BookingScheduleEditor({ value, operatingHours, services, capacity = {}, onChange, onCapacityChange }) {
+  const schedule = scheduleWindowsFromForm(value);
+  const operatingRange = String(operatingHours || "").match(/(\d{1,2}:\d{2}\s*[AP]M).*?(\d{1,2}:\d{2}\s*[AP]M)/i);
+  const operatingStart = operatingRange ? timeToMinutes(to24Hour(operatingRange[1])) : 0;
+  const operatingEnd = operatingRange ? timeToMinutes(to24Hour(operatingRange[2])) : 1440;
+  const updateDay = (day, nextWindows) => {
+    const nextSchedule = { ...schedule, [day]: nextWindows };
+    onChange(nextSchedule);
+  };
+  const copyDay = (sourceDay) => {
+    const next = { ...schedule };
+    scheduleWeekdays.forEach((day) => { if (day !== sourceDay) next[day] = schedule[sourceDay].map((window) => ({ ...window })); });
+    onChange(next);
+  };
+  return <section className="bookingScheduleEditor">
+    <div className="bookingScheduleEditorHeader"><div><p className="eyebrow">Booking availability</p><h3>Customer booking windows</h3><p>These windows are separate from the business operating hours: <strong>{operatingHours || "Not configured"}</strong>.</p></div></div>
+    <div className="bookingCapacityControls"><label><input type="checkbox" checked={Boolean(capacity.enabled)} onChange={(event) => onCapacityChange({ ...capacity, enabled: event.target.checked })} /> Allow multiple bookings per time slot</label><label>Maximum bookings per slot<input type="number" min="1" max="999" value={capacity.capacity || 1} onChange={(event) => onCapacityChange({ ...capacity, capacity: Number(event.target.value) || 1 })} disabled={!capacity.enabled} /></label><label>Booking interval<select value={capacity.intervalMinutes || 60} onChange={(event) => onCapacityChange({ ...capacity, intervalMinutes: Number(event.target.value) })}><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">60 minutes</option><option value="90">90 minutes</option><option value="120">120 minutes</option></select></label></div>
+    <div className="bookingScheduleDays">
+      {scheduleWeekdays.map((day) => <article className="bookingScheduleDay" key={day}>
+        <header><label><input type="checkbox" checked={schedule[day].length > 0} onChange={(event) => updateDay(day, event.target.checked ? [{ start: "09:00", end: "17:00" }] : [])} /> <strong>{day}</strong></label><button type="button" onClick={() => copyDay(day)} disabled={!schedule[day].length}>Copy to all</button></header>
+        {schedule[day].map((window, index) => <div className="bookingScheduleWindow" key={`${day}-${index}`}><input aria-label={`${day} window start`} type="time" value={window.start} onChange={(event) => updateDay(day, schedule[day].map((item, itemIndex) => itemIndex === index ? { ...item, start: event.target.value } : item))} /><span>to</span><input aria-label={`${day} window end`} type="time" value={window.end} onChange={(event) => updateDay(day, schedule[day].map((item, itemIndex) => itemIndex === index ? { ...item, end: event.target.value } : item))} /><button type="button" aria-label={`Remove ${day} window`} onClick={() => updateDay(day, schedule[day].filter((_, itemIndex) => itemIndex !== index))}>Remove</button></div>)}
+        {schedule[day].length > 0 && <button type="button" className="bookingScheduleAddWindow" onClick={() => updateDay(day, [...schedule[day], { start: "13:00", end: "17:00" }])}>+ Add time window</button>}
+      </article>)}
+    </div>
+    <div className="bookingSchedulePreview"><strong>Preview</strong>{scheduleWeekdays.map((day) => <span key={day}><b>{day}</b> {schedule[day].length ? schedule[day].map((window) => `${window.start}–${window.end}`).join(", ") : "Unavailable"}</span>)}</div>
+    <small className="bookingScheduleHint">Windows must be inside the configured operating hours. Service durations are respected when public slots are generated.</small>
+  </section>;
+}
+
 const packageOptions = [
   { value: "STARTER", label: "Starter", price: "PHP 499 lifetime" },
   { value: "BUSINESS", label: "Business", price: "PHP 799 lifetime" },
@@ -206,7 +298,7 @@ const packageCapabilityMap = {
     blockedDates: false,
     reservationCalendar: false,
     manualReservations: false,
-    downloadBookingPdf: false,
+    downloadBookingPdf: true,
     paymentVerification: false,
     customerHistory: false,
     enhancedStats: false,
@@ -221,7 +313,7 @@ const packageCapabilityMap = {
     blockedDates: false,
     reservationCalendar: false,
     manualReservations: false,
-    downloadBookingPdf: false,
+    downloadBookingPdf: true,
     paymentVerification: false,
     customerHistory: false,
     enhancedStats: false,
@@ -929,6 +1021,16 @@ function formatScheduleInterval(slot, durationMinutes) {
   return `${formatTime(startMinutes)} – ${formatTime(endMinutes)}`;
 }
 
+function normalizePublicCapacityResult(value, configuredCapacity = null) {
+  const row = Array.isArray(value) ? value[0] : value;
+  if (!row || row.capacity === null || row.capacity === undefined) return null;
+  const capacity = Number(row.capacity ?? row.max_capacity ?? configuredCapacity);
+  const booked = Number(row.booked ?? row.booked_count ?? 0);
+  const remaining = Number(row.remaining ?? row.remaining_capacity ?? Math.max(capacity - booked, 0));
+  if (!Number.isFinite(capacity) || capacity < 1 || !Number.isFinite(booked) || !Number.isFinite(remaining)) return null;
+  return { capacity, booked, remaining, fully_booked: Boolean(row.fully_booked ?? remaining <= 0) };
+}
+
 function normalizeDepartureDates(value) {
   return (Array.isArray(value) ? value : [])
     .filter((item) => item?.kind === "DEPARTURE" || item?.startDate || item?.start_date || item?.departureStart || item?.departure_start)
@@ -1072,7 +1174,7 @@ function calculateLineItem(serviceDetail = {}, context = {}) {
   const hasBasePrice = serviceDetail.price !== "" && serviceDetail.price !== null && serviceDetail.price !== undefined && String(serviceDetail.price).trim() !== "";
   const basePrice = context.selectedDeparture ? Number(context.selectedDeparture.price) : hasBasePrice ? Number(serviceDetail.price) : null;
   let lineTotal = pricing.estimatedTotal;
-  let lineLabel = basePrice === null ? "Pricing unavailable" : formatPeso(basePrice);
+  let lineLabel = basePrice === null ? "Contact for Rate" : formatPeso(basePrice);
   let snapshotQuantity = 1;
 
   if (pricingType === "PER_PAX") {
@@ -1237,6 +1339,14 @@ function formatPeso(value) {
   return `PHP ${Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
+function getAssignedCapacitySlot(booking = {}) {
+  const metadata = booking.metadata || {};
+  const number = Number(metadata.capacity_slot_number ?? metadata.assigned_slot_number);
+  const capacity = Number(metadata.capacity_slot_capacity ?? metadata.capacity ?? 0);
+  if (!Number.isInteger(number) || number < 1 || !Number.isInteger(capacity) || capacity < number) return null;
+  return { number, capacity };
+}
+
 function formatDashboardPeso(value) {
   if (value === null || value === undefined || value === "" || Number.isNaN(Number(value))) return "For Assessment";
   return `₱${Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
@@ -1326,6 +1436,22 @@ function getUpdatePackageBadgeLabel(packageValue, currentPackageKey) {
 
 function getUpdateTypeLabel(value) {
   return String(value || "UPDATE").replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+const curatedSlotwiseUpdates = [
+  { id: "2026-10-26-booking-date-filter", published_at: "2026-10-26T09:00:00+08:00", update_type: "NEW_FEATURE", title: "Filter Bookings by Date", summary: "Clients can now filter bookings by a selected date or date range, making it easier to find reservations, review daily schedules, and manage booking records.", content: "Choose a specific date or an inclusive From / To range in Booking Management. Clear the filters to return to all authorized bookings.", applicable_packages: ["ALL"] },
+  { id: "2026-10-26-booking-slots", published_at: "2026-10-26T08:00:00+08:00", update_type: "NEW_FEATURE", title: "Booking Slots Management", summary: "Clients across STARTER, BUSINESS, and PRO packages can now manage booking capacity directly from their Client Dashboard.", content: "Enable or disable capacity limits, set the maximum bookings per time slot, view capacity and remaining availability where supported, keep the existing 60-minute interval, and prevent additional bookings after a slot is full.", applicable_packages: ["ALL"] },
+  { id: "2026-10-26-dashboard-ui-improvements", published_at: "2026-10-26T06:00:00+08:00", update_type: "IMPROVEMENTS", title: "Client Dashboard UI/UX Improvements", summary: "We've improved the Client Dashboard to make booking and business management easier, cleaner, and more organized.", content: "What's Improved:\n• Reorganized navigation into collapsible categories for easier access.\n• Added consistent icons across dashboard navigation.\n• Improved booking cards for better readability and clearer actions.\n• Refined booking filters, date selectors, buttons, and form layouts.\n• Improved spacing, alignment, and visual consistency.\n• Enhanced navigation and usability across mobile, tablet, and desktop devices.", applicable_packages: ["ALL"] },
+  { id: "2026-10-26-booking-stability", published_at: "2026-10-26T07:00:00+08:00", update_type: "EMERGENCY_FIXES", title: "Booking Management & Dashboard Stability Fixes", summary: "Important fixes improve inquiry conversion and client dashboard reliability.", content: "Fixed Inquiry → Convert to Booking, added required service/date/time selection, improved validation and error messages, added duplicate-submission protection, and prevented unintended Client Access form submissions. Existing booking and Orders functionality is preserved.", applicable_packages: ["ALL"] },
+];
+
+function mergeSlotwiseUpdates(publishedRows = []) {
+  const merged = new Map();
+  [...publishedRows, ...curatedSlotwiseUpdates].forEach((item) => {
+    const key = String(item.title || item.id || "").trim().toLowerCase();
+    if (!key || !merged.has(key) || curatedSlotwiseUpdates.some((curated) => curated.id === item.id)) merged.set(key, item);
+  });
+  return [...merged.values()].sort((a, b) => new Date(b.published_at || b.created_at || 0) - new Date(a.published_at || a.created_at || 0));
 }
 
 function getPackageOrder(value) {
@@ -1712,17 +1838,18 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
         : service.name
     )),
   );
+  const isSwiftDiagnostic = String(row.slug || "").toLowerCase() === "swift-diagnostic-center" || /swift\s+diagnostic\s+center/i.test(String(row.business || ""));
   return {
     source: "database",
     slug: row.slug,
     name: row.industry || row.business_type || "Service business",
     business: row.business,
     link: row.booking_link || `slotwise.app/book/${row.slug}`,
-    logo: row.logo_url || "",
-    primaryColor: row.primary_color || "",
-    secondaryColor: row.secondary_color || "",
+    logo: isSwiftDiagnostic ? "/swift-diagnostic-center-logo.jpg" : row.logo_url || "",
+    primaryColor: isSwiftDiagnostic ? "#155E9A" : row.primary_color || "",
+    secondaryColor: isSwiftDiagnostic ? "#0F766E" : row.secondary_color || "",
     textColor: row.text_color || "",
-    accentColor: row.accent_color || "",
+    accentColor: isSwiftDiagnostic ? "#E6F4F7" : row.accent_color || "",
     pageBackgroundType: row.page_background_type || row.pageBackgroundType || "",
     phone: row.phone || "",
     messengerLink: row.messenger_link || (row.slug === "the-facial-unlimited-ph" ? "https://www.facebook.com/profile.php?id=61592702334620" : ""),
@@ -1747,7 +1874,7 @@ function normalizeDatabaseBusiness(row, serviceRows = [], availabilityRow = null
       slots: Array.isArray(availabilityRow?.slots) ? availabilityRow.slots : [],
       blockedDates: availabilityRow?.blocked_dates || [],
     },
-    cover: row.cover_url || "",
+    cover: isSwiftDiagnostic ? "/swift-diagnostic-center-lab-cover.png" : row.cover_url || "",
     pageBackgroundColor: normalizeHexColor(row.page_background_color || row.pageBackgroundColor, ""),
     pageBackgroundColor2: normalizeHexColor(row.page_background_color_2 || row.pageBackgroundColor2, ""),
     serviceDetails: normalizedServices.serviceDetails,
@@ -2448,6 +2575,9 @@ function setupToBusinessDatabase(setup, slug) {
       primaryEmail: setup.primaryEmail || "",
       additionalEmails: setup.additionalEmails || "",
       website: setup.website || "",
+      bookingWindowsByDay: setup.bookingSchedule || {},
+      booking_capacity: setup.bookingCapacity || { enabled: false, capacity: 1, intervalMinutes: 60 },
+      businessOperatingHours: setup.businessOperatingHours || setup.openHours || "",
     },
     status: (setup.status || "DEMO").toUpperCase(),
     demo_started_at: setup.demoStartedAt || null,
@@ -2479,6 +2609,7 @@ function setupToServiceRows(setup, slug, requestId) {
     image_title: service.imageTitle || "",
     image_caption: service.imageCaption || "",
     unit_quantity: service.unitQuantity,
+    schedule: normalizeServiceSchedule(service.schedule),
     description: service.description,
     display_order: service.displayOrder,
     status: service.status,
@@ -2516,16 +2647,16 @@ function getPublicSlugFromLocation() {
 function getPublicRouteFromLocation() {
   const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
   const parts = path.split("/").filter(Boolean);
-  return { slug: getPublicSlugFromLocation(), mode: parts[1] === "inquiry" ? "inquiry" : parts[1] === "book" ? "book" : "gateway" };
+  return { slug: getPublicSlugFromLocation(), mode: parts[1] === "inquiry" ? "inquiry" : parts[1] === "book" ? "book" : parts[1] === "order" ? "order" : "gateway" };
 }
 
-const marketingRoutes = new Set(["features", "packages", "demo", "updates", "faq", "partners", "onboarding"]);
+const marketingRoutes = new Set(["features", "packages", "demo", "updates", "payment-guide", "faq", "partners", "onboarding"]);
 
 function MarketingShell({ page, children }) {
   const links = [["/", "Home"], ["/features", "Features"], ["/packages", "Packages"], ["/demo", "Demo"], ["/updates", "Updates"], ["/partners", "Partners"], ["/faq", "FAQs"]];
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   useEffect(() => {
-    const titles = { home: "Slotwise — Smarter Bookings. No Monthly Fees.", features: "Features — Slotwise", packages: "Packages — Slotwise", demo: "Live Demo — Slotwise", updates: "Updates — Slotwise", partners: "Partners — Slotwise", faq: "FAQ — Slotwise", onboarding: "Client Onboarding — Slotwise" };
+    const titles = { home: "Slotwise — Smarter Bookings. No Monthly Fees.", features: "Features — Slotwise", packages: "Packages — Slotwise", demo: "Live Demo — Slotwise", updates: "Updates — Slotwise", "payment-guide": "Payment Verification Guide — Slotwise", partners: "Partners — Slotwise", faq: "FAQ — Slotwise", onboarding: "Client Onboarding — Slotwise" };
     document.title = titles[page] || "Slotwise";
   }, [page]);
   return <div className="marketingSite"><aside className={mobileNavOpen ? "marketingSidebar mobileOpen" : "marketingSidebar"}><a className="marketingBrand" href="/" onClick={() => setMobileNavOpen(false)}><img src="/slotwise-logo.png" alt="Slotwise" /></a><nav className="marketingSideNav" aria-label="Marketing navigation">{links.map(([href, label], index) => { const icons = [<Home size={18} />, <LayoutDashboard size={18} />, <BadgeDollarSign size={18} />, <Monitor size={18} />, <FileText size={18} />, <Users size={18} />, <CircleHelp size={18} />]; return <a className={page === href.slice(1) || (page === "home" && href === "/") ? "active" : ""} href={href} key={href} onClick={() => setMobileNavOpen(false)}>{icons[index]}<span>{label}</span></a>; })}</nav><div className="marketingSidebarCta"><Crown size={19} /><strong>Ready to get started?</strong><span>Simple setup. Lifetime access.</span><a href="/packages">View Packages <ArrowRight size={14} /></a></div></aside><div className="marketingWorkspace"><header className="marketingHeader"><button className="marketingMobileMenu" type="button" aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((open) => !open)}><Menu size={20} /></button><div className="marketingUtilityActions"><a className="marketingLogin" href="/client-login"><User size={17} /> Client Login</a></div></header>{children}<footer className="marketingFooter"><div className="marketingFooterCredits"><span>© 2026 Slotwise</span><span className="marketingFooterDeveloper">Built by <a href="https://www.stpaine.com/" target="_blank" rel="noopener noreferrer">STP.AINE</a></span></div></footer></div></div>;
@@ -2594,7 +2725,8 @@ function MarketingUpdates() {
       .then((rows) => {
         if (cancelled) return;
         if (!Array.isArray(rows)) throw new Error("Updates source is unavailable.");
-        const published = Array.isArray(rows) ? rows : [];
+        const publishedRows = Array.isArray(rows) ? rows : [];
+        const published = mergeSlotwiseUpdates(publishedRows);
         setUpdates(published);
         setSelectedId((current) => current && published.some((item) => item.id === current) ? current : published[0]?.id || null);
         setState("ready");
@@ -2632,8 +2764,34 @@ const marketingFaqItems = [
   ["Can businesses customize their public page?", "Supported business details, branding, services, schedules, and public workflow settings can be configured where available. Major custom development or integrations may require a separate quotation."],
   ["Does Slotwise send automatic notifications?", "Automatic email notifications can be configured for supported booking, inquiry, payment, and status events. The business must set its Notification Email in Dashboard → Account."],
   ["How are payments verified?", "Where enabled by the package and business configuration, customers can submit payment details for manual business review. Payment verification is handled by the business through the dashboard."],
+  ["Does SLOTWISE support payments?", "Yes. SLOTWISE supports manual payment verification, allowing businesses to display their payment methods, review customer payment submissions, and send automatic payment-status email notifications. Automatic payment gateway processing is not included in this feature."],
   ["How do I get started?", "Choose a package, review the available features, and contact Slotwise for setup or activation details."],
 ];
+
+const paymentManagementBenefits = [
+  [CreditCard, "No Additional Payment Gateway Fees", "Use the payment methods your business already accepts without adding a gateway fee to the workflow."],
+  [ShieldCheck, "Business-Controlled Payment Verification", "Review the actual payment details and proof before marking a submission as verified."],
+  [Landmark, "Flexible Pay Now or Pay Later", "Let customers choose the payment path that fits the booking conversation."],
+  [Mail, "Automatic Email Notifications", "Keep customers informed after the business reviews and updates the payment status."],
+  [Settings, "Simple Payment Method Setup", "Configure the payment instructions customers should see from your Slotwise settings."],
+];
+
+function PaymentManagementSection() {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  return <section className="paymentManagementSection" aria-labelledby="payment-management-title">
+    <div className="paymentShowcaseHeader"><span className="marketingEyebrow">PAYMENT MANAGEMENT</span><h2 id="payment-management-title">Get Paid Your Way. Stay in Control.</h2><p>Let customers choose Pay Now or Pay Later while your business reviews payment details directly from the dashboard. SLOTWISE keeps the customer informed after each payment decision.</p></div>
+    <div className="paymentShowcaseGrid"><div className="paymentShowcaseCopy"><div className="paymentShowcaseBenefits"><span><Check size={16} />Direct payments to your accounts</span><span><Check size={16} />Pay Now or Pay Later</span><span><Check size={16} />Automatic payment-status emails</span></div><a className="marketingButton" href="/payment-guide">See How Payments Work <ArrowRight size={16} /></a></div><div className="paymentProductMock" aria-label="Illustration of Slotwise payment verification workflow"><div className="paymentMockSubmission"><div className="paymentMockTopline"><span>PAYMENT DETAILS</span><em>PENDING_VERIFICATION</em></div><div className="paymentMockRows"><span>Method<strong>GCash</strong></span><span>Amount Sent<strong>₱350</strong></span><span>Reference<strong>1234567890</strong></span></div><div className="paymentMockActions"><button type="button">Verify Payment</button><button type="button">Reject Payment</button></div></div><div className="paymentMockEmail"><span><Mail size={17} /> SLOTWISE NOTIFICATIONS</span><strong>Payment verified</strong><p>Your payment has been reviewed. A confirmation email is on its way.</p><small>Customer notification · Just now</small></div></div></div>
+    <div className="paymentBenefitStrip">{paymentManagementBenefits.map(([Icon, title, text]) => <article key={title}><Icon size={17} /><div><strong>{title}</strong><p>{text}</p></div></article>)}</div>
+    <div className="paymentPosterFeature"><div><span className="marketingEyebrow">SEE THE FULL FLOW</span><h3>Explore the Payment Process</h3><p>See how customers submit payment details and how businesses verify or reject them from the dashboard.</p><div className="paymentPosterActions"><button type="button" className="marketingButton" onClick={() => setPreviewOpen(true)}>View Full Infographic <ExternalLink size={15} /></button><a className="marketingButton secondary" href="/payment-guide">See Step-by-Step Guide <ArrowRight size={15} /></a></div></div><button type="button" className="paymentPosterPreview" onClick={() => setPreviewOpen(true)} aria-label="Open the full manual payment verification advantages poster"><img src="/manual-payment-verification-advantages.png" alt="Five advantages of manual payment verification in Slotwise" /></button></div>
+    {previewOpen && <div className="paymentPosterModalBackdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewOpen(false); }}><section className="paymentPosterModal" role="dialog" aria-modal="true" aria-labelledby="payment-poster-title"><header><div><span className="marketingEyebrow">PAYMENT PROCESS</span><h2 id="payment-poster-title">Manual Payment Verification</h2></div><button type="button" className="marketingPackageModalClose" aria-label="Close payment process preview" onClick={() => setPreviewOpen(false)}><X size={20} /></button></header><img className="paymentPosterFullImage" src="/manual-payment-verification-advantages.png" alt="Five advantages of manual payment verification in Slotwise" /><p className="paymentPosterNote">Payment verification and appointment confirmation remain separate statuses unless the existing business workflow explicitly connects them.</p></section></div>}
+  </section>;
+}
+
+function MarketingPaymentGuide() {
+  const customerSteps = ["Submit a booking request.", "Choose Pay Now or Pay Later.", "If Pay Now, follow the business payment instructions.", "Submit payment details and proof.", "Receive an automatic email notification after payment verification."];
+  const businessSteps = ["Configure payment methods in SLOTWISE Settings.", "Receive booking and payment details in the dashboard.", "Review the actual payment received.", "Select Verify Payment or Reject Payment.", "SLOTWISE automatically emails the customer about the payment result."];
+  return <MarketingShell page="payment-guide"><main className="marketingPage marketingPaymentGuide"><div className="marketingPageIntro"><span className="marketingEyebrow">PAYMENT VERIFICATION GUIDE</span><h1>Clear payment steps for customers and businesses.</h1><p>Manual payment verification keeps the business in control while giving customers a clear, supported path to submit payment details.</p></div><img className="paymentGuidePoster" src="/manual-payment-verification-process.png" alt="Manual payment verification process for customers and business administrators" /><div className="paymentGuideGrid"><section><span className="paymentGuideLabel">CUSTOMER</span><h2>From booking to payment review</h2><ol>{customerSteps.map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}</ol></section><section><span className="paymentGuideLabel">BUSINESS</span><h2>From submission to decision</h2><ol>{businessSteps.map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}</ol></section></div><div className="paymentGuideNote"><ShieldCheck size={20} /><p><strong>Payment verification is not appointment confirmation.</strong> A verified payment does not automatically confirm an appointment unless that connection is explicitly supported by the business workflow.</p></div></main></MarketingShell>;
+}
 
 function MarketingFaq() {
   const [openIndex, setOpenIndex] = useState(0);
@@ -3204,6 +3362,7 @@ function MarketingPackages() {
       <span className="marketingPlanName">{item.name}</span>{item.name === "PRO" && <span className="marketingPackageFeatured">FEATURED</span>}<strong>{item.price}</strong><small>Lifetime · One-time payment</small><p>{item.position}</p><ul className="marketingPackageCardFeatures">{item.cardItems.map((itemText) => <li key={itemText}><Check size={15} aria-hidden="true" />{itemText}</li>)}</ul><span className="marketingPackageSelect">View complete inclusions <ArrowRight size={13} /></span><a className="marketingPackageCardCta" href="/client-login" onClick={(event) => event.stopPropagation()}>Get Started <ArrowRight size={14} /></a>
     </article>)}</div>
     <p className="marketingFinePrint">Customization, integrations, and additional feature development may require a separate quotation.</p>
+    <PaymentManagementSection />
     <section className="marketingResellerSection" aria-labelledby="reseller-title">
       <div><span className="marketingEyebrow">PARTNER WITH SLOTWISE</span><h2 id="reseller-title">Become a SLOTWISE Reseller</h2><p>Interested in offering SLOTWISE to your clients? Apply to become an authorized reseller and expand your services with our online booking and appointment management solution.</p><small>Developed &amp; Owned by STP.AINE</small></div>
       <button type="button" className="marketingButton" onClick={() => { setResellerOpen(true); setResellerNotice(""); }}>Apply as a Reseller <ArrowRight size={16} /></button>
@@ -3855,6 +4014,10 @@ function App() {
     return supabaseRpcRequest("upsert_client_payment_method", methodData, accessToken);
   };
 
+  const saveClientBookingCapacity = async (capacityData, accessToken = "") => {
+    return supabaseRpcRequest("update_client_booking_capacity", capacityData, accessToken);
+  };
+
   const verifyClientPayment = async (paymentId, accessToken = "") => {
     return supabaseRpcRequest("verify_booking_payment", { payment_id_value: paymentId }, accessToken);
   };
@@ -3867,18 +4030,31 @@ function App() {
     if (booking.metadata?.booking_template === "AIRCON_SERVICES" && (!supabaseUrl || !supabaseAnonKey)) {
       throw new Error("Online requests are unavailable. Please contact the business.");
     }
+    if (!supabaseUrl || !supabaseAnonKey) {
+      if (booking.metadata?.demo_booking) {
+        const demoBooking = { ...booking, id: `DEMO-${Date.now().toString().slice(-5)}` };
+        const nextBookings = [demoBooking, ...bookings];
+        setBookings(nextBookings);
+        localStorage.setItem("slotwiseBookings", JSON.stringify(nextBookings));
+        return demoBooking;
+      }
+      throw new Error("This active business is temporarily unable to accept online bookings. Please try again shortly.");
+    }
     let nextBooking = { ...booking, id: `SW-${Date.now().toString().slice(-5)}`, status: booking.status || "Confirmed" };
     try {
       if (supabaseUrl && supabaseAnonKey) {
         const { businessSlug, bookingItems, ...databaseBooking } = nextBooking;
         const rpcResult = await supabaseRpcRequest("submit_public_booking", { booking_payload: databaseBooking });
         const onlineBooking = Array.isArray(rpcResult) ? rpcResult[0] : rpcResult;
+        if (!onlineBooking?.id) {
+          throw new Error("The booking service did not return a saved booking reference.");
+        }
         if (bookingItems?.length) {
           await supabaseRpcRequest("submit_public_booking_items", {
-            booking_id_value: nextBooking.id,
+            booking_id_value: onlineBooking.id,
             business_slug_value: nextBooking.business_slug,
             items_payload: bookingItems.map((item, index) => ({
-              id: `${nextBooking.id}-item-${index + 1}`,
+              id: `${onlineBooking.id}-item-${index + 1}`,
               service_id: item.serviceId || null,
               service_name_snapshot: item.serviceName,
               pricing_type_snapshot: item.pricingType,
@@ -3889,7 +4065,7 @@ function App() {
             })),
           });
         }
-        nextBooking = { ...(onlineBooking || nextBooking), booking_items: bookingItems || [] };
+        nextBooking = { ...onlineBooking, booking_items: bookingItems || [] };
       }
     } catch (error) {
       console.error("Slotwise booking insert failed", {
@@ -3909,6 +4085,45 @@ function App() {
     localStorage.setItem("slotwiseBookings", JSON.stringify(nextBookings));
     return { ...persistedBooking, public_possession_token: possessionToken };
   };
+
+  const ordersApi = useMemo(() => ({
+    getProducts: (slug) => supabaseRpcRequest("get_public_order_products", { business_slug_value: slug }),
+    getPaymentConfig: (slug) => supabaseRpcRequest("get_public_order_payment_config", { business_slug_value: slug }),
+    getProductImage: async (slug, path) => {
+      const response = await fetch(`${supabaseUrl}/functions/v1/get-public-order-product-image`, {
+        method: "POST",
+        headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ business_slug: slug, image_path: path }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.signed_url) throw new Error(payload.error || "Product image unavailable.");
+      return payload.signed_url;
+    },
+    createOrder: (payload, idempotencyKey) => supabaseRpcRequest("create_public_order", { order_payload: payload, idempotency_key_value: idempotencyKey }),
+    submitPayment: (orderId, slug, token, method, amount, reference, note, proofPath) => supabaseRpcRequest("submit_public_order_payment", { order_id_value: orderId, business_slug_value: slug, possession_token_value: token, payment_method_value: method, amount_value: amount, reference_value: reference || null, note_value: note || null, proof_storage_path_value: proofPath || null }),
+    uploadProof: async ({ orderId, businessSlug, token, file }) => {
+      const response = await fetch(`${supabaseUrl}/functions/v1/upload-order-payment-proof`, { method: "POST", headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}`, "x-business-slug": businessSlug, "x-order-id": orderId, "x-possession-token": token, "x-file-name": file.name, "Content-Type": file.type }, body: file });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Payment proof upload failed.");
+      return data.path;
+    },
+    ordersAccess: (slug, token) => supabaseRpcRequest("orders_access_enabled", { target_slug: slug }, token),
+    getBusinessOrders: (slug, token) => supabaseRpcRequest("get_business_orders", { target_slug: slug, status_filter: null }, token),
+    setBusinessOrderStatus: (slug, orderId, status, token) => supabaseRpcRequest("set_business_order_status", { target_slug: slug, order_id_value: orderId, next_status: status }, token),
+    getProductsAdmin: (slug, token) => supabaseRequest("business_products", { query: `?select=*&business_slug=eq.${encodeURIComponent(slug)}&order=display_order.asc,created_at.asc`, accessToken: token }),
+    saveProduct: (product, token) => supabaseRequest("business_products", { method: product.id ? "PATCH" : "POST", query: product.id ? `?id=eq.${encodeURIComponent(product.id)}&business_slug=eq.${encodeURIComponent(product.business_slug)}` : "", body: product, accessToken: token }),
+    uploadProductImage: async ({ businessSlug, productId, file }, token) => { const extension = file.name.split(".").pop().toLowerCase(); const path = `${businessSlug}/${productId}.${extension}`; const response = await fetch(`${supabaseUrl}/storage/v1/object/order-product-images/${path}`, { method: "PUT", headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${token}`, "Content-Type": file.type, "x-upsert": "true" }, body: file }); if (!response.ok) throw new Error((await response.text()) || "Product image upload failed."); return path; },
+    deleteProduct: (id, token) => supabaseRequest("business_products", { method: "DELETE", query: `?id=eq.${encodeURIComponent(id)}`, prefer: "return=minimal", accessToken: token }),
+    getOrderingSettings: (slug, token) => supabaseRequest("business_ordering_settings", { query: `?business_slug=eq.${encodeURIComponent(slug)}&select=*`, accessToken: token }).then((rows) => rows?.[0] || null),
+    saveOrderingSettings: (settings, token) => supabaseRequest("business_ordering_settings", { method: "POST", query: "?on_conflict=business_slug", prefer: "resolution=merge-duplicates,return=representation", body: { ...settings, id: `ORDERSET-${settings.business_slug}` }, accessToken: token }),
+    getOrderPaymentSettings: (slug, token) => supabaseRequest("business_order_payment_settings", { query: `?business_slug=eq.${encodeURIComponent(slug)}&select=*`, accessToken: token }).then((rows) => rows?.[0] || null),
+    saveOrderPaymentSettings: (slug, mode, requireProof, token) => supabaseRpcRequest("upsert_business_order_payment_settings", { target_slug: slug, mode_value: mode, require_proof_value: requireProof }, token),
+    getPaymentMethods: (slug, token) => supabaseRequest("business_payment_methods", { query: `?business_slug=eq.${encodeURIComponent(slug)}&active=eq.true&order=created_at.desc`, accessToken: token }),
+    getOrderPayments: (slug, token) => supabaseRequest("order_payments", { query: `?business_slug=eq.${encodeURIComponent(slug)}&select=*&order=submitted_at.desc`, accessToken: token }),
+    savePaymentMethod: (method, token) => supabaseRequest("business_payment_methods", { method: method.id ? "PATCH" : "POST", query: method.id ? `?id=eq.${encodeURIComponent(method.id)}&business_slug=eq.${encodeURIComponent(method.business_slug)}` : "", body: method, accessToken: token }),
+    verifyOrderPayment: (slug, orderId, paymentId, decision, reason, token) => supabaseRpcRequest("verify_order_payment", { target_slug: slug, order_id_value: orderId, payment_id_value: paymentId, decision, rejection_reason_value: reason }, token),
+    getProofUrl: async (path, token) => { const response = await fetch(`${supabaseUrl}/storage/v1/object/sign/order-payment-proofs/${path}`, { method: "POST", headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ expiresIn: 900 }) }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.message || "Unable to open payment proof."); return `${supabaseUrl}/storage/v1${data.signedURL || data.signedUrl || data.path}`; },
+  }), []);
 
   if (page === "booking") {
     return <BookingPrototype business={selectedBusiness} onBack={() => setPage("home")} onSaveBooking={saveBooking} onSubmitPayment={submitPublicPayment} smmOffers={smmOffers} />;
@@ -3960,6 +4175,7 @@ function App() {
         onSaveBooking={saveBooking}
         onSubmitPayment={submitPublicPayment}
         onSubmitInquiry={submitPublicInquiry}
+        ordersApi={ordersApi}
         smmOffers={smmOffers}
       />
     ) : (
@@ -3972,6 +4188,7 @@ function App() {
   if (page === "packages") return <MarketingPackages />;
   if (page === "demo") return <MarketingDemo />;
   if (page === "updates") return <MarketingUpdates />;
+  if (page === "payment-guide") return <MarketingPaymentGuide />;
   if (page === "faq") return <MarketingFaq />;
   if (page === "partners") return <MarketingPartners />;
   if (page === "onboarding") return <PublicOnboardingForm onSaveSetup={saveSetupRequest} />;
@@ -3986,6 +4203,7 @@ function App() {
         onRefresh={() => loadBusinessConfigs()}
         onSaveClient={saveAdminClient}
         onUpdateStatus={updateClientStatus}
+        ordersApi={ordersApi}
         onPreview={(slug) => {
           window.history.pushState(null, "", `/${slug}`);
           setPublicBusinessSlug(slug);
@@ -4011,6 +4229,7 @@ function App() {
         onSaveService={saveClientService}
         onDeleteService={deleteClientService}
         onSaveAvailability={saveClientAvailability}
+        onSaveBookingCapacity={saveClientBookingCapacity}
         onSaveBusinessProfile={saveClientBusinessProfile}
         onSaveBlockedDate={saveClientBlockedDate}
         onSetBlockedDateActive={setClientBlockedDateActive}
@@ -4018,6 +4237,7 @@ function App() {
         onSavePaymentMethod={saveClientPaymentMethod}
         onVerifyPayment={verifyClientPayment}
         onRejectPayment={rejectClientPayment}
+        ordersApi={ordersApi}
         smmOffers={smmOffers}
       />
     );
@@ -4575,8 +4795,9 @@ function PublicInquiryPrototype({ business, onNavigate, onSubmitInquiry }) {
   return <main className="publicInquiryPage" style={{ "--business-primary": business.primaryColor, "--business-accent": business.accentColor }}><section className="publicInquiryShell"><button type="button" className="publicInquiryBack" onClick={() => onNavigate("gateway")}><ArrowLeft size={16} /> Back</button><div className="publicInquiryBrand">{business.logo && <img src={business.logo} alt={`${business.business} logo`} />}<p className="eyebrow">{business.business}</p><h1>Send an inquiry</h1><p>Have a question or need more information? Send us your details and we'll get back to you.</p></div><form className="publicInquiryForm" onSubmit={submit}><label>What are you inquiring about?{services.length ? <select value={form.service_interest} onChange={(event) => setForm((current) => ({ ...current, service_interest: event.target.value }))}><option value="General Inquiry">General Inquiry</option>{services.map((service) => <option value={service.name} key={service.id}>{service.name}</option>)}</select> : <input value="General Inquiry" readOnly />}</label><label>Full name *<input value={form.customer_name} onChange={(event) => setForm((current) => ({ ...current, customer_name: event.target.value }))} required /></label><label>Contact number *<input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} required /></label><label>Email address *<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required autoComplete="email" /><small>We'll use this email to send updates about your inquiry.</small></label><label>Message / details *<textarea rows="5" value={form.message} onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))} required /></label><button type="submit" disabled={status.state === "saving"}>{status.state === "saving" ? "Sending..." : "SUBMIT INQUIRY"}</button>{status.state === "error" && <p role="alert">{status.message}</p>}</form></section></main>;
 }
 
-function PublicBusinessEntry({ business, mode, onNavigate, onBack, onSaveBooking, onSubmitPayment, onSubmitInquiry, smmOffers = null }) {
+function PublicBusinessEntry({ business, mode, onNavigate, onBack, onSaveBooking, onSubmitPayment, onSubmitInquiry, ordersApi, smmOffers = null }) {
   const capabilities = getPublicEntryCapabilities(business);
+  if (mode === "order") return <PublicOrdersPage business={business} api={ordersApi} onBack={onBack} />;
   if (mode === "inquiry") return <PublicInquiryPrototype business={business} onNavigate={onNavigate} onSubmitInquiry={onSubmitInquiry} />;
   if (mode === "book") return capabilities.bookingEnabled ? <BookingPrototype business={business} onBack={onBack} onSaveBooking={onSaveBooking} onSubmitPayment={onSubmitPayment} smmOffers={smmOffers} /> : <BusinessUnavailablePage business={business} onBack={() => onNavigate("gateway")} />;
   if (capabilities.bookingEnabled && capabilities.inquiryEnabled) return <PublicIntentGateway business={business} onNavigate={onNavigate} />;
@@ -4739,6 +4960,8 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
   const [confirmedPayment, setConfirmedPayment] = useState(null);
   const [bookingError, setBookingError] = useState("");
   const [scheduleCapacity, setScheduleCapacity] = useState(null);
+  const [slotCapacityMap, setSlotCapacityMap] = useState({});
+  const [capacityRefreshTick, setCapacityRefreshTick] = useState(0);
   const [customerPdfMessage, setCustomerPdfMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -4770,7 +4993,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
   const isProductionActive = clientStatus === "ACTIVE";
   const isDemoPreview = clientStatus === "DEMO";
   const isDemoActive = isDemoPreview && !isDemoExpired(business);
-  const canPersistPublicBooking = (isProductionActive || isDemoActive) && !business.featureFlags?.localDemoOnly;
+  const canPersistPublicBooking = isProductionActive || (isDemoActive && !business.featureFlags?.localDemoOnly);
   const isAwaitingActivation = clientStatus === "UNPAID";
   const demoExpiryState = getDemoExpiryState(business);
   const blockedDates = business.availability?.blockedDates || [];
@@ -4797,6 +5020,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
   const isPartyXpress = business.slug === "party-xpress-rentals";
   const isXtremeDancers = business.slug === "xtreme-dancers-studio";
   const isThryveLab = business.slug === "thryvelab";
+  const isSwiftDiagnostic = business.slug === "swift-diagnostic-center" || /swift\s+diagnostic\s+center/i.test(String(business.business || ""));
   const thryveWowVariants = useMemo(() => isThryveLab
     ? (business.serviceDetails || []).filter((service) => String(service.serviceCategory || "").toUpperCase() === "WOW PERSONAL TRAINING")
       .sort((a, b) => Number(a.displayOrder || 0) - Number(b.displayOrder || 0))
@@ -4834,6 +5058,10 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
   const selectedServiceCapacity = isXtremeDancers
     ? Number(business.featureFlags?.service_capacities?.[pickedService] || 0) || null
     : null;
+  const sharedBookingCapacity = (business.featureFlags?.booking_capacity?.enabled === true || business.featureFlags?.booking_capacity?.enabled === "true")
+    ? Number(business.featureFlags.booking_capacity.capacity || 0) || null
+    : null;
+  const capacityEnabled = Boolean(selectedServiceCapacity || sharedBookingCapacity);
   const isPhisavong = business.slug === "phisavong-world-travel-and-tours";
   const travelSeasonalNoticeTitle = String(
     business.featureFlags?.seasonalRatesNoticeTitle || "Seasonal Rates & Packages",
@@ -5037,7 +5265,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
 
   useEffect(() => {
     let active = true;
-    if (!selectedServiceCapacity || !selectedBookingDate || !effectivePickedSlot || !supabaseUrl || !supabaseAnonKey) {
+    if (!capacityEnabled || !selectedBookingDate || !effectivePickedSlot || !supabaseUrl || !supabaseAnonKey) {
       setScheduleCapacity(null);
       return undefined;
     }
@@ -5047,12 +5275,48 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
       booking_date_value: selectedBookingDate,
       slot_value: effectivePickedSlot,
     }).then((result) => {
-      if (active) setScheduleCapacity(Array.isArray(result) ? result[0] : result);
+      if (active) setScheduleCapacity(normalizePublicCapacityResult(result, sharedBookingCapacity || selectedServiceCapacity));
     }).catch(() => {
       if (active) setScheduleCapacity(null);
     });
     return () => { active = false; };
-  }, [business.slug, pickedService, selectedBookingDate, effectivePickedSlot, selectedServiceCapacity]);
+  }, [business.slug, pickedService, selectedBookingDate, effectivePickedSlot, capacityEnabled, capacityRefreshTick]);
+
+  useEffect(() => {
+    let active = true;
+    if (!capacityEnabled || !selectedBookingDate || !supabaseUrl || !supabaseAnonKey || !normalizedAvailableSlots.length) {
+      setSlotCapacityMap({});
+      return undefined;
+    }
+    Promise.all(normalizedAvailableSlots.map(async (slot) => {
+      try {
+        const result = await supabaseRpcRequest("get_public_booking_capacity", {
+          business_slug_value: business.slug,
+          service_value: pickedService,
+          booking_date_value: selectedBookingDate,
+          slot_value: slot,
+        });
+        return [slot, normalizePublicCapacityResult(result, sharedBookingCapacity || selectedServiceCapacity)];
+      } catch {
+        return [slot, null];
+      }
+    })).then((entries) => { if (active) setSlotCapacityMap(Object.fromEntries(entries)); });
+    return () => { active = false; };
+  }, [business.slug, pickedService, selectedBookingDate, capacityEnabled, normalizedAvailableSlots.join("|"), capacityRefreshTick]);
+
+  useEffect(() => {
+    if (!capacityEnabled || !supabaseUrl || !supabaseAnonKey) return undefined;
+    const refresh = () => setCapacityRefreshTick((value) => value + 1);
+    const handleVisibility = () => { if (document.visibilityState === "visible") refresh(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", handleVisibility);
+    const interval = window.setInterval(refresh, 30000);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.clearInterval(interval);
+    };
+  }, [capacityEnabled, business.slug, selectedBookingDate, pickedService]);
 
   const openServiceLink = (detail) => {
     const href = normalizeServiceLink(detail?.imageUrl);
@@ -5324,6 +5588,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
     try {
       const savedBooking = canPersistPublicBooking ? await onSaveBooking(booking) : { ...booking, id: `DEMO-${Date.now().toString().slice(-5)}` };
       setConfirmed(savedBooking);
+      setCapacityRefreshTick((value) => value + 1);
       setThryveTermsAcceptance({ terms: false, review: false, policy: false, starter: false });
       setThryveTermsError("");
       setThryveTermsReviewMode(false);
@@ -5502,7 +5767,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
 
   return (
     <main
-      className={`bookingPage premiumBookingPage ${bookingTone} package-${currentPackage.toLowerCase()}${isXtremeDancers ? " xtreme-dancers" : ""}${isThryveLab ? " thryvelab" : ""}`}
+      className={`bookingPage premiumBookingPage ${bookingTone} package-${currentPackage.toLowerCase()}${isXtremeDancers ? " xtreme-dancers" : ""}${isThryveLab ? " thryvelab" : ""}${isSwiftDiagnostic ? " swift-diagnostic" : ""}`}
       style={{
         "--booking-primary": business.primaryColor,
         "--booking-secondary": business.secondaryColor,
@@ -5556,7 +5821,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
             </div>
           </div>
           <div className="brandStory">
-            <span>{isHealthWellness ? (business.featureFlags?.wellnessHeroEyebrow || "EVERYDAY WELLNESS") : isOpticalClinic ? (business.featureFlags?.opticalHeroEyebrow || "OPTICAL CLINIC") : brandCategory}</span>
+            <span>{isSwiftDiagnostic ? "Medical Clinic & Diagnostic Services" : isHealthWellness ? (business.featureFlags?.wellnessHeroEyebrow || "EVERYDAY WELLNESS") : isOpticalClinic ? (business.featureFlags?.opticalHeroEyebrow || "OPTICAL CLINIC") : brandCategory}</span>
             {isHealthWellness && <strong className="wellnessHeroBusinessName">{business.business}</strong>}
             {isOpticalClinic && <strong className="opticalBusinessName">{business.business}</strong>}
             {isXtremeDancers && <strong className="xtremeBusinessName">{business.business}</strong>}
@@ -5564,7 +5829,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
             {isPestControl && <strong className="pestControlBusinessName">{business.business}</strong>}
             <h1>{isXtremeDancers ? "MOVE. LEARN. PERFORM." : isHealthWellness ? (business.featureFlags?.wellnessHeroTitle || "Find Your Everyday Balance") : isOpticalClinic ? "Clearer Vision. Better Everyday Living." : isRealEstate ? "Find a Property That Fits Your Next Move." : isPestControl ? "Protect Your Space. We'll Handle the Pests." : business.business}</h1>
             <i />
-            <p>{isXtremeDancers ? "Book your dance session online." : brandLine[0]}{brandLine[1] && !isXtremeDancers && <><br />{brandLine[1]}</>}</p>
+            <p>{isSwiftDiagnostic ? "Book diagnostic consultation and follow-up consultation appointments in Calinog, Iloilo." : isXtremeDancers ? "Book your dance session online." : brandLine[0]}{brandLine[1] && !isXtremeDancers && !isSwiftDiagnostic && <><br />{brandLine[1]}</>}</p>
             {isXtremeDancers && <>
               <div className="xtremeDays"><Clock size={15} /> MONDAY – SUNDAY <span>CLASSES &amp; STUDIO BOOKINGS</span></div>
               <a className="xtremeHeroCta" href="#xtreme-booking">BOOK A CLASS <ChevronRight size={18} /></a>
@@ -5725,6 +5990,9 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                   ? item === "XTREME STEPPER" ? Zap : item === "WEEKEND DANCE CLASS" ? Users : item === "PRIVATE CLASS" ? User : Building2
                   : resolveServiceIcon(item, business);
                 const ConsultantIcon = resolveConsultantServiceIcon(detail, business);
+                const serviceDescription = isSwiftDiagnostic && capacityEnabled && /price and duration require administrator configuration/i.test(String(detail.description || ""))
+                  ? "Select an hourly appointment window."
+                  : detail.description;
                 const isSelected = isXtremeDancers ? xtremePrimary === item : item === "WOW Personal Training"
                   ? thryveWowVariants.some((variant) => selectedServiceNames.includes(variant.name))
                   : selectedServiceNames.includes(item);
@@ -5820,7 +6088,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                       <span className={isConsultant ? "serviceIcon consultantPlanIcon" : "serviceIcon"}>{mediaUrl ? <img src={mediaUrl} alt="" /> : <ServiceIcon size={22} />}</span>
                       <strong>{detail.imageTitle || item}</strong>
                       {detail.imageCaption && <p className="serviceImageCaption">{detail.imageCaption}</p>}
-                      {detail.description && <p className="serviceDescription">{detail.description}</p>}
+                      {serviceDescription && <p className="serviceDescription">{serviceDescription}</p>}
                       {isDmonster && getDmonsterServiceContent(item).cardPrice && <small>{getDmonsterServiceContent(item).cardPrice}</small>}
                       {!isDmonster && flags.showPrices && (publicServiceMetaLabel(detail) || isProBeauty && "Contact for Price") && <small>{publicServiceMetaLabel(detail) || "Contact for Price"}</small>}
                       {isSelected && <em><Check size={16} /></em>}
@@ -6000,8 +6268,8 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
               {!isAccommodation && !isXtremeWeekendClass && !isXtremeFixedSchedule && (
                 <div className="premiumSlotGrid">
                   {slotLabel && <span className="slotGroupLabel">{slotLabel}</span>}
-                  {availableSlots.map((item) => (
-                    <button type="button" key={item} disabled={isBlockedDate} className={pickedSlot === item ? "premiumSlot active" : "premiumSlot"} onClick={() => setPickedSlot(item)}>{item}</button>
+                  {normalizedAvailableSlots.map((item) => (
+                    <button type="button" key={item} disabled={isBlockedDate || Boolean(slotCapacityMap[item]?.fully_booked)} className={`${pickedSlot === item ? "premiumSlot active" : "premiumSlot"}${slotCapacityMap[item]?.fully_booked ? " fullyBooked" : ""}${capacityEnabled ? " capacitySlot" : ""}`} onClick={() => setPickedSlot(item)}><strong>{item}</strong>{capacityEnabled && <small>{slotCapacityMap[item] ? (slotCapacityMap[item].fully_booked ? `${slotCapacityMap[item].booked} of ${slotCapacityMap[item].capacity} booked • Fully Booked` : `${slotCapacityMap[item].booked} of ${slotCapacityMap[item].capacity} booked • ${slotCapacityMap[item].remaining} slots available`) : slotCapacityMap[item] === null ? "Availability unavailable" : "Checking availability…"}</small>}</button>
                   ))}
                 </div>
               )}
@@ -6193,6 +6461,7 @@ function StandardBookingPrototype({ business: incomingBusiness, onBack, onSaveBo
                 {isAccommodation && <div><dt>Check-out</dt><dd>{formatBookingDate(confirmed.metadata?.check_out)}</dd></div>}
                 {isAccommodation && <div><dt>Nights</dt><dd>{confirmed.metadata?.number_of_nights || stayNights}</dd></div>}
                 <div><dt>{isAccommodation ? "Stay" : isToursTravel ? "Preferred Time" : "Time"}</dt><dd>{confirmed.slot}</dd></div>
+                {getAssignedCapacitySlot(confirmed) && <div><dt>Slot Number</dt><dd>{getAssignedCapacitySlot(confirmed).number} of {getAssignedCapacitySlot(confirmed).capacity}{confirmed.metadata?.test_booking ? " (DEMO / TEST BOOKING)" : ""}</dd></div>}
                 {(isToursTravel || isAccommodation) && <div><dt>Guests</dt><dd>{confirmed.metadata?.guest_count || guestCount}</dd></div>}
                 {isToursTravel && <div><dt>Pricing Type</dt><dd>{confirmed.metadata?.pricing_type || "FIXED"}</dd></div>}
                 {isToursTravel && confirmed.metadata?.selected_tier && <div><dt>Selected Group Rate</dt><dd>{confirmed.metadata.selected_tier.minGuests}-{confirmed.metadata.selected_tier.maxGuests} pax - {formatPeso(confirmed.metadata.selected_tier.price)}</dd></div>}
@@ -6618,6 +6887,7 @@ function SetupWizard({ onBack, onSaveSetup, onOpenClient }) {
     serviceEntries: emptyStructuredServices(),
     openDays: "Monday to Saturday",
     openHours: "9:00 AM to 6:00 PM",
+    businessOperatingHours: "9:00 AM to 6:00 PM",
     staff: "Ana - Hair color, hair treatment\nBea - Makeup appointment",
     rules: "15-minute buffer between bookings. Customers can reschedule up to 24 hours before.",
     questions: "Preferred staff\nAny notes before the appointment?",
@@ -7052,6 +7322,8 @@ function emptyAdminClient() {
     openDays: "Monday to Saturday",
     openHours: "9:00 AM to 6:00 PM",
     slotsText: slots.join(", "),
+    bookingSchedule: defaultBookingWindows,
+    bookingCapacity: { enabled: false, capacity: 1, intervalMinutes: 60 },
     featureFlags: { ...defaultFeatureFlags },
   };
 }
@@ -7063,6 +7335,7 @@ function businessToAdminClient(business) {
       : (business.services || []).map((service, index) => serviceRowToStructured({ name: service, displayOrder: index }, index)),
   );
   const serviceText = structuredServicesToLegacyText(serviceEntries, business.bookingTemplate);
+  const swiftBookingWindows = scheduleWeekdays.reduce((days, day) => ({ ...days, [day]: [{ start: "09:00", end: "17:00" }] }), {});
 
   return {
     businessName: business.business || "",
@@ -7095,7 +7368,10 @@ function businessToAdminClient(business) {
     serviceEntries,
     openDays: business.availability?.days || defaultAvailability.days,
     openHours: business.availability?.hours || defaultAvailability.hours,
+    businessOperatingHours: business.featureFlags?.businessOperatingHours || business.availability?.hours || defaultAvailability.hours,
     slotsText: (business.availability?.slots || slots).join(", "),
+    bookingSchedule: business.featureFlags?.bookingWindowsByDay || (business.slug === "swift-diagnostic-center" ? swiftBookingWindows : defaultBookingWindows),
+    bookingCapacity: business.featureFlags?.booking_capacity || (business.slug === "swift-diagnostic-center" ? { enabled: true, capacity: 8, intervalMinutes: 60 } : { enabled: false, capacity: 1, intervalMinutes: 60 }),
     featureFlags: { ...defaultFeatureFlags, ...(business.featureFlags || {}) },
   };
 }
@@ -7160,7 +7436,7 @@ function normalizeSmmOffers(row = {}) {
   };
 }
 
-function SmmMasterAdmin({ businesses, bookings, setupRequests = [], onBack, onRefresh, onSaveClient, onUpdateStatus, onPreview }) {
+function SmmMasterAdmin({ businesses, bookings, setupRequests = [], onBack, onRefresh, onSaveClient, onUpdateStatus, onPreview, ordersApi }) {
   const [authState, setAuthState] = useState("checking");
   const [adminSession, setAdminSession] = useState(null);
   const [adminRole, setAdminRole] = useState("");
@@ -7197,11 +7473,32 @@ function SmmMasterAdmin({ businesses, bookings, setupRequests = [], onBack, onRe
   });
   const [smmOffersToast, setSmmOffersToast] = useState("");
   const [adminSetupRequests, setAdminSetupRequests] = useState(setupRequests);
+  const [orderEntitlements, setOrderEntitlements] = useState({});
   const logoUploadRef = useRef(null);
   const coverUploadRef = useRef(null);
   const announcementUploadRef = useRef(null);
   const smmOfferOneUploadRef = useRef(null);
   const smmOfferTwoUploadRef = useRef(null);
+
+  useEffect(() => {
+    if (authState !== "authorized" || !adminSession?.access_token || !ordersApi) return;
+    Promise.all(businesses.map(async (business) => {
+      try {
+        const value = await supabaseRpcRequest("orders_access_enabled", { target_slug: business.slug }, adminSession.access_token);
+        return [business.slug, Boolean(Array.isArray(value) ? value[0] : value)];
+      } catch { return [business.slug, false]; }
+    })).then((entries) => setOrderEntitlements(Object.fromEntries(entries)));
+  }, [authState, adminSession, businesses, ordersApi]);
+
+  const toggleOrdersEntitlement = async (business) => {
+    if (!adminSession?.access_token) return;
+    const next = !Boolean(orderEntitlements[business.slug]);
+    try {
+      await supabaseRpcRequest("set_business_orders_entitlement", { target_slug: business.slug, enabled_value: next }, adminSession.access_token);
+      setOrderEntitlements((current) => ({ ...current, [business.slug]: next }));
+      setStatusMessage(`Orders ${next ? "enabled" : "disabled"} for ${business.business}.`);
+    } catch (error) { setStatusMessage(`Orders entitlement could not be updated: ${error.message}`); }
+  };
 
   useEffect(() => {
     if (authState !== "authorized" || !adminSession?.access_token) return;
@@ -7420,6 +7717,33 @@ function SmmMasterAdmin({ businesses, bookings, setupRequests = [], onBack, onRe
       serviceEntries: nextEntries,
       services: structuredServicesToLegacyText(nextEntries, current.bookingTemplate),
     }));
+  };
+
+  const updateBookingSchedule = (bookingSchedule) => {
+    const nextSchedule = scheduleWindowsFromForm(bookingSchedule);
+    const intervalMinutes = form.bookingCapacity?.intervalMinutes;
+    const capacityMode = Boolean(form.bookingCapacity?.enabled);
+    const scheduleSummary = scheduleWeekdays.filter((day) => nextSchedule[day].length).map((day) => nextSchedule[day].map((window) => `${window.start}-${window.end}`).join(", ")).filter(Boolean);
+    const nextEntries = normalizeStructuredServices(form.serviceEntries, 0).map((service) => ({
+      ...service,
+      schedule: scheduleWeekdays.reduce((result, day) => ({
+        ...result,
+        [day.toUpperCase()]: buildSlotsFromWindows(nextSchedule[day], capacityMode ? intervalMinutes : service.durationMinutes, intervalMinutes),
+      }), {}),
+    }));
+    setForm((current) => ({
+      ...current,
+      bookingSchedule: nextSchedule,
+      serviceEntries: nextEntries,
+      services: structuredServicesToLegacyText(nextEntries, current.bookingTemplate),
+      openDays: scheduleWeekdays.filter((day) => nextSchedule[day].length).join(", "),
+      openHours: scheduleSummary.length && scheduleSummary.every((summary) => summary === scheduleSummary[0]) ? scheduleSummary[0] : "Custom booking windows",
+      slotsText: Array.from(new Set(nextEntries.flatMap((service) => scheduleWeekdays.flatMap((day) => buildSlotsFromWindows(nextSchedule[day], capacityMode ? intervalMinutes : service.durationMinutes, intervalMinutes))))).join(", "),
+    }));
+  };
+
+  const updateBookingCapacity = (bookingCapacity) => {
+    setForm((current) => ({ ...current, bookingCapacity: { enabled: Boolean(bookingCapacity.enabled), capacity: Math.max(1, Number(bookingCapacity.capacity) || 1), intervalMinutes: Math.max(15, Number(bookingCapacity.intervalMinutes) || 60) } }));
   };
 
   const getFreshAdminSession = async () => {
@@ -7826,6 +8150,11 @@ function SmmMasterAdmin({ businesses, bookings, setupRequests = [], onBack, onRe
 
   const submitClient = async (event) => {
     event.preventDefault();
+    const scheduleError = validateBookingSchedule(form.bookingSchedule, form.businessOperatingHours);
+    if (scheduleError) {
+      setStatusMessage(scheduleError);
+      return;
+    }
     setSaving(true);
     setStatusMessage("");
     try {
@@ -8186,9 +8515,11 @@ After login, you will only see the bookings and features assigned to your busine
             <label>Background color<input name="pageBackgroundColor" type="color" value={form.pageBackgroundColor || "#FAF9FD"} onChange={updateForm} /></label>
             <label>Text color<input name="textColor" type="color" value={form.textColor || "#24213A"} onChange={updateForm} /></label>
             <label>Open days<input name="openDays" value={form.openDays} onChange={updateForm} /></label>
-            <label>Open hours<input name="openHours" value={form.openHours} onChange={updateForm} /></label>
+            <label>Business operating hours<input name="businessOperatingHours" value={form.businessOperatingHours} onChange={updateForm} placeholder="6:00 AM to 5:00 PM" /></label>
+            <label>Booking availability summary<input name="openHours" value={form.openHours} onChange={updateForm} placeholder="Configured in the windows below" /></label>
             <label>Time slots<input name="slotsText" value={form.slotsText} onChange={updateForm} /></label>
           </div>
+          <BookingScheduleEditor value={form.bookingSchedule} operatingHours={form.businessOperatingHours} services={form.serviceEntries} capacity={form.bookingCapacity} onChange={updateBookingSchedule} onCapacityChange={updateBookingCapacity} />
           <section className="brandingEditor">
             <div className="brandingCard">
               <div className="brandingCardHeader">
@@ -8624,14 +8955,14 @@ After login, you will only see the bookings and features assigned to your busine
               <h3>{currentClientAccess.some((item) => item.active) ? "Assigned" : "Not assigned"}</h3>
               {editingSlug ? (
                 <>
-                  <form className="smmInlineForm" onSubmit={assignClientAccess}>
+                  <div className="smmInlineForm">
                     <input value={accessForm.userId} onChange={(event) => setAccessForm((current) => ({ ...current, userId: event.target.value }))} placeholder="Auth User UUID" required />
                     <select value={accessForm.role} onChange={(event) => setAccessForm((current) => ({ ...current, role: event.target.value }))}>
                       <option>OWNER</option>
                       <option>STAFF</option>
                     </select>
-                    <button type="submit">Assign Client Access</button>
-                  </form>
+                    <button type="button" onClick={assignClientAccess}>Assign Client Access</button>
+                  </div>
                   <div className="smmAccessList">
                     {currentClientAccess.length ? currentClientAccess.map((item) => (
                       <article key={item.id}>
@@ -8734,6 +9065,7 @@ After login, you will only see the bookings and features assigned to your busine
                 <div className="smmClientLink">/{business.slug}</div>
                 <div className="smmClientControls">
                   <button onClick={() => onPreview(business.slug)}>Preview</button>
+                  <button type="button" onClick={() => toggleOrdersEntitlement(business)}>{orderEntitlements[business.slug] ? "Disable Orders" : "Enable Orders"}</button>
                   <button onClick={() => startEdit(business)}>Edit</button>
                   <button onClick={() => copyLink(business.slug)}>Copy Link</button>
                   <select value={business.status} onChange={(event) => changeStatus(business, event.target.value)}>
@@ -8918,6 +9250,15 @@ function ClientRecordsManual() {
   );
 }
 
+function ClientNavGroup({ title, expanded, onToggle, children }) {
+  return (
+    <div className={`clientNavGroup ${expanded ? "expanded" : "collapsed"}`}>
+      <button type="button" className="clientNavGroupToggle" aria-expanded={expanded} onClick={onToggle}>{title}<span aria-hidden="true">{expanded ? "−" : "+"}</span></button>
+      {expanded && <div className="clientNavGroupItems">{children}</div>}
+    </div>
+  );
+}
+
 function ClientDashboard({
   initialView,
   onBack,
@@ -8932,6 +9273,7 @@ function ClientDashboard({
   onSaveService,
   onDeleteService,
   onSaveAvailability,
+  onSaveBookingCapacity,
   onSaveBusinessProfile,
   onSaveBlockedDate,
   onSetBlockedDateActive,
@@ -8939,6 +9281,7 @@ function ClientDashboard({
   onSavePaymentMethod,
   onVerifyPayment,
   onRejectPayment,
+  ordersApi,
   smmOffers = null,
 }) {
   const [authState, setAuthState] = useState("checking");
@@ -8953,21 +9296,29 @@ function ClientDashboard({
   const [clientServiceRecords, setClientServiceRecords] = useState([]);
   const [clientServices, setClientServices] = useState([]);
   const [clientAvailability, setClientAvailability] = useState({ ...defaultAvailability });
+  const [bookingCapacityForm, setBookingCapacityForm] = useState({ enabled: false, capacity: 1 });
   const [blockedDates, setBlockedDates] = useState([]);
   const [paymentSettings, setPaymentSettings] = useState({ enabled: false, requirement_type: "NO_PAYMENT_REQUIRED", deposit_type: "FIXED_AMOUNT", deposit_value: 0 });
   const [paymentMethods, setPaymentMethods] = useState([]);
+  const [ordersEnabled, setOrdersEnabled] = useState(false);
   const [bookingPayments, setBookingPayments] = useState([]);
   const [meetingEmailStatuses, setMeetingEmailStatuses] = useState({});
   const meetingEmailTimers = useRef(new Map());
   const [activeTab, setActiveTab] = useState(initialView === "login" ? "dashboard" : "dashboard");
+  const [expandedNavGroups, setExpandedNavGroups] = useState({ booking: true, business: true, orders: true, account: true });
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpSearch, setHelpSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [sourceFilter, setSourceFilter] = useState("All");
+  const [bookingDateFilter, setBookingDateFilter] = useState("");
+  const [bookingDateFrom, setBookingDateFrom] = useState("");
+  const [bookingDateTo, setBookingDateTo] = useState("");
   const [inquirySearch, setInquirySearch] = useState("");
   const [inquiryStatusFilter, setInquiryStatusFilter] = useState("All");
   const [inquirySourceFilter, setInquirySourceFilter] = useState("All");
   const [selectedInquiry, setSelectedInquiry] = useState(null);
+  const [conversionInquiry, setConversionInquiry] = useState(null);
+  const [conversionSaving, setConversionSaving] = useState(false);
   const [clientRecordSearch, setClientRecordSearch] = useState("");
   const [clientRecordBranchFilter, setClientRecordBranchFilter] = useState("All Branches");
   const [selectedClientRecord, setSelectedClientRecord] = useState(null);
@@ -9007,6 +9358,7 @@ function ClientDashboard({
     internalNotes: "",
   };
   const [manualReservationOpen, setManualReservationOpen] = useState(false);
+  const [manualReservationSaving, setManualReservationSaving] = useState(false);
   const [manualReservationForm, setManualReservationForm] = useState(emptyManualReservationForm);
   const emptyInquiryForm = {
     id: "",
@@ -9032,6 +9384,18 @@ function ClientDashboard({
   const [clientServiceRecordForm, setClientServiceRecordForm] = useState(emptyClientServiceRecordForm);
   const [clientServiceRecordModalOpen, setClientServiceRecordModalOpen] = useState(false);
   const clientServiceSavePending = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!clientSession?.access_token || !selectedBusinessSlug || !ordersApi?.ordersAccess) {
+      setOrdersEnabled(false);
+      return undefined;
+    }
+    ordersApi.ordersAccess(selectedBusinessSlug, clientSession.access_token)
+      .then((value) => { if (!cancelled) setOrdersEnabled(Boolean(Array.isArray(value) ? value[0] : value)); })
+      .catch(() => { if (!cancelled) setOrdersEnabled(false); });
+    return () => { cancelled = true; };
+  }, [clientSession?.access_token, selectedBusinessSlug, ordersApi]);
 
   const loadMeetingEmailStatus = async (payment, options = {}) => {
     const businessSlug = options.businessSlug || selectedBusinessSlug;
@@ -9158,6 +9522,8 @@ function ClientDashboard({
       blocked_dates: blockedDateRows || [],
     }, paymentSettingsRow || null, paymentMethodRows || []));
     setClientBusiness(normalizedClientBusiness);
+    const savedCapacity = normalizedClientBusiness.featureFlags?.booking_capacity || normalizedClientBusiness.feature_flags?.booking_capacity || {};
+    setBookingCapacityForm({ enabled: Boolean(savedCapacity.enabled), capacity: Number(savedCapacity.capacity) > 0 ? Number(savedCapacity.capacity) : 1 });
     setProfileForm({
       businessName: normalizedClientBusiness.business || "",
       description: normalizedClientBusiness.description || "",
@@ -9667,6 +10033,30 @@ function ClientDashboard({
     }
   };
 
+  const submitBookingCapacity = async (event) => {
+    event.preventDefault();
+    const capacity = Number(bookingCapacityForm.capacity);
+    if (!Number.isInteger(capacity) || capacity < 1 || capacity > 999) {
+      setStatusMessage("Capacity must be a whole number from 1 to 999.");
+      return;
+    }
+    try {
+      await onSaveBookingCapacity({
+        target_slug: selectedBusinessSlug,
+        enabled_value: Boolean(bookingCapacityForm.enabled),
+        capacity_value: capacity,
+        interval_minutes_value: 60,
+      }, clientSession?.access_token);
+      setClientBusiness((current) => normalizeBusinessConfig({
+        ...current,
+        featureFlags: { ...(current?.featureFlags || {}), booking_capacity: { enabled: Boolean(bookingCapacityForm.enabled), capacity, intervalMinutes: 60 } },
+      }));
+      setStatusMessage("Booking slot capacity saved. The public booking page will use the updated limit.");
+    } catch (error) {
+      setStatusMessage(error.message || "Unable to save booking slot capacity.");
+    }
+  };
+
   const submitBusinessProfile = async (event) => {
     event.preventDefault();
     const notificationEmail = profileForm.notificationEmail.trim();
@@ -9917,13 +10307,22 @@ function ClientDashboard({
 
   const convertInquiry = async (inquiry) => {
     if (!inquiry?.id || inquiry.booking_id) return;
-    const items = inquiry.inquiry_items || [];
-    const firstItem = items[0];
-    const matchedServices = items.map((item) => availableManualServices.find((service) => service.id === item.service_id || service.name === item.item_name)).filter(Boolean);
-    const primaryService = matchedServices[0] || availableManualServices.find((service) => service.name === inquiry.service_interest) || null;
+    setConversionInquiry(inquiry);
+    setStatusMessage("");
+  };
+
+  const submitInquiryConversion = async ({ serviceId, bookingDate, bookingTime }) => {
+    const inquiry = conversionInquiry;
+    if (!inquiry?.id || inquiry.booking_id || conversionSaving) return;
+    const selectedService = availableManualServices.find((service) => service.id === serviceId);
+    if (!selectedService || !bookingDate || !bookingTime) {
+      setStatusMessage("Select a service, booking date, and available time before converting.");
+      return;
+    }
+    setConversionSaving(true);
     const bookingId = `SW-INQ-${Date.now().toString().slice(-7)}`;
-    const serviceName = getInquiryServiceSummary(inquiry);
-    const lineItems = (matchedServices.length ? matchedServices : firstItem ? [{ id: firstItem.service_id, name: firstItem.item_name, price: null }] : []).map((service, index) => {
+    const serviceName = selectedService.name;
+    const lineItems = [selectedService].map((service, index) => {
       const lineTotal = service.price === null || service.price === undefined || service.price === "" ? null : Number(service.price);
       return {
         id: `${bookingId}-item-${index + 1}`,
@@ -9941,6 +10340,16 @@ function ClientDashboard({
       : null;
     setStatusMessage("Converting inquiry to booking...");
     try {
+      const capacityResult = await supabaseRpcRequest("get_public_booking_capacity", {
+        business_slug_value: selectedBusinessSlug,
+        service_value: serviceName,
+        booking_date_value: bookingDate,
+        slot_value: bookingTime,
+      }, clientSession?.access_token);
+      const capacityRow = Array.isArray(capacityResult) ? capacityResult[0] : capacityResult;
+      if (capacityRow?.fully_booked || Number(capacityRow?.remaining_capacity) <= 0) {
+        throw new Error("The selected time is fully booked. Choose another available time.");
+      }
       await onConvertInquiryToBooking({
         inquiry_id_value: inquiry.id,
         booking_payload: {
@@ -9950,8 +10359,8 @@ function ClientDashboard({
           business: clientBusiness?.business || "",
           business_slug: selectedBusinessSlug,
           service: serviceName,
-          booking_date: inquiry.event_date || "",
-          slot: inquiry.event_time || "Inquiry only",
+          booking_date: bookingDate,
+          slot: bookingTime,
           note: inquiry.message || "",
           status: "CONFIRMED",
           estimated_total: estimatedTotal,
@@ -9969,11 +10378,14 @@ function ClientDashboard({
         items_payload: lineItems,
       }, clientSession?.access_token);
       await loadClientData(clientSession);
+      setConversionInquiry(null);
       setSelectedInquiry(null);
       setStatusMessage("Inquiry converted to booking.");
     } catch (error) {
       console.error("Inquiry conversion failed", error);
-      setStatusMessage(error.message || "Unable to convert inquiry.");
+      setStatusMessage(error.message || "Unable to convert inquiry. Check the selected service and available slot.");
+    } finally {
+      setConversionSaving(false);
     }
   };
 
@@ -9981,7 +10393,11 @@ function ClientDashboard({
     const statusMatch = filter === "All" || normalizeBookingStatusValue(booking.status) === normalizeBookingStatusValue(filter);
     const source = String(booking.metadata?.source || "online").toLowerCase();
     const sourceMatch = sourceFilter === "All" || source === sourceFilter.toLowerCase();
-    return statusMatch && sourceMatch;
+    const bookingDate = String(booking.booking_date || "").slice(0, 10);
+    const dateMatch = (!bookingDateFilter || bookingDate === bookingDateFilter)
+      && (!bookingDateFrom || bookingDate >= bookingDateFrom)
+      && (!bookingDateTo || bookingDate <= bookingDateTo);
+    return statusMatch && sourceMatch && dateMatch;
   });
   const filteredInquiries = clientInquiries.filter((inquiry) => {
     const haystack = `${inquiry.customer_name || ""} ${inquiry.phone || ""} ${inquiry.email || ""} ${getInquiryServiceSummary(inquiry)} ${inquiry.event_location || ""}`.toLowerCase();
@@ -9999,8 +10415,7 @@ function ClientDashboard({
   const pendingInquiryCount = clientInquiries.filter((inquiry) => normalizeInquiryStatusValue(inquiry.status) === "PENDING").length;
   const currentRole = businessUsers.find((item) => item.business_slug === selectedBusinessSlug)?.role || "OWNER";
   const capabilities = getPackageCapabilities(clientBusiness?.package, clientBusiness?.featureFlags);
-  const visibleSlotwiseUpdates = slotwiseUpdates
-    .sort((a, b) => new Date(b.published_at || b.created_at || 0) - new Date(a.published_at || a.created_at || 0));
+  const visibleSlotwiseUpdates = mergeSlotwiseUpdates(slotwiseUpdates);
   const lastUpdatesViewedAt = slotwiseUpdateRead?.last_viewed_at ? new Date(slotwiseUpdateRead.last_viewed_at).getTime() : 0;
   const unreadUpdatesCount = visibleSlotwiseUpdates.filter((update) => new Date(update.published_at || update.created_at || 0).getTime() > lastUpdatesViewedAt).length;
   const smmUpgradeHref = SMM_FACEBOOK_URL;
@@ -10159,6 +10574,14 @@ function ClientDashboard({
     });
     setManualReservationOpen(true);
   };
+
+  const toggleNavGroup = (group) => setExpandedNavGroups((current) => ({ ...current, [group]: !current[group] }));
+
+  useEffect(() => {
+    const groupByTab = { bookings: "booking", inquiries: "booking", reservationCalendar: "booking", bookingSlots: "booking", customers: "business", clients: "business", services: "business", schedule: "business", blockedDates: "business", orders: "orders", paymentSettings: "orders", updates: "account", packages: "account", account: "account", guide: "account" };
+    const group = groupByTab[activeTab];
+    if (group) setExpandedNavGroups((current) => current[group] ? current : { ...current, [group]: true });
+  }, [activeTab]);
 
   const openManualReservationForClient = (record) => {
     openManualReservation();
@@ -10441,6 +10864,8 @@ function ClientDashboard({
       selected_tier_snapshot: null,
       line_total: lineTotal,
     }];
+    if (manualReservationSaving) return;
+    setManualReservationSaving(true);
     setStatusMessage("Creating reservation...");
     try {
       await onCreateManualReservation({
@@ -10453,7 +10878,10 @@ function ClientDashboard({
       setStatusMessage("Reservation created successfully.");
     } catch (error) {
       console.error("Manual reservation create failed", error);
-      setStatusMessage("Unable to create reservation. Please try again.");
+      const message = error?.message || error?.details || "Unable to create reservation.";
+      setStatusMessage(message.includes("capacity") || message.includes("book") || message.includes("slot") ? message : `Unable to create reservation: ${message}`);
+    } finally {
+      setManualReservationSaving(false);
     }
   };
 
@@ -10466,16 +10894,18 @@ function ClientDashboard({
       clients: capabilities.clientRecords,
       services: capabilities.services,
       schedule: capabilities.schedule,
+      bookingSlots: true,
       reservationCalendar: capabilities.reservationCalendar,
       blockedDates: capabilities.blockedDates,
       paymentSettings: capabilities.paymentVerification,
+      orders: ordersEnabled,
       updates: true,
       packages: true,
       account: true,
       guide: true,
     };
     if (!tabAllowed[activeTab]) setActiveTab("dashboard");
-  }, [activeTab, capabilities.customers, capabilities.clientRecords, capabilities.services, capabilities.schedule, capabilities.reservationCalendar, capabilities.blockedDates, capabilities.paymentVerification]);
+  }, [activeTab, ordersEnabled, capabilities.customers, capabilities.clientRecords, capabilities.services, capabilities.schedule, capabilities.reservationCalendar, capabilities.blockedDates, capabilities.paymentVerification]);
 
   if (authState === "checking") {
     return (
@@ -10542,23 +10972,30 @@ function ClientDashboard({
               {businessUsers.map((item) => <option value={item.business_slug} key={item.id}>{item.business_slug}</option>)}
             </select>
           )}
-          <button className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}>Dashboard</button>
-          <button className={activeTab === "bookings" ? "active" : ""} onClick={() => setActiveTab("bookings")}>{isClientToursTravel ? "Reservations" : "Bookings / Requests"}</button>
-          <button className={activeTab === "inquiries" ? "active" : ""} onClick={() => setActiveTab("inquiries")}><MessageSquare size={16} /> Inquiries</button>
-          {capabilities.customers && <button className={activeTab === "customers" ? "active" : ""} onClick={() => setActiveTab("customers")}>{isClientToursTravel ? "Guests / Customers" : "Customers"}</button>}
-          {capabilities.clientRecords && <button className={activeTab === "clients" ? "active" : ""} onClick={() => setActiveTab("clients")}><Users size={16} /> Clients <span className="customAddonMark" title="Custom Add-on" aria-label="Custom Add-on">✦</span></button>}
-          {capabilities.services && <button className={activeTab === "services" ? "active" : ""} onClick={() => setActiveTab("services")}>{isClientToursTravel ? "Tour Packages" : "Services"}</button>}
-          {capabilities.schedule && <button className={activeTab === "schedule" ? "active" : ""} onClick={() => setActiveTab("schedule")}>{isClientToursTravel ? "Availability" : "Schedule"}</button>}
-          {capabilities.reservationCalendar && <button className={activeTab === "reservationCalendar" ? "active" : ""} onClick={() => setActiveTab("reservationCalendar")}><CalendarDays size={16} /> Reservation Calendar</button>}
-          {capabilities.blockedDates && <button className={activeTab === "blockedDates" ? "active" : ""} onClick={() => setActiveTab("blockedDates")}>Blocked Dates</button>}
-          {capabilities.paymentVerification && <button className={activeTab === "paymentSettings" ? "active" : ""} onClick={() => setActiveTab("paymentSettings")}>Payment Settings</button>}
-          <button className={activeTab === "updates" ? "active" : ""} onClick={() => setActiveTab("updates")}>
-            <Info size={16} /> Updates {unreadUpdatesCount > 0 && <span className="updatesNavBadge">{unreadUpdatesCount}</span>}
-          </button>
-          <button className={activeTab === "packages" ? "active" : ""} onClick={() => setActiveTab("packages")}><BadgeDollarSign size={16} /> Packages</button>
-          <button className={activeTab === "account" ? "active" : ""} onClick={() => setActiveTab("account")}>Account</button>
-          <button className={activeTab === "guide" ? "active" : ""} onClick={() => setActiveTab("guide")}><CircleHelp size={16} /> Help &amp; Guide</button>
-          <button onClick={logoutClient}>Logout</button>
+          <button type="button" className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}><LayoutDashboard size={16} /> Dashboard</button>
+          <ClientNavGroup title="Booking Management" expanded={expandedNavGroups.booking} onToggle={() => toggleNavGroup("booking")}>
+            <button type="button" className={activeTab === "bookings" ? "active" : ""} onClick={() => setActiveTab("bookings")}><CalendarCheck size={16} /> {isClientToursTravel ? "Reservations" : "Bookings / Requests"}</button>
+            <button type="button" className={activeTab === "inquiries" ? "active" : ""} onClick={() => setActiveTab("inquiries")}><MessageSquare size={16} /> Inquiries</button>
+            {capabilities.reservationCalendar && <button type="button" className={activeTab === "reservationCalendar" ? "active" : ""} onClick={() => setActiveTab("reservationCalendar")}><CalendarDays size={16} /> Reservation Calendar</button>}
+            <button type="button" className={activeTab === "bookingSlots" ? "active" : ""} onClick={() => setActiveTab("bookingSlots")}><Clock3 size={16} /> Booking Slots</button>
+          </ClientNavGroup>
+          <ClientNavGroup title="Business Management" expanded={expandedNavGroups.business} onToggle={() => toggleNavGroup("business")}>
+            {capabilities.customers && <button type="button" className={activeTab === "customers" ? "active" : ""} onClick={() => setActiveTab("customers")}><Users size={16} /> {isClientToursTravel ? "Guests / Customers" : "Customers"}</button>}
+            {capabilities.services && <button type="button" className={activeTab === "services" ? "active" : ""} onClick={() => setActiveTab("services")}><BriefcaseBusiness size={16} /> {isClientToursTravel ? "Tour Packages" : "Services"}</button>}
+            {capabilities.schedule && <button type="button" className={activeTab === "schedule" ? "active" : ""} onClick={() => setActiveTab("schedule")}><CalendarClock size={16} /> {isClientToursTravel ? "Availability" : "Schedule"}</button>}
+            {capabilities.blockedDates && <button type="button" className={activeTab === "blockedDates" ? "active" : ""} onClick={() => setActiveTab("blockedDates")}><CalendarOff size={16} /> Blocked Dates</button>}
+          </ClientNavGroup>
+          {ordersEnabled && <ClientNavGroup title="Orders & Payments" expanded={expandedNavGroups.orders} onToggle={() => toggleNavGroup("orders")}>
+            <button type="button" className={activeTab === "orders" ? "active" : ""} onClick={() => setActiveTab("orders")}><ShoppingBag size={16} /> Orders</button>
+            {capabilities.paymentVerification && <button type="button" className={activeTab === "paymentSettings" ? "active" : ""} onClick={() => setActiveTab("paymentSettings")}><CreditCard size={16} /> Payment Settings</button>}
+          </ClientNavGroup>}
+          <ClientNavGroup title="Account & Support" expanded={expandedNavGroups.account} onToggle={() => toggleNavGroup("account")}>
+            <button type="button" className={activeTab === "updates" ? "active" : ""} onClick={() => setActiveTab("updates")}><Bell size={16} /> Updates {unreadUpdatesCount > 0 && <span className="updatesNavBadge">{unreadUpdatesCount}</span>}</button>
+            <button type="button" className={activeTab === "packages" ? "active" : ""} onClick={() => setActiveTab("packages")}><Package size={16} /> Packages</button>
+            <button type="button" className={activeTab === "account" ? "active" : ""} onClick={() => setActiveTab("account")}><UserRound size={16} /> Account</button>
+            <button type="button" className={activeTab === "guide" ? "active" : ""} onClick={() => setActiveTab("guide")}><CircleHelp size={16} /> Help &amp; Guide</button>
+          </ClientNavGroup>
+          <button type="button" className="clientLogoutButton" onClick={logoutClient}><User size={16} /> Logout</button>
         </aside>
 
         <section className="clientDashboardContent">
@@ -10593,6 +11030,8 @@ function ClientDashboard({
             </>
           )}
 
+          {activeTab === "orders" && <OrdersDashboardPanel businessSlug={selectedBusinessSlug} accessToken={clientSession?.access_token} api={ordersApi} />}
+
           {activeTab === "bookings" && (
             <>
               <div className="clientDashboardHeader">
@@ -10614,6 +11053,12 @@ function ClientDashboard({
                   ))}
                 </div>
               )}
+              <div className="clientFilterRow bookingDateFilterRow" aria-label="Booking date filters">
+                <label>Specific date<input type="date" value={bookingDateFilter} onChange={(event) => { setBookingDateFilter(event.target.value); setBookingDateFrom(""); setBookingDateTo(""); }} /></label>
+                <label>From<input type="date" value={bookingDateFrom} onChange={(event) => { setBookingDateFrom(event.target.value); setBookingDateFilter(""); }} /></label>
+                <label>To<input type="date" value={bookingDateTo} min={bookingDateFrom || undefined} onChange={(event) => { setBookingDateTo(event.target.value); setBookingDateFilter(""); }} /></label>
+                {(bookingDateFilter || bookingDateFrom || bookingDateTo) && <button type="button" onClick={() => { setBookingDateFilter(""); setBookingDateFrom(""); setBookingDateTo(""); }}>Clear dates</button>}
+              </div>
               <BookingList bookings={filteredBookings} onSelect={setSelectedBooking} onStatusChange={updateStatus} onDelete={deleteBooking} />
             </>
           )}
@@ -10953,6 +11398,30 @@ function ClientDashboard({
             </section>
           )}
 
+          {activeTab === "bookingSlots" && (
+            <section className="clientCapacityPanel">
+              <div className="clientDashboardHeader">
+                <div>
+                  <p className="eyebrow">Booking Slots</p>
+                  <h2>Manage hourly booking capacity</h2>
+                  <p>Set the maximum number of bookings allowed in each existing time slot. This does not change your weekly schedule or service durations.</p>
+                </div>
+              </div>
+              <form className="clientManagementForm" onSubmit={submitBookingCapacity}>
+                <label className="clientToggleField"><input type="checkbox" checked={bookingCapacityForm.enabled} onChange={(event) => setBookingCapacityForm((current) => ({ ...current, enabled: event.target.checked }))} /> Enable shared slot capacity</label>
+                <label>Maximum bookings per slot<input type="number" min="1" max="999" step="1" value={bookingCapacityForm.capacity} onChange={(event) => setBookingCapacityForm((current) => ({ ...current, capacity: event.target.value }))} required /></label>
+                <label>Booking interval<input value="60 minutes" readOnly aria-describedby="booking-slots-interval-note" /></label>
+                <p id="booking-slots-interval-note" className="clientFormHint">The current booking system supports a fixed 60-minute interval here. Existing schedules and bookings are preserved.</p>
+                <button type="submit" className="clientPrimaryButton">Save Booking Slots</button>
+              </form>
+              <div className="clientCapacitySummary">
+                <strong>Current setting</strong>
+                <span>{bookingCapacityForm.enabled ? `${bookingCapacityForm.capacity} bookings per slot` : "Capacity limits are disabled"}</span>
+                <small>Live occupied and remaining counts appear on the public booking page for businesses with capacity enabled.</small>
+              </div>
+            </section>
+          )}
+
           {activeTab === "reservationCalendar" && capabilities.reservationCalendar && (
             <ReservationCalendar
               bookings={clientBookings}
@@ -11219,6 +11688,7 @@ function ClientDashboard({
               isPestControl={isClientPestControl}
               onSelectCustomer={selectManualCustomer}
               onSubmit={submitManualReservation}
+              saving={manualReservationSaving}
               onClose={() => setManualReservationOpen(false)}
             />
           )}
@@ -11271,6 +11741,17 @@ function ClientDashboard({
               onClose={() => setSelectedInquiry(null)}
               onStatusChange={updateInquiryStatus}
               onConvert={convertInquiry}
+            />
+          )}
+
+          {conversionInquiry && (
+            <InquiryConversionModal
+              inquiry={conversionInquiry}
+              services={availableManualServices}
+              availability={clientAvailability}
+              saving={conversionSaving}
+              onClose={() => setConversionInquiry(null)}
+              onSubmit={submitInquiryConversion}
             />
           )}
 
@@ -11344,6 +11825,7 @@ function ClientDashboard({
                 {selectedBookingTotal !== null && <p className="bookingItemsTotal"><span>Estimated Total</span><em>{formatPeso(selectedBookingTotal)}</em></p>}
               </div>
               <p><strong>{isClientAccommodation ? "Check-in" : isClientToursTravel ? "Travel Date" : "Date"}:</strong> {isClientAccommodation ? formatBookingDate(selectedBooking.metadata?.check_in || selectedBooking.booking_date) : selectedBooking.booking_date || "Not required"}</p>
+              {getAssignedCapacitySlot(selectedBooking) && <p><strong>Slot Number:</strong> {getAssignedCapacitySlot(selectedBooking).number} of {getAssignedCapacitySlot(selectedBooking).capacity}{selectedBooking.metadata?.test_booking ? " (DEMO / TEST BOOKING)" : ""}</p>}
               {isClientAccommodation && <p><strong>Check-out:</strong> {formatBookingDate(selectedBooking.metadata?.check_out)}</p>}
               {isClientToursTravel && selectedBooking.metadata?.travel_end_date && <p><strong>Return / End of Desired Tour:</strong> {formatBookingDate(selectedBooking.metadata.travel_end_date)}</p>}
               {isClientToursTravel && selectedBooking.metadata?.selected_departure && <p><strong>Selected Departure:</strong> {departureDateLabel(selectedBooking.metadata.selected_departure)}</p>}
@@ -11592,6 +12074,49 @@ function InquiryDetailsModal({ inquiry, bookings = [], onEdit, onClose, onStatus
   );
 }
 
+function InquiryConversionModal({ inquiry, services = [], availability = {}, saving = false, onClose, onSubmit }) {
+  const inquiryService = (inquiry.inquiry_items || [])[0]?.service_id;
+  const initialService = services.some((service) => service.id === inquiryService) ? inquiryService : "";
+  const slotOptions = Array.isArray(availability.slots) ? availability.slots.filter(Boolean) : [];
+  const [form, setForm] = useState({ serviceId: initialService, bookingDate: inquiry.event_date || "", bookingTime: slotOptions.includes(inquiry.event_time) ? inquiry.event_time : "" });
+
+  const submit = (event) => {
+    event.preventDefault();
+    onSubmit(form);
+  };
+
+  return (
+    <div className="clientBookingDetailsBackdrop" onMouseDown={(event) => event.target === event.currentTarget && !saving && onClose()}>
+      <section className="clientBookingDetails inquiryConversionModal" role="dialog" aria-modal="true" aria-label="Convert inquiry to booking">
+        <p className="eyebrow">Convert Inquiry</p>
+        <h2>Choose the confirmed booking details</h2>
+        <p>Customer information from this inquiry will be carried into the booking. Select an actual service, date, and time before continuing.</p>
+        <form className="clientManagementForm" onSubmit={submit}>
+          <label>Service
+            <select value={form.serviceId} onChange={(event) => setForm((current) => ({ ...current, serviceId: event.target.value }))} required>
+              <option value="">Select a service</option>
+              {services.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}
+            </select>
+          </label>
+          <label>Booking date<input type="date" value={form.bookingDate} min={getTodayDateValue()} onChange={(event) => setForm((current) => ({ ...current, bookingDate: event.target.value }))} required /></label>
+          <label>Available time
+            {slotOptions.length ? (
+              <select value={form.bookingTime} onChange={(event) => setForm((current) => ({ ...current, bookingTime: event.target.value }))} required>
+                <option value="">Select a time</option>
+                {slotOptions.map((slot) => <option key={slot} value={slot}>{slot}</option>)}
+              </select>
+            ) : <input type="time" value={form.bookingTime} onChange={(event) => setForm((current) => ({ ...current, bookingTime: event.target.value }))} required />}
+          </label>
+          <div className="manualReservationActions">
+            <button type="button" onClick={onClose} disabled={saving}>Cancel</button>
+            <button type="submit" className="clientPrimaryButton" disabled={saving || !form.serviceId || !form.bookingDate || !form.bookingTime}>{saving ? "Converting..." : "Convert to Booking"}</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
 function ManualReservationModal({
   form,
   setForm,
@@ -11607,6 +12132,7 @@ function ManualReservationModal({
   isPestControl,
   onSelectCustomer,
   onSubmit,
+  saving = false,
   onClose,
 }) {
   const customerOptions = customers.map((customer) => ({
@@ -11631,7 +12157,7 @@ function ManualReservationModal({
           </div>
           <button type="button" onClick={onClose}>Cancel</button>
         </div>
-        <form className="manualReservationForm" onSubmit={onSubmit}>
+          <form className="manualReservationForm" onSubmit={onSubmit}>
           <section>
             <h3><span>1</span> Customer</h3>
             <div className="manualToggleRow">
@@ -11713,7 +12239,7 @@ function ManualReservationModal({
 
           <div className="manualReservationActions">
             <button type="button" onClick={onClose}>Cancel</button>
-            <button type="submit" className="clientPrimaryButton"><Plus size={16} /> Create Reservation</button>
+            <button type="submit" className="clientPrimaryButton" disabled={saving}>{saving ? "Creating..." : <><Plus size={16} /> Create Reservation</>}</button>
           </div>
         </form>
       </section>
