@@ -362,9 +362,11 @@ function formatReadableDate(value) {
 
 function formatUpdateDate(value) {
   if (!value) return "";
-  const date = new Date(value);
+  // Updates are dated by their published calendar day, not by the viewer's timezone.
+  const calendarDate = String(value).match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
+  const date = new Date(calendarDate ? `${calendarDate}T00:00:00` : value);
   if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
-  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+  return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
 function isBusinessOpen24Hours(availability = {}) {
@@ -11399,26 +11401,30 @@ function ClientDashboard({
           )}
 
           {activeTab === "bookingSlots" && (
-            <section className="clientCapacityPanel">
-              <div className="clientDashboardHeader">
+            <section className="clientCapacityPanel" aria-labelledby="booking-slots-title">
+              <header className="clientCapacityHeader">
+                <div className="clientCapacityIcon" aria-hidden="true"><CalendarClock size={20} strokeWidth={2} /></div>
                 <div>
                   <p className="eyebrow">Booking Slots</p>
-                  <h2>Manage hourly booking capacity</h2>
-                  <p>Set the maximum number of bookings allowed in each existing time slot. This does not change your weekly schedule or service durations.</p>
+                  <h2 id="booking-slots-title">Manage hourly booking capacity</h2>
+                  <p>Control how many customers can book each existing time slot.</p>
                 </div>
-              </div>
-              <form className="clientManagementForm" onSubmit={submitBookingCapacity}>
-                <label className="clientToggleField"><input type="checkbox" checked={bookingCapacityForm.enabled} onChange={(event) => setBookingCapacityForm((current) => ({ ...current, enabled: event.target.checked }))} /> Enable shared slot capacity</label>
-                <label>Maximum bookings per slot<input type="number" min="1" max="999" step="1" value={bookingCapacityForm.capacity} onChange={(event) => setBookingCapacityForm((current) => ({ ...current, capacity: event.target.value }))} required /></label>
-                <label>Booking interval<input value="60 minutes" readOnly aria-describedby="booking-slots-interval-note" /></label>
-                <p id="booking-slots-interval-note" className="clientFormHint">The current booking system supports a fixed 60-minute interval here. Existing schedules and bookings are preserved.</p>
-                <button type="submit" className="clientPrimaryButton">Save Booking Slots</button>
+              </header>
+              <form className="clientCapacityForm" onSubmit={submitBookingCapacity}>
+                <div className="clientCapacityFields">
+                  <label className="clientCapacityToggle">
+                    <span className="clientCapacityToggleControl"><input type="checkbox" checked={bookingCapacityForm.enabled} onChange={(event) => setBookingCapacityForm((current) => ({ ...current, enabled: event.target.checked }))} /><span className="clientCapacitySwitch" aria-hidden="true" /></span>
+                    <span><strong>Enable capacity limits</strong><small>Share one capacity across each hourly slot.</small></span>
+                  </label>
+                  <div className="clientCapacityGrid">
+                    <label className="clientCapacityField"><span>Maximum bookings</span><input type="number" min="1" max="999" step="1" value={bookingCapacityForm.capacity} onChange={(event) => setBookingCapacityForm((current) => ({ ...current, capacity: event.target.value }))} required /><small>Customers allowed per slot</small></label>
+                    <label className="clientCapacityField"><span>Booking interval</span><input value="60 minutes" readOnly aria-describedby="booking-slots-interval-note" /><small>Fixed by the current booking system</small></label>
+                  </div>
+                </div>
+                <div id="booking-slots-interval-note" className="clientCapacityInfo"><Clock3 size={17} aria-hidden="true" /><p>Capacity settings apply to your existing schedule and service durations. Changing this setting will not alter your weekly availability or existing bookings.</p></div>
+                <div className="clientCapacitySummary"><div><span>Current setting</span><strong>{bookingCapacityForm.enabled ? `${bookingCapacityForm.capacity} bookings per slot` : "Capacity limits are disabled"}</strong></div><small>Live occupied and remaining counts appear on the public booking page when capacity is enabled.</small></div>
+                <footer className="clientCapacityFooter"><button type="submit" className="clientPrimaryButton">Save Booking Slots</button></footer>
               </form>
-              <div className="clientCapacitySummary">
-                <strong>Current setting</strong>
-                <span>{bookingCapacityForm.enabled ? `${bookingCapacityForm.capacity} bookings per slot` : "Capacity limits are disabled"}</span>
-                <small>Live occupied and remaining counts appear on the public booking page for businesses with capacity enabled.</small>
-              </div>
             </section>
           )}
 

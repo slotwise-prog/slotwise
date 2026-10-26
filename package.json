@@ -1,7 +1,8 @@
 {
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5176 --strictPort",
-    "build": "vite build"
+    "build": "vite build",
+    "test:updates": "node scripts/check-updates.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

@@ -733,6 +733,79 @@
   box-shadow: 0 24px 70px rgba(32, 24, 44, 0.12);
 }
 
+/* Booking Slots settings panel: keep capacity controls distinct from generic management forms. */
+.clientCapacityPanel {
+  max-width: 900px;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid #e2e8f4;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(38, 63, 112, 0.07);
+}
+
+.clientCapacityHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #edf1f8;
+}
+
+.clientCapacityIcon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  color: #1769aa;
+  border: 1px solid #cfe2f5;
+  border-radius: 10px;
+  background: #f1f8fe;
+}
+
+.clientCapacityHeader .eyebrow { margin: 0 0 4px; color: #1769aa; }
+.clientCapacityHeader h2 { margin: 0; font-size: clamp(23px, 3vw, 30px); }
+.clientCapacityHeader p:last-child { margin: 6px 0 0; color: #65718b; font-size: 14px; }
+
+.clientCapacityForm { display: grid; gap: 18px; margin-top: 20px; }
+.clientCapacityFields { display: grid; gap: 18px; }
+.clientCapacityToggle { display: flex; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; }
+.clientCapacityToggle input { position: absolute; opacity: 0; pointer-events: none; }
+.clientCapacityToggleControl { position: relative; display: inline-flex; flex: 0 0 auto; }
+.clientCapacitySwitch { width: 42px; height: 24px; border-radius: 999px; background: #cbd5e5; transition: background .16s ease; }
+.clientCapacitySwitch::after { content: ""; display: block; width: 18px; height: 18px; margin: 3px; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 3px rgba(20, 35, 66, .22); transition: transform .16s ease; }
+.clientCapacityToggle input:checked + .clientCapacitySwitch { background: #1769aa; }
+.clientCapacityToggle input:checked + .clientCapacitySwitch::after { transform: translateX(18px); }
+.clientCapacityToggle input:focus-visible + .clientCapacitySwitch { outline: 3px solid rgba(23, 105, 170, .22); outline-offset: 2px; }
+.clientCapacityToggle strong, .clientCapacityToggle small { display: block; }
+.clientCapacityToggle strong { color: #183247; font-size: 15px; }
+.clientCapacityToggle small { margin-top: 3px; color: #6c7890; font-size: 13px; }
+
+.clientCapacityGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.clientCapacityField { display: grid; gap: 7px; color: #263957; font-size: 14px; font-weight: 700; }
+.clientCapacityField input { width: 100%; min-height: 44px; box-sizing: border-box; border: 1px solid #d8e1ef; border-radius: 9px; padding: 0 12px; color: #183247; background: #ffffff; font: inherit; }
+.clientCapacityField input:read-only { color: #56657d; background: #f7f9fc; }
+.clientCapacityField input:focus-visible { outline: 3px solid rgba(23, 105, 170, .18); border-color: #1769aa; }
+.clientCapacityField small { color: #6c7890; font-size: 12px; font-weight: 400; }
+
+.clientCapacityInfo { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid #dceaf5; border-radius: 10px; color: #31516d; background: #f5fafe; }
+.clientCapacityInfo svg { flex: 0 0 auto; margin-top: 1px; color: #1769aa; }
+.clientCapacityInfo p { margin: 0; font-size: 13px; line-height: 1.55; }
+.clientCapacitySummary { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 0 2px; }
+.clientCapacitySummary div { display: grid; gap: 4px; }
+.clientCapacitySummary span { color: #6c7890; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.clientCapacitySummary strong { color: #183247; font-size: 16px; }
+.clientCapacitySummary small { max-width: 360px; color: #6c7890; font-size: 12px; line-height: 1.5; text-align: right; }
+.clientCapacityFooter { display: flex; justify-content: flex-end; padding-top: 16px; border-top: 1px solid #edf1f8; }
+
+@media (max-width: 600px) {
+  .clientCapacityPanel { padding: 16px; }
+  .clientCapacityGrid { grid-template-columns: 1fr; }
+  .clientCapacitySummary { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .clientCapacitySummary small { max-width: none; text-align: left; }
+  .clientCapacityFooter .clientPrimaryButton { width: 100%; }
+}
+
 .premiumBookingPage .brandMark {
   width: clamp(58px, 7vw, 76px);
   border-radius: 18px;
